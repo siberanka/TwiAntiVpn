@@ -32,11 +32,22 @@ import java.util.HashMap;
 @Plugin(
         id="twiantivpn",
         name="TwiAntiVpn",
-        version="2026.07.09.5",
+        version="2026.07.09.6",
         url="https://github.com/siberanka",
         authors = {"gerolndnr", "siberanka"}
 )
 public class ConnectionGuardVelocityPlugin {
+    private static final String OKHTTP_VERSION = "4.12.0";
+    private static final String OKIO_VERSION = "3.6.0";
+    private static final String KOTLIN_VERSION = "1.9.10";
+    private static final String GSON_VERSION = "2.11.0";
+    private static final String BSTATS_VERSION = "3.0.2";
+    private static final String SQLITE_VERSION = "3.46.0.0";
+    private static final String JEDIS_VERSION = "5.0.0";
+    private static final String SLF4J_VERSION = "1.7.36";
+    private static final String COMMONS_POOL_VERSION = "2.11.1";
+    private static final String JSON_VERSION = "20230618";
+
     private final ProxyServer proxyServer;
     private final Logger logger;
     private final Path dataDirectory;
@@ -71,12 +82,12 @@ public class ConnectionGuardVelocityPlugin {
         Library httpLibrary = Library.builder()
                 .groupId("com.squareup.okhttp3")
                 .artifactId("okhttp")
-                .version("4.12.0")
+                .version(OKHTTP_VERSION)
                 .build();
         Library gsonLibrary = Library.builder()
                 .groupId("com.google.code.gson")
                 .artifactId("gson")
-                .version("2.11.0")
+                .version(GSON_VERSION)
                 .relocate("com{}google{}gson", "com{}siberanka{}twiantivpn{}libs{}com{}google{}gson")
                 .build();
         Library bstatsLibrary = Library.builder()
@@ -85,14 +96,16 @@ public class ConnectionGuardVelocityPlugin {
                 // here, but not for libraries like gson.
                 .groupId("org#bstats".replaceAll("#", "."))
                 .artifactId("bstats-velocity")
-                .version("3.0.2")
+                .version(BSTATS_VERSION)
                 .relocate("org{}bstats", "com{}siberanka{}twiantivpn{}libs{}org{}bstats")
                 .build();
 
         libraryManager.addMavenCentral();
         libraryManager.loadLibrary(boostedYamlLibrary);
+        loadHttpRuntimeLibraries(libraryManager);
         libraryManager.loadLibrary(httpLibrary);
         libraryManager.loadLibrary(gsonLibrary);
+        loadBStatsRuntimeLibraries(libraryManager);
         libraryManager.loadLibrary(bstatsLibrary);
 
         // 3. Create and load configs
@@ -105,8 +118,9 @@ public class ConnectionGuardVelocityPlugin {
                 Library sqliteLibrary = Library.builder()
                         .groupId("org.xerial")
                         .artifactId("sqlite-jdbc")
-                        .version("3.46.0.0")
+                        .version(SQLITE_VERSION)
                         .build();
+                loadSQLiteRuntimeLibraries(libraryManager);
                 libraryManager.loadLibrary(sqliteLibrary);
                 ConnectionGuard.setCacheProvider(new SQLiteCacheProvider(new File(dataDirectory.toFile(), "cache.db").getAbsolutePath()));
                 break;
@@ -114,8 +128,10 @@ public class ConnectionGuardVelocityPlugin {
                 Library jedisLibrary = Library.builder()
                         .groupId("redis.clients")
                         .artifactId("jedis")
-                        .version("5.0.0")
+                        .version(JEDIS_VERSION)
+                        .relocate("com{}google{}gson", "com{}siberanka{}twiantivpn{}libs{}com{}google{}gson")
                         .build();
+                loadRedisRuntimeLibraries(libraryManager);
                 libraryManager.loadLibrary(jedisLibrary);
                 ConnectionGuard.setCacheProvider(
                         new RedisCacheProvider(
@@ -244,6 +260,44 @@ public class ConnectionGuardVelocityPlugin {
             }
         }
         ConnectionGuard.setGeoProviders(geoProviders);
+    }
+
+    private void loadHttpRuntimeLibraries(VelocityLibraryManager<ConnectionGuardVelocityPlugin> libraryManager) {
+        libraryManager.loadLibrary(library("org.jetbrains", "annotations", "13.0"));
+        libraryManager.loadLibrary(library("org.jetbrains.kotlin", "kotlin-stdlib-common", KOTLIN_VERSION));
+        libraryManager.loadLibrary(library("org.jetbrains.kotlin", "kotlin-stdlib", KOTLIN_VERSION));
+        libraryManager.loadLibrary(library("org.jetbrains.kotlin", "kotlin-stdlib-jdk7", KOTLIN_VERSION));
+        libraryManager.loadLibrary(library("org.jetbrains.kotlin", "kotlin-stdlib-jdk8", KOTLIN_VERSION));
+        libraryManager.loadLibrary(library("com.squareup.okio", "okio-jvm", OKIO_VERSION));
+    }
+
+    private void loadBStatsRuntimeLibraries(VelocityLibraryManager<ConnectionGuardVelocityPlugin> libraryManager) {
+        libraryManager.loadLibrary(
+                Library.builder()
+                        .groupId("org#bstats".replaceAll("#", "."))
+                        .artifactId("bstats-base")
+                        .version(BSTATS_VERSION)
+                        .relocate("org{}bstats", "com{}siberanka{}twiantivpn{}libs{}org{}bstats")
+                        .build()
+        );
+    }
+
+    private void loadSQLiteRuntimeLibraries(VelocityLibraryManager<ConnectionGuardVelocityPlugin> libraryManager) {
+        libraryManager.loadLibrary(library("org.slf4j", "slf4j-api", SLF4J_VERSION));
+    }
+
+    private void loadRedisRuntimeLibraries(VelocityLibraryManager<ConnectionGuardVelocityPlugin> libraryManager) {
+        libraryManager.loadLibrary(library("org.slf4j", "slf4j-api", SLF4J_VERSION));
+        libraryManager.loadLibrary(library("org.apache.commons", "commons-pool2", COMMONS_POOL_VERSION));
+        libraryManager.loadLibrary(library("org.json", "json", JSON_VERSION));
+    }
+
+    private Library library(String groupId, String artifactId, String version) {
+        return Library.builder()
+                .groupId(groupId)
+                .artifactId(artifactId)
+                .version(version)
+                .build();
     }
 
     public Logger getLogger() {

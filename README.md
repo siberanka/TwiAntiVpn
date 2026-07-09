@@ -2,7 +2,7 @@
 
 TwiAntiVpn is a VPN/proxy and geo-blocking plugin for Spigot/Paper, BungeeCord and Velocity.
 
-Version format: `YYYY.MM.DD.build`, for example `2026.07.09.5`.
+Version format: `YYYY.MM.DD.build`, for example `2026.07.09.6`.
 
 ## Features
 
@@ -52,7 +52,7 @@ F:\gradle-8.14.3\bin\gradle.bat clean shadowJar
 The main release jar is generated at:
 
 ```text
-build/libs/TwiAntiVpn-2026.07.09.5-all.jar
+build/libs/TwiAntiVpn-2026.07.09.6-all.jar
 ```
 
 ## Commands
