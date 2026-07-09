@@ -102,7 +102,7 @@ YYYY.MM.DD.build
 Example:
 
 ```text
-2026.07.09.7
+2026.07.09.8
 ```
 
 ## Credits

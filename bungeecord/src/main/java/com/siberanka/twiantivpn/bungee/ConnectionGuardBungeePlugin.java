@@ -26,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 public class ConnectionGuardBungeePlugin extends Plugin {
     private static final String OKHTTP_VERSION = "4.12.0";
@@ -264,12 +265,12 @@ public class ConnectionGuardBungeePlugin extends Plugin {
     private void configureSecurityFilters() {
         ConnectionGuard.configureUsernameFilter(
                 getConfig().getBoolean("username-filter.enabled"),
-                getConfig().getStringList("username-filter.blocked-contains")
+                getScalarStringList("username-filter.blocked-contains")
         );
         ConnectionGuard.configureIspBlocker(
                 getConfig().getBoolean("provider.isp-block.enabled"),
-                getConfig().getStringList("provider.isp-block.asns"),
-                getConfig().getStringList("provider.isp-block.isp-names")
+                getScalarStringList("provider.isp-block.asns"),
+                getScalarStringList("provider.isp-block.isp-names")
         );
     }
 
@@ -309,6 +310,24 @@ public class ConnectionGuardBungeePlugin extends Plugin {
         } catch (IOException e) {
             getLogger().info("TwiAntiVpn | " + e.getMessage());
         }
+    }
+
+    private List<String> getScalarStringList(String path) {
+        List<?> values = getConfig().getList(path);
+        if (values == null) {
+            return getConfig().getStringList(path);
+        }
+        List<String> result = new ArrayList<>();
+        for (Object value : values) {
+            if (value == null || value instanceof Iterable || value instanceof java.util.Map) {
+                continue;
+            }
+            String stringValue = String.valueOf(value).trim();
+            if (!stringValue.isEmpty()) {
+                result.add(stringValue);
+            }
+        }
+        return result;
     }
 
     private void loadHttpRuntimeLibraries(BungeeLibraryManager libraryManager) {

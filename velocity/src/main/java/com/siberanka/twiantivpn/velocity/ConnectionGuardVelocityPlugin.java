@@ -32,7 +32,7 @@ import java.util.HashMap;
 @Plugin(
         id="twiantivpn",
         name="TwiAntiVpn",
-        version="2026.07.09.7",
+        version="2026.07.09.8",
         url="https://github.com/siberanka",
         authors = {"gerolndnr", "siberanka"}
 )
@@ -229,12 +229,12 @@ public class ConnectionGuardVelocityPlugin {
     public void configureSecurityFilters() {
         ConnectionGuard.configureUsernameFilter(
                 cgVelocityConfig.getConfig().getBoolean("username-filter.enabled"),
-                cgVelocityConfig.getConfig().getStringList("username-filter.blocked-contains")
+                getScalarStringList("username-filter.blocked-contains")
         );
         ConnectionGuard.configureIspBlocker(
                 cgVelocityConfig.getConfig().getBoolean("provider.isp-block.enabled"),
-                cgVelocityConfig.getConfig().getStringList("provider.isp-block.asns"),
-                cgVelocityConfig.getConfig().getStringList("provider.isp-block.isp-names")
+                getScalarStringList("provider.isp-block.asns"),
+                getScalarStringList("provider.isp-block.isp-names")
         );
     }
 
@@ -298,6 +298,24 @@ public class ConnectionGuardVelocityPlugin {
                 .artifactId(artifactId)
                 .version(version)
                 .build();
+    }
+
+    private java.util.List<String> getScalarStringList(String path) {
+        java.util.List<?> values = cgVelocityConfig.getConfig().getList(path);
+        if (values == null) {
+            return cgVelocityConfig.getConfig().getStringList(path);
+        }
+        java.util.List<String> result = new java.util.ArrayList<>();
+        for (Object value : values) {
+            if (value == null || value instanceof Iterable || value instanceof java.util.Map) {
+                continue;
+            }
+            String stringValue = String.valueOf(value).trim();
+            if (!stringValue.isEmpty()) {
+                result.add(stringValue);
+            }
+        }
+        return result;
     }
 
     public Logger getLogger() {

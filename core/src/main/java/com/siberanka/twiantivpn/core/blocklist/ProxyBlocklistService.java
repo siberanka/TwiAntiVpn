@@ -38,7 +38,7 @@ public class ProxyBlocklistService {
     private static final int DEFAULT_TIMEOUT_SECONDS = 15;
     private static final int MIN_INTERVAL_MINUTES = 5;
     private static final int MAX_INTERVAL_MINUTES = 1440;
-    private static final int MAX_ENTRIES_LIMIT = 750000;
+    private static final int MAX_ENTRIES_LIMIT = 2000000;
     private static final int MIN_LINE_LENGTH = 64;
     private static final int MAX_LINE_LENGTH_LIMIT = 2048;
     private static final int MIN_TIMEOUT_SECONDS = 3;
