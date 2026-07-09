@@ -14,6 +14,7 @@ messages:
   kick-prefix: "<bold><gradient:#35d3ff:#6f7dff>TwiAntiVpn</gradient></bold>"
   kick-contact: "&#35D3FFstore.example.net    &#6F7DFFdiscord.gg/invite"
   adaptive-sonar-attack-log: "Sonar bot hücumu aşkar etdi; yeni bağlantılar VPN yoxlamasından əvvəl Sonar tərəfindən yoxlanılacaq."
+  adaptive-sonar-local-attack-log: "Sonar öncəsi bloklamalar təyin edilmiş həddi keçdi; yeni bağlantılar VPN yoxlamasından əvvəl Sonar tərəfindən yoxlanılacaq."
   adaptive-sonar-recovery-log: "Sonar hücumu zərərsizləşdirdi; bərpa müddətində Sonar birinci qalacaq."
   adaptive-sonar-normal-log: "Trafik sabit qaldı; VPN yoxlamaları yenidən Sonar-dan əvvəl işləyir."
   username-block: "{kick_prefix}\\n\\n&c&lGiriş rədd edildi\\n&7İstifadəçi adında serverin adlandırma qaydaları ilə qadağan olunmuş ifadə var.\\n\\n&8Səbəb: &fQadağan olunmuş istifadəçi adı ifadəsi\\n&8Uyğun gələn ifadə: &f%MATCH%\\n\\n{kick_contact}"

@@ -282,8 +282,12 @@ public class ConnectionGuardBungeePlugin extends Plugin {
                 shouldRunBeforeAntiBot(),
                 getConfig().getBoolean("login-check.adaptive-sonar.enabled", true),
                 getConfig().getInt("login-check.adaptive-sonar.recovery-delay-seconds", 30),
+                getConfig().getBoolean("login-check.adaptive-sonar.local-attack-detection.enabled", true),
+                getConfig().getInt("login-check.adaptive-sonar.local-attack-detection.window-seconds", 60),
+                getConfig().getInt("login-check.adaptive-sonar.local-attack-detection.block-threshold", 15),
                 getLogger(),
                 getLanguageConfig().getString("messages.adaptive-sonar-attack-log", ""),
+                getLanguageConfig().getString("messages.adaptive-sonar-local-attack-log", ""),
                 getLanguageConfig().getString("messages.adaptive-sonar-recovery-log", ""),
                 getLanguageConfig().getString("messages.adaptive-sonar-normal-log", ""),
                 configuredBeforeSonarModules()
@@ -391,7 +395,10 @@ public class ConnectionGuardBungeePlugin extends Plugin {
         boolean changed = false;
         changed |= setConfigDefault("login-check.adaptive-sonar.enabled", true);
         changed |= setConfigDefault("login-check.adaptive-sonar.recovery-delay-seconds", 30);
-        changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.username-filter", false);
+        changed |= setConfigDefault("login-check.adaptive-sonar.local-attack-detection.enabled", true);
+        changed |= setConfigDefault("login-check.adaptive-sonar.local-attack-detection.window-seconds", 60);
+        changed |= setConfigDefault("login-check.adaptive-sonar.local-attack-detection.block-threshold", 15);
+        changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.username-filter", true);
         changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.proxy-blocklist", true);
         changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.vpn-providers.proxycheck", false);
         changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.vpn-providers.ip-api", false);

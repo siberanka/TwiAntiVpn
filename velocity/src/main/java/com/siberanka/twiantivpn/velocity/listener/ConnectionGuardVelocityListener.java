@@ -37,7 +37,7 @@ public class ConnectionGuardVelocityListener {
         AdaptiveLoginOrderService.ModulePlan plan =
                 AdaptiveLoginOrderService.getInstance().snapshotModulePlan();
         if (plan.isRunBeforePlatform()) {
-            return handlePreLogin(loginEvent, plan.getBeforePlatformModules());
+            return handlePreLogin(loginEvent, plan.getBeforePlatformModules(), true);
         }
         deferredEvents.put(loginEvent, plan.getAfterPlatformModules());
         return EventTask.resumeWhenComplete(CompletableFuture.completedFuture(null));
@@ -47,12 +47,12 @@ public class ConnectionGuardVelocityListener {
     public EventTask onPreLoginAfterAntiBot(PreLoginEvent loginEvent) {
         Set<CheckModule> modules = deferredEvents.remove(loginEvent);
         if (modules != null && !modules.isEmpty() && loginEvent.getResult().isAllowed()) {
-            return handlePreLogin(loginEvent, modules);
+            return handlePreLogin(loginEvent, modules, false);
         }
         return EventTask.resumeWhenComplete(CompletableFuture.completedFuture(null));
     }
 
-    private EventTask handlePreLogin(PreLoginEvent loginEvent, Set<CheckModule> modules) {
+    private EventTask handlePreLogin(PreLoginEvent loginEvent, Set<CheckModule> modules, boolean preSonarPhase) {
         String ipAddress = getIpAddress(loginEvent);
         String playerUuid = (loginEvent.getUniqueId() != null) ? loginEvent.getUniqueId().toString() : "";
         String playerUsername = loginEvent.getUsername();
@@ -60,7 +60,13 @@ public class ConnectionGuardVelocityListener {
         if (modules.contains(CheckModule.USERNAME_FILTER)) {
             Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(playerUsername);
             if (blockedUsernamePart.isPresent()) {
-                return EventTask.async(() -> handleUsernameBlock(loginEvent, ipAddress, playerUsername, blockedUsernamePart.get()));
+                return EventTask.async(() -> handleUsernameBlock(
+                        loginEvent,
+                        ipAddress,
+                        playerUsername,
+                        blockedUsernamePart.get(),
+                        preSonarPhase
+                ));
             }
         }
 
@@ -161,6 +167,7 @@ public class ConnectionGuardVelocityListener {
 
                     // loginEvent.setResult(ResultedEvent.ComponentResult.denied(kickMessage));
                     loginEvent.setResult(PreLoginEvent.PreLoginComponentResult.denied(kickMessage));
+                    recordPreSonarBlock(preSonarPhase);
                     return;
                 }
             }
@@ -170,7 +177,7 @@ public class ConnectionGuardVelocityListener {
                 if (modules.contains(CheckModule.ISP_BLOCK)) {
                     Optional<IspBlockResult> ispBlockResult = ConnectionGuard.getIspBlockResult(geoResult);
                     if (ispBlockResult.isPresent()) {
-                        handleIspBlock(loginEvent, ipAddress, playerUsername, ispBlockResult.get());
+                        handleIspBlock(loginEvent, ipAddress, playerUsername, ispBlockResult.get(), preSonarPhase);
                         return;
                     }
                 }
@@ -241,6 +248,7 @@ public class ConnectionGuardVelocityListener {
 
                         // loginEvent.setResult(ResultedEvent.ComponentResult.denied(kickMessage));
                         loginEvent.setResult(PreLoginEvent.PreLoginComponentResult.denied(kickMessage));
+                        recordPreSonarBlock(preSonarPhase);
                         return;
                     }
                 }
@@ -305,7 +313,11 @@ public class ConnectionGuardVelocityListener {
         );
     }
 
-    private void handleUsernameBlock(PreLoginEvent loginEvent, String ipAddress, String playerUsername, String matchedPart) {
+    private void handleUsernameBlock(PreLoginEvent loginEvent,
+                                     String ipAddress,
+                                     String playerUsername,
+                                     String matchedPart,
+                                     boolean preSonarPhase) {
         boolean emitActions = ConnectionGuard.shouldEmitActions("username", ipAddress);
         if (emitActions && ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.username.notify-staff")) {
             Component notifyMessage = component("messages.username-notify",
@@ -336,10 +348,15 @@ public class ConnectionGuardVelocityListener {
                     "%NAME%", playerUsername,
                     "%MATCH%", matchedPart);
             loginEvent.setResult(PreLoginEvent.PreLoginComponentResult.denied(kickMessage));
+            recordPreSonarBlock(preSonarPhase);
         }
     }
 
-    private void handleIspBlock(PreLoginEvent loginEvent, String ipAddress, String playerUsername, IspBlockResult ispBlockResult) {
+    private void handleIspBlock(PreLoginEvent loginEvent,
+                                String ipAddress,
+                                String playerUsername,
+                                IspBlockResult ispBlockResult,
+                                boolean preSonarPhase) {
         GeoResult geoResult = ispBlockResult.getGeoResult();
         boolean emitActions = ConnectionGuard.shouldEmitActions("isp", ipAddress);
         if (emitActions && ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.isp.notify-staff")) {
@@ -379,6 +396,13 @@ public class ConnectionGuardVelocityListener {
                     "%ASN%", geoResult.getAsn(),
                     "%MATCH%", ispBlockResult.getMatchedValue());
             loginEvent.setResult(PreLoginEvent.PreLoginComponentResult.denied(kickMessage));
+            recordPreSonarBlock(preSonarPhase);
+        }
+    }
+
+    private void recordPreSonarBlock(boolean preSonarPhase) {
+        if (preSonarPhase) {
+            AdaptiveLoginOrderService.getInstance().recordPreSonarBlock();
         }
     }
 

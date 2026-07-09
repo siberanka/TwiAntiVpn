@@ -34,7 +34,7 @@ public class ConnectionGuardBungeeListener implements Listener {
         AdaptiveLoginOrderService.ModulePlan plan =
                 AdaptiveLoginOrderService.getInstance().snapshotModulePlan();
         if (plan.isRunBeforePlatform()) {
-            handleLogin(loginEvent, plan.getBeforePlatformModules());
+            handleLogin(loginEvent, plan.getBeforePlatformModules(), true);
         } else {
             deferredEvents.put(loginEvent, plan.getAfterPlatformModules());
         }
@@ -44,18 +44,18 @@ public class ConnectionGuardBungeeListener implements Listener {
     public void onLoginAfterAntiBot(LoginEvent loginEvent) {
         Set<CheckModule> modules = deferredEvents.remove(loginEvent);
         if (modules != null && !modules.isEmpty() && !loginEvent.isCancelled()) {
-            handleLogin(loginEvent, modules);
+            handleLogin(loginEvent, modules, false);
         }
     }
 
-    private void handleLogin(LoginEvent loginEvent, Set<CheckModule> modules) {
+    private void handleLogin(LoginEvent loginEvent, Set<CheckModule> modules, boolean preSonarPhase) {
         loginEvent.registerIntent(ConnectionGuardBungeePlugin.getInstance());
 
         String ipAddress = loginEvent.getConnection().getAddress().getAddress().getHostAddress();
         if (modules.contains(CheckModule.USERNAME_FILTER)) {
             Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(loginEvent.getConnection().getName());
             if (blockedUsernamePart.isPresent()) {
-                handleUsernameBlock(loginEvent, ipAddress, blockedUsernamePart.get());
+                handleUsernameBlock(loginEvent, ipAddress, blockedUsernamePart.get(), preSonarPhase);
                 loginEvent.completeIntent(ConnectionGuardBungeePlugin.getInstance());
                 return;
             }
@@ -164,6 +164,7 @@ public class ConnectionGuardBungeeListener implements Listener {
 
                     loginEvent.setCancelReason(TextComponent.fromLegacyText(kickMessage));
                     loginEvent.setCancelled(true);
+                    recordPreSonarBlock(preSonarPhase);
 
                     return;
                 }
@@ -175,7 +176,7 @@ public class ConnectionGuardBungeeListener implements Listener {
                 if (modules.contains(CheckModule.ISP_BLOCK)) {
                     Optional<IspBlockResult> ispBlockResult = ConnectionGuard.getIspBlockResult(geoResult);
                     if (ispBlockResult.isPresent()) {
-                        handleIspBlock(loginEvent, ipAddress, ispBlockResult.get());
+                        handleIspBlock(loginEvent, ipAddress, ispBlockResult.get(), preSonarPhase);
                         return;
                     }
                 }
@@ -244,6 +245,7 @@ public class ConnectionGuardBungeeListener implements Listener {
 
                         loginEvent.setCancelReason(TextComponent.fromLegacyText(kickMessage));
                         loginEvent.setCancelled(true);
+                        recordPreSonarBlock(preSonarPhase);
                         return;
                     }
                 }
@@ -295,7 +297,10 @@ public class ConnectionGuardBungeeListener implements Listener {
         );
     }
 
-    private void handleUsernameBlock(LoginEvent loginEvent, String ipAddress, String matchedPart) {
+    private void handleUsernameBlock(LoginEvent loginEvent,
+                                     String ipAddress,
+                                     String matchedPart,
+                                     boolean preSonarPhase) {
         boolean emitActions = ConnectionGuard.shouldEmitActions("username", ipAddress);
         if (emitActions && ConnectionGuardBungeePlugin.getInstance().getConfig().getBoolean("behavior.username.notify-staff")) {
             String notifyMessage = message("messages.username-notify",
@@ -327,10 +332,14 @@ public class ConnectionGuardBungeeListener implements Listener {
                     "%MATCH%", matchedPart);
             loginEvent.setCancelReason(TextComponent.fromLegacyText(kickMessage));
             loginEvent.setCancelled(true);
+            recordPreSonarBlock(preSonarPhase);
         }
     }
 
-    private void handleIspBlock(LoginEvent loginEvent, String ipAddress, IspBlockResult ispBlockResult) {
+    private void handleIspBlock(LoginEvent loginEvent,
+                                String ipAddress,
+                                IspBlockResult ispBlockResult,
+                                boolean preSonarPhase) {
         GeoResult geoResult = ispBlockResult.getGeoResult();
         boolean emitActions = ConnectionGuard.shouldEmitActions("isp", ipAddress);
         if (emitActions && ConnectionGuardBungeePlugin.getInstance().getConfig().getBoolean("behavior.isp.notify-staff")) {
@@ -371,6 +380,13 @@ public class ConnectionGuardBungeeListener implements Listener {
                     "%MATCH%", ispBlockResult.getMatchedValue());
             loginEvent.setCancelReason(TextComponent.fromLegacyText(kickMessage));
             loginEvent.setCancelled(true);
+            recordPreSonarBlock(preSonarPhase);
+        }
+    }
+
+    private void recordPreSonarBlock(boolean preSonarPhase) {
+        if (preSonarPhase) {
+            AdaptiveLoginOrderService.getInstance().recordPreSonarBlock();
         }
     }
 

@@ -257,8 +257,12 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
                 shouldRunBeforeAntiBot(),
                 getConfig().getBoolean("login-check.adaptive-sonar.enabled", true),
                 getConfig().getInt("login-check.adaptive-sonar.recovery-delay-seconds", 30),
+                getConfig().getBoolean("login-check.adaptive-sonar.local-attack-detection.enabled", true),
+                getConfig().getInt("login-check.adaptive-sonar.local-attack-detection.window-seconds", 60),
+                getConfig().getInt("login-check.adaptive-sonar.local-attack-detection.block-threshold", 15),
                 getLogger(),
                 getLanguageConfig().getString("messages.adaptive-sonar-attack-log", ""),
+                getLanguageConfig().getString("messages.adaptive-sonar-local-attack-log", ""),
                 getLanguageConfig().getString("messages.adaptive-sonar-recovery-log", ""),
                 getLanguageConfig().getString("messages.adaptive-sonar-normal-log", ""),
                 configuredBeforeSonarModules()

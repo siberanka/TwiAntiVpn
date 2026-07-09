@@ -39,7 +39,7 @@ import java.util.Set;
 @Plugin(
         id="twiantivpn",
         name="TwiAntiVpn",
-        version="2026.07.09.18",
+        version="2026.07.09.19",
         url="https://github.com/siberanka",
         authors = {"gerolndnr", "siberanka"},
         dependencies = {
@@ -247,8 +247,12 @@ public class ConnectionGuardVelocityPlugin {
                 shouldRunBeforeAntiBot(),
                 cgVelocityConfig.getConfig().getBoolean("login-check.adaptive-sonar.enabled", true),
                 cgVelocityConfig.getConfig().getInt("login-check.adaptive-sonar.recovery-delay-seconds", 30),
+                cgVelocityConfig.getConfig().getBoolean("login-check.adaptive-sonar.local-attack-detection.enabled", true),
+                cgVelocityConfig.getConfig().getInt("login-check.adaptive-sonar.local-attack-detection.window-seconds", 60),
+                cgVelocityConfig.getConfig().getInt("login-check.adaptive-sonar.local-attack-detection.block-threshold", 15),
                 ConnectionGuard.getLogger(),
                 cgVelocityConfig.getLanguageConfig().getString("messages.adaptive-sonar-attack-log", ""),
+                cgVelocityConfig.getLanguageConfig().getString("messages.adaptive-sonar-local-attack-log", ""),
                 cgVelocityConfig.getLanguageConfig().getString("messages.adaptive-sonar-recovery-log", ""),
                 cgVelocityConfig.getLanguageConfig().getString("messages.adaptive-sonar-normal-log", ""),
                 configuredBeforeSonarModules()

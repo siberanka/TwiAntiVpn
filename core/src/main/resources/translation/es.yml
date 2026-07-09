@@ -14,6 +14,7 @@ messages:
   kick-prefix: "<bold><gradient:#35d3ff:#6f7dff>TwiAntiVpn</gradient></bold>"
   kick-contact: "&#35D3FFstore.example.net    &#6F7DFFdiscord.gg/invite"
   adaptive-sonar-attack-log: "Sonar detectó un ataque de bots; Sonar filtrará las conexiones nuevas antes de las comprobaciones de VPN."
+  adaptive-sonar-local-attack-log: "Los bloqueos antes de Sonar superaron el umbral configurado; Sonar filtrará las conexiones nuevas antes de las comprobaciones de VPN."
   adaptive-sonar-recovery-log: "Sonar mitigó el ataque; Sonar permanecerá primero durante el periodo de recuperación."
   adaptive-sonar-normal-log: "El tráfico se mantuvo estable; las comprobaciones de VPN vuelven a ejecutarse antes de Sonar."
   username-block: "{kick_prefix}\\n\\n&c&lAcceso denegado\\n&7Tu nombre de usuario contiene un término prohibido por la política de nombres del servidor.\\n\\n&8Motivo: &fTérmino de usuario prohibido\\n&8Término detectado: &f%MATCH%\\n\\n{kick_contact}"

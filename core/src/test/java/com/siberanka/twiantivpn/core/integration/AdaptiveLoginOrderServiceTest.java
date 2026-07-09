@@ -16,11 +16,13 @@ class AdaptiveLoginOrderServiceTest {
         AtomicLong clock = new AtomicLong();
         AdaptiveLoginOrderService service = new AdaptiveLoginOrderService(clock::get);
 
-        service.configure(false, true, 30, null, null, null, null, Collections.emptySet());
+        service.configure(false, true, 30, true, 60, 15,
+                null, null, null, null, null, Collections.emptySet());
         service.setSonarStatus(true, false);
         assertFalse(service.shouldRunBeforeAntiBot());
 
-        service.configure(true, false, 30, null, null, null, null, Collections.emptySet());
+        service.configure(true, false, 30, true, 60, 15,
+                null, null, null, null, null, Collections.emptySet());
         service.onSonarAttackDetected();
         assertTrue(service.shouldRunBeforeAntiBot());
     }
@@ -29,7 +31,8 @@ class AdaptiveLoginOrderServiceTest {
     void defersDuringAttackAndRecoveryWindow() {
         AtomicLong clock = new AtomicLong();
         AdaptiveLoginOrderService service = new AdaptiveLoginOrderService(clock::get);
-        service.configure(true, true, 30, null, null, null, null,
+        service.configure(true, true, 30, true, 60, 15,
+                null, null, null, null, null,
                 Collections.singleton(CheckModule.PROXY_BLOCKLIST));
         service.setSonarStatus(true, false);
 
@@ -52,7 +55,8 @@ class AdaptiveLoginOrderServiceTest {
     void newAttackRestartsRecoveryWindow() {
         AtomicLong clock = new AtomicLong();
         AdaptiveLoginOrderService service = new AdaptiveLoginOrderService(clock::get);
-        service.configure(true, true, 30, null, null, null, null,
+        service.configure(true, true, 30, true, 60, 15,
+                null, null, null, null, null,
                 Collections.singleton(CheckModule.PROXY_BLOCKLIST));
         service.setSonarStatus(true, true);
         service.onSonarAttackMitigated();
@@ -70,7 +74,8 @@ class AdaptiveLoginOrderServiceTest {
     @Test
     void missingSonarDoesNotDelayNormalBeforeMode() {
         AdaptiveLoginOrderService service = new AdaptiveLoginOrderService(() -> 0L);
-        service.configure(true, true, 30, null, null, null, null,
+        service.configure(true, true, 30, true, 60, 15,
+                null, null, null, null, null,
                 Collections.singleton(CheckModule.PROXY_BLOCKLIST));
         service.setSonarStatus(false, false);
 
@@ -84,7 +89,8 @@ class AdaptiveLoginOrderServiceTest {
                 CheckModule.PROXY_BLOCKLIST,
                 CheckModule.VPN_IP_API
         );
-        service.configure(true, true, 30, null, null, null, null, early);
+        service.configure(true, true, 30, true, 60, 15,
+                null, null, null, null, null, early);
         service.setSonarStatus(true, false);
 
         assertTrue(service.sonarEarlyModules().containsAll(early));
@@ -110,6 +116,10 @@ class AdaptiveLoginOrderServiceTest {
                 true,
                 false,
                 30,
+                true,
+                60,
+                15,
+                null,
                 null,
                 null,
                 null,
@@ -123,5 +133,52 @@ class AdaptiveLoginOrderServiceTest {
         assertTrue(plan.getBeforePlatformModules().containsAll(
                 EnumSet.allOf(CheckModule.class)
         ));
+    }
+
+    @Test
+    void localPreSonarBlocksTriggerAttackRoutingAndRecovery() {
+        AtomicLong clock = new AtomicLong();
+        AdaptiveLoginOrderService service = new AdaptiveLoginOrderService(clock::get);
+        service.configure(true, true, 10, true, 60, 3,
+                null, null, null, null, null,
+                Collections.singleton(CheckModule.PROXY_BLOCKLIST));
+        service.setSonarStatus(true, false);
+
+        service.recordPreSonarBlock();
+        service.recordPreSonarBlock();
+        assertTrue(service.shouldRunBeforeAntiBot());
+
+        service.recordPreSonarBlock();
+        assertFalse(service.shouldRunBeforeAntiBot());
+        assertTrue(service.sonarEarlyModules().isEmpty());
+        assertTrue(service.snapshotModulePlan().getAfterPlatformModules().containsAll(
+                EnumSet.allOf(CheckModule.class)
+        ));
+
+        clock.addAndGet(TimeUnit.SECONDS.toNanos(59));
+        assertFalse(service.shouldRunBeforeAntiBot());
+
+        clock.addAndGet(TimeUnit.SECONDS.toNanos(1));
+        assertFalse(service.shouldRunBeforeAntiBot());
+
+        clock.addAndGet(TimeUnit.SECONDS.toNanos(10));
+        assertTrue(service.shouldRunBeforeAntiBot());
+    }
+
+    @Test
+    void oldLocalPreSonarBlocksDoNotTriggerOutsideWindow() {
+        AtomicLong clock = new AtomicLong();
+        AdaptiveLoginOrderService service = new AdaptiveLoginOrderService(clock::get);
+        service.configure(true, true, 10, true, 60, 3,
+                null, null, null, null, null,
+                Collections.singleton(CheckModule.PROXY_BLOCKLIST));
+        service.setSonarStatus(true, false);
+
+        service.recordPreSonarBlock();
+        service.recordPreSonarBlock();
+        clock.addAndGet(TimeUnit.SECONDS.toNanos(60));
+        service.recordPreSonarBlock();
+
+        assertTrue(service.shouldRunBeforeAntiBot());
     }
 }

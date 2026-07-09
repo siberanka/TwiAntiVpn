@@ -118,7 +118,10 @@ public class CGVelocityConfig {
         boolean changed = false;
         changed |= setConfigDefault("login-check.adaptive-sonar.enabled", true);
         changed |= setConfigDefault("login-check.adaptive-sonar.recovery-delay-seconds", 30);
-        changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.username-filter", false);
+        changed |= setConfigDefault("login-check.adaptive-sonar.local-attack-detection.enabled", true);
+        changed |= setConfigDefault("login-check.adaptive-sonar.local-attack-detection.window-seconds", 60);
+        changed |= setConfigDefault("login-check.adaptive-sonar.local-attack-detection.block-threshold", 15);
+        changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.username-filter", true);
         changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.proxy-blocklist", true);
         changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.vpn-providers.proxycheck", false);
         changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.vpn-providers.ip-api", false);

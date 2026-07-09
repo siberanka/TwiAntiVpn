@@ -13,7 +13,7 @@ TwiAntiVpn is a production-focused anti-VPN, proxy, geo and connection-risk plug
 - Memory-optimized primitive storage for large IPv4 blocklists.
 - ISP and ASN blocking by provider name or autonomous system number.
 - Username contains-filter for blocking obvious bot naming patterns before VPN/API work.
-- Configurable per-module Sonar ordering with adaptive attack routing and recovery hysteresis.
+- Configurable per-module Sonar ordering with adaptive attack routing, local pre-Sonar block thresholds and recovery hysteresis.
 - AsteroidProxy/AsteroidSpoofer support for verified fake-player bypasses.
 - Geo blacklist/whitelist support.
 - SQLite, Redis or disabled cache modes.
@@ -47,7 +47,8 @@ The default configuration is designed to work out of the box. Important sections
 - `provider.geo`: geo and ISP data providers.
 - `provider.isp-block`: blocked ASN numbers and ISP/provider names.
 - `username-filter`: blocked username fragments.
-- `login-check`: fixed before/after ordering and adaptive per-module Sonar routing. By default only the in-memory proxy blocklist runs before Sonar; remaining checks run after verification. During an attack and recovery window every module moves after Sonar.
+- `login-check`: fixed before/after ordering and adaptive per-module Sonar routing. By default the lightweight username filter and in-memory proxy blocklist are allowed before Sonar; remaining checks run after verification. During a Sonar attack, local pre-Sonar block spike or recovery window, every module moves after Sonar.
+- `login-check.adaptive-sonar.local-attack-detection`: treats repeated pre-Sonar blocks as an attack signal. The default is 15 blocks within 60 seconds.
 - `security.action-cooldown-seconds`: suppresses repeated staff, webhook and command side effects without allowing blocked connections.
 - `behavior`: kick, notify, command and webhook actions.
 
@@ -106,7 +107,7 @@ YYYY.MM.DD.build
 Example:
 
 ```text
-2026.07.09.18
+2026.07.09.19
 ```
 
 ## Credits

@@ -117,11 +117,20 @@ login-check:
     enabled: true
     # Clamped between 5 and 600 seconds. Default: 30.
     recovery-delay-seconds: 30
+    # When the checks configured under before-sonar block too many connections
+    # in a short window, TwiAntiVpn treats it like a bot attack signal and moves
+    # every enabled module after Sonar until traffic cools down.
+    local-attack-detection:
+      enabled: true
+      # Clamped between 10 and 600 seconds. Default: 60.
+      window-seconds: 60
+      # Clamped between 2 and 10000 blocks. Default: 15.
+      block-threshold: 15
     # During normal traffic, enabled entries run from Sonar's verification hook.
     # Remaining enabled modules run after Sonar. During an attack and recovery,
     # every module is moved after Sonar regardless of these values.
     before-sonar:
-      username-filter: false
+      username-filter: true
       proxy-blocklist: true
       vpn-providers:
         proxycheck: false

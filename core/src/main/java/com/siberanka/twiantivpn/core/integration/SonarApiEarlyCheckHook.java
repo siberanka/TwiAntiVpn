@@ -132,7 +132,7 @@ public final class SonarApiEarlyCheckHook {
             if (modules.contains(CheckModule.USERNAME_FILTER)) {
                 Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(username);
                 if (blockedUsernamePart.isPresent()) {
-                    disconnect(user, Result.username(ipAddress, username, blockedUsernamePart.get()), disconnectMessage);
+                    disconnectAndRecord(user, Result.username(ipAddress, username, blockedUsernamePart.get()), disconnectMessage);
                     return;
                 }
             }
@@ -169,7 +169,7 @@ public final class SonarApiEarlyCheckHook {
                 }
                 VpnResult vpnResult = vpnFuture.join();
                 if (vpnResult != null && vpnResult.isVpn()) {
-                    disconnect(user, Result.vpn(ipAddress, username), disconnectMessage);
+                    disconnectAndRecord(user, Result.vpn(ipAddress, username), disconnectMessage);
                     return;
                 }
 
@@ -182,7 +182,7 @@ public final class SonarApiEarlyCheckHook {
                     Optional<IspBlockResult> ispBlockResult =
                             ConnectionGuard.getIspBlockResult(geoResult);
                     if (ispBlockResult.isPresent()) {
-                        disconnect(
+                        disconnectAndRecord(
                                 user,
                                 Result.isp(ipAddress, username, ispBlockResult.get()),
                                 disconnectMessage
@@ -193,7 +193,7 @@ public final class SonarApiEarlyCheckHook {
                 if (modules.contains(CheckModule.GEO_BLOCK)
                         && geoBlocked != null
                         && geoBlocked.test(geoResult)) {
-                    disconnect(user, Result.geo(ipAddress, username, geoResult), disconnectMessage);
+                    disconnectAndRecord(user, Result.geo(ipAddress, username, geoResult), disconnectMessage);
                 }
             });
         } catch (Throwable throwable) {
@@ -225,6 +225,11 @@ public final class SonarApiEarlyCheckHook {
         } catch (Throwable ignored) {
             // If Sonar changed its API, fail closed for this hook only and leave Sonar's own flow intact.
         }
+    }
+
+    private static void disconnectAndRecord(Object user, Result result, Function<Result, String> disconnectMessage) {
+        AdaptiveLoginOrderService.getInstance().recordPreSonarBlock();
+        disconnect(user, result, disconnectMessage);
     }
 
     public static final class Result {

@@ -34,7 +34,7 @@ public class AsyncPlayerPreLoginListener implements Listener {
         AdaptiveLoginOrderService.ModulePlan plan =
                 AdaptiveLoginOrderService.getInstance().snapshotModulePlan();
         if (plan.isRunBeforePlatform()) {
-            handlePreLogin(preLoginEvent, plan.getBeforePlatformModules());
+            handlePreLogin(preLoginEvent, plan.getBeforePlatformModules(), true);
         } else {
             deferredEvents.put(preLoginEvent, plan.getAfterPlatformModules());
         }
@@ -46,16 +46,16 @@ public class AsyncPlayerPreLoginListener implements Listener {
         if (modules != null
                 && !modules.isEmpty()
                 && preLoginEvent.getLoginResult() == AsyncPlayerPreLoginEvent.Result.ALLOWED) {
-            handlePreLogin(preLoginEvent, modules);
+            handlePreLogin(preLoginEvent, modules, false);
         }
     }
 
-    private void handlePreLogin(AsyncPlayerPreLoginEvent preLoginEvent, Set<CheckModule> modules) {
+    private void handlePreLogin(AsyncPlayerPreLoginEvent preLoginEvent, Set<CheckModule> modules, boolean preSonarPhase) {
         String ipAddress = preLoginEvent.getAddress().getHostAddress();
         if (modules.contains(CheckModule.USERNAME_FILTER)) {
             Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(preLoginEvent.getName());
             if (blockedUsernamePart.isPresent()) {
-                handleUsernameBlock(preLoginEvent, ipAddress, blockedUsernamePart.get());
+                handleUsernameBlock(preLoginEvent, ipAddress, blockedUsernamePart.get(), preSonarPhase);
                 return;
             }
         }
@@ -167,6 +167,7 @@ public class AsyncPlayerPreLoginListener implements Listener {
                         "%NAME%", preLoginEvent.getName());
 
                 preLoginEvent.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, kickMessage);
+                recordPreSonarBlock(preSonarPhase);
                 return;
             }
         }
@@ -177,7 +178,7 @@ public class AsyncPlayerPreLoginListener implements Listener {
             if (modules.contains(CheckModule.ISP_BLOCK)) {
                 Optional<IspBlockResult> ispBlockResult = ConnectionGuard.getIspBlockResult(geoResult);
                 if (ispBlockResult.isPresent()) {
-                    handleIspBlock(preLoginEvent, ipAddress, ispBlockResult.get());
+                    handleIspBlock(preLoginEvent, ipAddress, ispBlockResult.get(), preSonarPhase);
                     return;
                 }
             }
@@ -251,6 +252,7 @@ public class AsyncPlayerPreLoginListener implements Listener {
                             "%NAME%", preLoginEvent.getName());
 
                     preLoginEvent.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, kickMessage);
+                    recordPreSonarBlock(preSonarPhase);
                 }
             }
         }
@@ -285,7 +287,10 @@ public class AsyncPlayerPreLoginListener implements Listener {
         );
     }
 
-    private void handleUsernameBlock(AsyncPlayerPreLoginEvent preLoginEvent, String ipAddress, String matchedPart) {
+    private void handleUsernameBlock(AsyncPlayerPreLoginEvent preLoginEvent,
+                                     String ipAddress,
+                                     String matchedPart,
+                                     boolean preSonarPhase) {
         boolean emitActions = ConnectionGuard.shouldEmitActions("username", ipAddress);
         if (emitActions && ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.username.notify-staff")) {
             String notifyMessage = message("messages.username-notify",
@@ -316,10 +321,14 @@ public class AsyncPlayerPreLoginListener implements Listener {
                     "%NAME%", preLoginEvent.getName(),
                     "%MATCH%", matchedPart);
             preLoginEvent.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, kickMessage);
+            recordPreSonarBlock(preSonarPhase);
         }
     }
 
-    private void handleIspBlock(AsyncPlayerPreLoginEvent preLoginEvent, String ipAddress, IspBlockResult ispBlockResult) {
+    private void handleIspBlock(AsyncPlayerPreLoginEvent preLoginEvent,
+                                String ipAddress,
+                                IspBlockResult ispBlockResult,
+                                boolean preSonarPhase) {
         GeoResult geoResult = ispBlockResult.getGeoResult();
         boolean emitActions = ConnectionGuard.shouldEmitActions("isp", ipAddress);
         if (emitActions && ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.isp.notify-staff")) {
@@ -359,6 +368,13 @@ public class AsyncPlayerPreLoginListener implements Listener {
                     "%ASN%", geoResult.getAsn(),
                     "%MATCH%", ispBlockResult.getMatchedValue());
             preLoginEvent.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, kickMessage);
+            recordPreSonarBlock(preSonarPhase);
+        }
+    }
+
+    private void recordPreSonarBlock(boolean preSonarPhase) {
+        if (preSonarPhase) {
+            AdaptiveLoginOrderService.getInstance().recordPreSonarBlock();
         }
     }
 

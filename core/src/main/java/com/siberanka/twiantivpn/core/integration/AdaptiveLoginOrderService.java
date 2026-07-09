@@ -1,7 +1,9 @@
 package com.siberanka.twiantivpn.core.integration;
 
 import java.util.concurrent.TimeUnit;
+import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.function.LongSupplier;
@@ -11,6 +13,12 @@ public final class AdaptiveLoginOrderService {
     private static final int DEFAULT_RECOVERY_DELAY_SECONDS = 30;
     private static final int MIN_RECOVERY_DELAY_SECONDS = 5;
     private static final int MAX_RECOVERY_DELAY_SECONDS = 600;
+    private static final int DEFAULT_LOCAL_ATTACK_WINDOW_SECONDS = 60;
+    private static final int MIN_LOCAL_ATTACK_WINDOW_SECONDS = 10;
+    private static final int MAX_LOCAL_ATTACK_WINDOW_SECONDS = 600;
+    private static final int DEFAULT_LOCAL_ATTACK_BLOCK_THRESHOLD = 15;
+    private static final int MIN_LOCAL_ATTACK_BLOCK_THRESHOLD = 2;
+    private static final int MAX_LOCAL_ATTACK_BLOCK_THRESHOLD = 10_000;
     private static final AdaptiveLoginOrderService INSTANCE =
             new AdaptiveLoginOrderService(System::nanoTime);
 
@@ -19,17 +27,26 @@ public final class AdaptiveLoginOrderService {
 
     private volatile boolean configuredBeforeAntiBot = true;
     private volatile boolean adaptiveEnabled = true;
+    private volatile boolean localAttackDetectionEnabled = true;
     private volatile boolean sonarAvailable;
+    private volatile boolean sonarUnderAttack;
     private volatile State state = State.NORMAL;
     private volatile long recoveryDelayNanos =
             TimeUnit.SECONDS.toNanos(DEFAULT_RECOVERY_DELAY_SECONDS);
+    private volatile long localAttackWindowNanos =
+            TimeUnit.SECONDS.toNanos(DEFAULT_LOCAL_ATTACK_WINDOW_SECONDS);
+    private volatile int localAttackBlockThreshold =
+            DEFAULT_LOCAL_ATTACK_BLOCK_THRESHOLD;
     private volatile long recoveryDeadlineNanos;
+    private volatile long localAttackDeadlineNanos;
     private volatile Logger logger;
     private volatile String attackLogMessage;
+    private volatile String localAttackLogMessage;
     private volatile String recoveryLogMessage;
     private volatile String normalLogMessage;
     private volatile Set<CheckModule> configuredBeforeModules =
             Collections.singleton(CheckModule.PROXY_BLOCKLIST);
+    private final Deque<Long> preSonarBlockTimestamps = new ArrayDeque<>();
 
     AdaptiveLoginOrderService(LongSupplier nanoTime) {
         this.nanoTime = nanoTime;
@@ -42,24 +59,37 @@ public final class AdaptiveLoginOrderService {
     public void configure(boolean beforeAntiBot,
                           boolean adaptiveEnabled,
                           int recoveryDelaySeconds,
+                          boolean localAttackDetectionEnabled,
+                          int localAttackWindowSeconds,
+                          int localAttackBlockThreshold,
                           Logger logger,
                           String attackLogMessage,
+                          String localAttackLogMessage,
                           String recoveryLogMessage,
                           String normalLogMessage,
                           Set<CheckModule> beforeModules) {
         int boundedRecoveryDelay = boundRecoveryDelay(recoveryDelaySeconds);
+        int boundedLocalAttackWindow = boundLocalAttackWindow(localAttackWindowSeconds);
+        int boundedLocalAttackBlockThreshold = boundLocalAttackBlockThreshold(localAttackBlockThreshold);
         synchronized (stateLock) {
             this.configuredBeforeAntiBot = beforeAntiBot;
             this.adaptiveEnabled = adaptiveEnabled;
+            this.localAttackDetectionEnabled = localAttackDetectionEnabled;
             this.recoveryDelayNanos = TimeUnit.SECONDS.toNanos(boundedRecoveryDelay);
+            this.localAttackWindowNanos = TimeUnit.SECONDS.toNanos(boundedLocalAttackWindow);
+            this.localAttackBlockThreshold = boundedLocalAttackBlockThreshold;
             this.logger = logger;
             this.attackLogMessage = attackLogMessage;
+            this.localAttackLogMessage = localAttackLogMessage;
             this.recoveryLogMessage = recoveryLogMessage;
             this.normalLogMessage = normalLogMessage;
             this.configuredBeforeModules = CheckModule.immutableCopy(beforeModules);
+            preSonarBlockTimestamps.clear();
+            localAttackDeadlineNanos = 0L;
             if (!beforeAntiBot || !adaptiveEnabled) {
                 state = State.NORMAL;
                 recoveryDeadlineNanos = 0L;
+                sonarUnderAttack = false;
             }
         }
     }
@@ -67,12 +97,13 @@ public final class AdaptiveLoginOrderService {
     public void setSonarStatus(boolean available, boolean underAttack) {
         synchronized (stateLock) {
             sonarAvailable = available;
+            sonarUnderAttack = available && underAttack;
             if (!available || !isAdaptiveActive()) {
                 return;
             }
             if (underAttack) {
                 enterAttackModeLocked();
-            } else if (state == State.ATTACK) {
+            } else if (state == State.ATTACK && !isLocalAttackActiveLocked(nanoTime.getAsLong())) {
                 enterRecoveryModeLocked();
             }
         }
@@ -81,6 +112,7 @@ public final class AdaptiveLoginOrderService {
     public void onSonarAttackDetected() {
         synchronized (stateLock) {
             sonarAvailable = true;
+            sonarUnderAttack = true;
             if (isAdaptiveActive()) {
                 enterAttackModeLocked();
             }
@@ -89,8 +121,33 @@ public final class AdaptiveLoginOrderService {
 
     public void onSonarAttackMitigated() {
         synchronized (stateLock) {
-            if (isAdaptiveActive() && state == State.ATTACK) {
+            sonarUnderAttack = false;
+            if (isAdaptiveActive()
+                    && state == State.ATTACK
+                    && !isLocalAttackActiveLocked(nanoTime.getAsLong())) {
                 enterRecoveryModeLocked();
+            }
+        }
+    }
+
+    public void recordPreSonarBlock() {
+        synchronized (stateLock) {
+            if (!isAdaptiveActive()
+                    || !sonarAvailable
+                    || !localAttackDetectionEnabled
+                    || localAttackBlockThreshold <= 0
+                    || localAttackWindowNanos <= 0L) {
+                return;
+            }
+            long now = nanoTime.getAsLong();
+            prunePreSonarBlockTimestampsLocked(now);
+            preSonarBlockTimestamps.addLast(now);
+            while (preSonarBlockTimestamps.size() > localAttackBlockThreshold) {
+                preSonarBlockTimestamps.removeFirst();
+            }
+            if (preSonarBlockTimestamps.size() >= localAttackBlockThreshold) {
+                localAttackDeadlineNanos = saturatingAdd(now, localAttackWindowNanos);
+                enterAttackModeLocked(localAttackLogMessage);
             }
         }
     }
@@ -102,14 +159,15 @@ public final class AdaptiveLoginOrderService {
         if (!adaptiveEnabled || !sonarAvailable) {
             return true;
         }
-        if (state == State.ATTACK) {
-            return false;
-        }
-        if (state != State.RECOVERY) {
-            return true;
-        }
 
         synchronized (stateLock) {
+            refreshStateLocked();
+            if (state == State.ATTACK) {
+                return false;
+            }
+            if (state != State.RECOVERY) {
+                return true;
+            }
             if (state == State.RECOVERY
                     && nanoTime.getAsLong() - recoveryDeadlineNanos >= 0L) {
                 state = State.NORMAL;
@@ -166,10 +224,14 @@ public final class AdaptiveLoginOrderService {
     }
 
     private void enterAttackModeLocked() {
+        enterAttackModeLocked(attackLogMessage);
+    }
+
+    private void enterAttackModeLocked(String message) {
         if (state != State.ATTACK) {
             state = State.ATTACK;
             recoveryDeadlineNanos = 0L;
-            log(attackLogMessage);
+            log(message);
         }
     }
 
@@ -185,6 +247,45 @@ public final class AdaptiveLoginOrderService {
         }
         return Math.max(MIN_RECOVERY_DELAY_SECONDS,
                 Math.min(MAX_RECOVERY_DELAY_SECONDS, configuredSeconds));
+    }
+
+    private int boundLocalAttackWindow(int configuredSeconds) {
+        if (configuredSeconds <= 0) {
+            return DEFAULT_LOCAL_ATTACK_WINDOW_SECONDS;
+        }
+        return Math.max(MIN_LOCAL_ATTACK_WINDOW_SECONDS,
+                Math.min(MAX_LOCAL_ATTACK_WINDOW_SECONDS, configuredSeconds));
+    }
+
+    private int boundLocalAttackBlockThreshold(int configuredThreshold) {
+        if (configuredThreshold <= 0) {
+            return DEFAULT_LOCAL_ATTACK_BLOCK_THRESHOLD;
+        }
+        return Math.max(MIN_LOCAL_ATTACK_BLOCK_THRESHOLD,
+                Math.min(MAX_LOCAL_ATTACK_BLOCK_THRESHOLD, configuredThreshold));
+    }
+
+    private void refreshStateLocked() {
+        long now = nanoTime.getAsLong();
+        prunePreSonarBlockTimestampsLocked(now);
+        if (state == State.ATTACK
+                && !sonarUnderAttack
+                && localAttackDeadlineNanos > 0L
+                && now - localAttackDeadlineNanos >= 0L) {
+            localAttackDeadlineNanos = 0L;
+            enterRecoveryModeLocked();
+        }
+    }
+
+    private boolean isLocalAttackActiveLocked(long now) {
+        return localAttackDeadlineNanos > 0L && now - localAttackDeadlineNanos < 0L;
+    }
+
+    private void prunePreSonarBlockTimestampsLocked(long now) {
+        while (!preSonarBlockTimestamps.isEmpty()
+                && now - preSonarBlockTimestamps.peekFirst() >= localAttackWindowNanos) {
+            preSonarBlockTimestamps.removeFirst();
+        }
     }
 
     private long saturatingAdd(long left, long right) {
