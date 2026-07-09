@@ -34,6 +34,9 @@ public class ConnectionGuardBungeeListener implements Listener {
         AdaptiveLoginOrderService.ModulePlan plan =
                 AdaptiveLoginOrderService.getInstance().snapshotModulePlan();
         if (plan.isRunBeforePlatform()) {
+            if (!plan.getAfterPlatformModules().isEmpty()) {
+                deferredEvents.put(loginEvent, plan.getAfterPlatformModules());
+            }
             handleLogin(loginEvent, plan.getBeforePlatformModules(), true);
         } else {
             deferredEvents.put(loginEvent, plan.getAfterPlatformModules());

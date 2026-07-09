@@ -34,6 +34,9 @@ public class AsyncPlayerPreLoginListener implements Listener {
         AdaptiveLoginOrderService.ModulePlan plan =
                 AdaptiveLoginOrderService.getInstance().snapshotModulePlan();
         if (plan.isRunBeforePlatform()) {
+            if (!plan.getAfterPlatformModules().isEmpty()) {
+                deferredEvents.put(preLoginEvent, plan.getAfterPlatformModules());
+            }
             handlePreLogin(preLoginEvent, plan.getBeforePlatformModules(), true);
         } else {
             deferredEvents.put(preLoginEvent, plan.getAfterPlatformModules());

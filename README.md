@@ -61,13 +61,13 @@ TwiAntiVpn can cooperate with Sonar on Spigot/Paper, BungeeCord/Waterfall and Ve
 
 - `login-check.order: BEFORE_ANTIBOT` makes TwiAntiVpn run as early as the platform allows. This is the default.
 - `login-check.order: AFTER_ANTIBOT` lets anti-bot plugins process the connection first, then TwiAntiVpn checks the connection if it is still allowed.
-- When Sonar is installed and `BEFORE_ANTIBOT` is active, TwiAntiVpn also hooks Sonar's verification join flow. This lets selected lightweight checks run before Sonar completes its bot verification.
+- When Sonar is installed and `BEFORE_ANTIBOT` is active, TwiAntiVpn runs selected early modules at the first platform login phase and also hooks Sonar's verification join flow as an additional safety path. This lets selected checks run before Sonar completes its bot verification without relying on a single integration point.
 - `login-check.adaptive-sonar.enabled` allows TwiAntiVpn to move checks after Sonar automatically during attacks or recovery periods.
-- `login-check.adaptive-sonar.before-sonar` controls which modules are allowed before Sonar during normal traffic. By default, only lightweight checks are enabled there.
+- `login-check.adaptive-sonar.before-sonar` controls which modules are allowed before Sonar during normal traffic. These modules are checked early, and all enabled policies are checked again after Sonar if the connection is still allowed. By default, only lightweight checks are enabled there.
 
 Default adaptive behavior:
 
-- Normal traffic: modules enabled under `before-sonar` can run early; all other enabled checks run after Sonar.
+- Normal traffic: modules enabled under `before-sonar` run early; all enabled checks are still available after Sonar if the connection remains allowed.
 - Sonar attack signal: all active TwiAntiVpn checks move after Sonar.
 - Recovery window: checks stay after Sonar until `recovery-delay-seconds` has passed without another attack signal.
 - Local pre-Sonar block spike: if early checks block too many connections in a short time, TwiAntiVpn treats that as an attack signal even if Sonar has not reported one yet.
@@ -140,7 +140,7 @@ YYYY.MM.DD.build
 Example:
 
 ```text
-2026.07.09.21
+2026.07.09.22
 ```
 
 ## Credits
@@ -218,13 +218,13 @@ TwiAntiVpn, Spigot/Paper, BungeeCord/Waterfall ve Velocity üzerinde Sonar ile b
 
 - `login-check.order: BEFORE_ANTIBOT` TwiAntiVpn kontrollerini platformun izin verdiği en erken aşamada çalıştırır. Varsayılan budur.
 - `login-check.order: AFTER_ANTIBOT` anti-bot pluginlerinin önce çalışmasına izin verir; bağlantı hâlâ izinliyse TwiAntiVpn kontrolleri sonra yapılır.
-- Sonar kuruluysa ve `BEFORE_ANTIBOT` aktifse TwiAntiVpn Sonar doğrulama giriş akışına da bağlanır. Böylece seçilen hafif kontroller Sonar bot doğrulaması tamamlanmadan önce çalışabilir.
+- Sonar kuruluysa ve `BEFORE_ANTIBOT` aktifse TwiAntiVpn seçili erken modülleri platformun ilk login fazında çalıştırır ve ek güvenlik yolu olarak Sonar doğrulama giriş akışına da bağlanır. Böylece seçilen kontroller tek bir entegrasyon noktasına bağlı kalmadan Sonar bot doğrulaması tamamlanmadan önce çalışabilir.
 - `login-check.adaptive-sonar.enabled` açıkken saldırı veya recovery durumlarında kontroller otomatik olarak Sonar sonrasına taşınabilir.
-- `login-check.adaptive-sonar.before-sonar` normal trafikte hangi modüllerin Sonar öncesinde çalışabileceğini belirler. Varsayılan olarak burada yalnızca hafif kontroller açık tutulur.
+- `login-check.adaptive-sonar.before-sonar` normal trafikte hangi modüllerin Sonar öncesinde çalışabileceğini belirler. Bu modüller erken kontrol edilir; bağlantı hâlâ izinliyse tüm aktif politikalar Sonar sonrasında tekrar kullanılabilir. Varsayılan olarak burada yalnızca hafif kontroller açık tutulur.
 
 Varsayılan adaptive davranış:
 
-- Normal trafik: `before-sonar` altında açık olan modüller erken çalışabilir; diğer aktif kontroller Sonar sonrasında çalışır.
+- Normal trafik: `before-sonar` altında açık olan modüller erken çalışır; bağlantı izinli kalırsa tüm aktif kontroller Sonar sonrasında da uygulanabilir.
 - Sonar saldırı sinyali: tüm aktif TwiAntiVpn kontrolleri Sonar sonrasına taşınır.
 - Recovery süresi: `recovery-delay-seconds` bitene kadar kontroller Sonar sonrasında kalır.
 - Yerel pre-Sonar blok yoğunluğu: Sonar öncesi kontroller kısa sürede çok fazla bağlantı engellerse, Sonar henüz saldırı bildirmemiş olsa bile TwiAntiVpn bunu saldırı sinyali gibi değerlendirir.
@@ -297,7 +297,7 @@ YYYY.MM.DD.build
 Örnek:
 
 ```text
-2026.07.09.21
+2026.07.09.22
 ```
 
 ## Katkı

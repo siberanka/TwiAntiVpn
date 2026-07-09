@@ -95,7 +95,9 @@ class AdaptiveLoginOrderServiceTest {
 
         assertTrue(service.sonarEarlyModules().containsAll(early));
         AdaptiveLoginOrderService.ModulePlan normalPlan = service.snapshotModulePlan();
-        assertFalse(normalPlan.isRunBeforePlatform());
+        assertTrue(normalPlan.isRunBeforePlatform());
+        assertTrue(normalPlan.getBeforePlatformModules().containsAll(early));
+        assertFalse(normalPlan.getBeforePlatformModules().contains(CheckModule.VPN_PROXYCHECK));
         assertTrue(normalPlan.getAfterPlatformModules().contains(CheckModule.PROXY_BLOCKLIST));
         assertTrue(normalPlan.getAfterPlatformModules().contains(CheckModule.VPN_IP_API));
         assertTrue(normalPlan.getAfterPlatformModules().contains(CheckModule.VPN_PROXYCHECK));
@@ -131,6 +133,33 @@ class AdaptiveLoginOrderServiceTest {
         AdaptiveLoginOrderService.ModulePlan plan = service.snapshotModulePlan();
         assertTrue(plan.isRunBeforePlatform());
         assertTrue(plan.getBeforePlatformModules().containsAll(
+                EnumSet.allOf(CheckModule.class)
+        ));
+    }
+
+    @Test
+    void emptyAdaptiveEarlyModuleSetDefersEveryModuleAfterPlatform() {
+        AdaptiveLoginOrderService service = new AdaptiveLoginOrderService(() -> 0L);
+        service.configure(
+                true,
+                true,
+                30,
+                true,
+                60,
+                15,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Collections.emptySet()
+        );
+        service.setSonarStatus(true, false);
+
+        AdaptiveLoginOrderService.ModulePlan plan = service.snapshotModulePlan();
+        assertFalse(plan.isRunBeforePlatform());
+        assertTrue(plan.getBeforePlatformModules().isEmpty());
+        assertTrue(plan.getAfterPlatformModules().containsAll(
                 EnumSet.allOf(CheckModule.class)
         ));
     }

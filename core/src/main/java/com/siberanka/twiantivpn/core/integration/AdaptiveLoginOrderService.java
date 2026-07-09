@@ -196,13 +196,15 @@ public final class AdaptiveLoginOrderService {
             return ModulePlan.afterAll();
         }
 
-        // Sonar's API event is asynchronous. Re-evaluate every policy after Sonar
-        // using provider-level single-flight results so a delayed early hook cannot
-        // create a fail-open window or duplicate outbound requests.
+        // Run configured early modules at the platform's first login hook as a
+        // fail-safe even when Sonar's API event is unavailable or delayed. The
+        // after phase still re-evaluates every policy with provider-level
+        // single-flight results so routing changes cannot create a fail-open
+        // window or duplicate outbound requests.
         return new ModulePlan(
                 configuredBeforeModules,
                 EnumSet.allOf(CheckModule.class),
-                false
+                !configuredBeforeModules.isEmpty()
         );
     }
 

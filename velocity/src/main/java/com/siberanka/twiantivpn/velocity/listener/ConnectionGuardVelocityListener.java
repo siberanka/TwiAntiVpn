@@ -37,6 +37,9 @@ public class ConnectionGuardVelocityListener {
         AdaptiveLoginOrderService.ModulePlan plan =
                 AdaptiveLoginOrderService.getInstance().snapshotModulePlan();
         if (plan.isRunBeforePlatform()) {
+            if (!plan.getAfterPlatformModules().isEmpty()) {
+                deferredEvents.put(loginEvent, plan.getAfterPlatformModules());
+            }
             return handlePreLogin(loginEvent, plan.getBeforePlatformModules(), true);
         }
         deferredEvents.put(loginEvent, plan.getAfterPlatformModules());
