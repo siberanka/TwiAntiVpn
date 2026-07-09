@@ -282,9 +282,19 @@ public class ConnectionGuardBungeePlugin extends Plugin {
                 shouldRunBeforeAntiBot(),
                 getConfig().getBoolean("login-check.adaptive-sonar.enabled", true),
                 getConfig().getInt("login-check.adaptive-sonar.recovery-delay-seconds", 30),
-                getConfig().getBoolean("login-check.adaptive-sonar.local-attack-detection.enabled", true),
-                getConfig().getInt("login-check.adaptive-sonar.local-attack-detection.window-seconds", 60),
-                getConfig().getInt("login-check.adaptive-sonar.local-attack-detection.block-threshold", 15),
+                adaptiveBoolean("pre-sonar-block-spike.enabled", "local-attack-detection.enabled", true),
+                adaptiveInt(
+                        "pre-sonar-block-spike.count-blocks-within-seconds",
+                        "pre-sonar-block-spike.rolling-window-seconds",
+                        "local-attack-detection.window-seconds",
+                        60
+                ),
+                adaptiveInt(
+                        "pre-sonar-block-spike.trigger-after-blocked-connections",
+                        "pre-sonar-block-spike.blocked-connections-threshold",
+                        "local-attack-detection.block-threshold",
+                        15
+                ),
                 getLogger(),
                 getLanguageConfig().getString("messages.adaptive-sonar-attack-log", ""),
                 getLanguageConfig().getString("messages.adaptive-sonar-local-attack-log", ""),
@@ -330,6 +340,37 @@ public class ConnectionGuardBungeePlugin extends Plugin {
     private boolean shouldRunBeforeAntiBot() {
         String order = getConfig().getString("login-check.order");
         return order == null || !order.equalsIgnoreCase("AFTER_ANTIBOT");
+    }
+
+    private boolean adaptiveBoolean(String currentPath, String legacyPath, boolean defaultValue) {
+        String base = "login-check.adaptive-sonar.";
+        String current = base + currentPath;
+        if (getConfig().get(current) != null) {
+            return getConfig().getBoolean(current, defaultValue);
+        }
+        return getConfig().getBoolean(base + legacyPath, defaultValue);
+    }
+
+    private int adaptiveInt(String currentPath, String legacyPath, int defaultValue) {
+        String base = "login-check.adaptive-sonar.";
+        String current = base + currentPath;
+        if (getConfig().get(current) != null) {
+            return getConfig().getInt(current, defaultValue);
+        }
+        return getConfig().getInt(base + legacyPath, defaultValue);
+    }
+
+    private int adaptiveInt(String currentPath, String previousPath, String legacyPath, int defaultValue) {
+        String base = "login-check.adaptive-sonar.";
+        String current = base + currentPath;
+        if (getConfig().get(current) != null) {
+            return getConfig().getInt(current, defaultValue);
+        }
+        String previous = base + previousPath;
+        if (getConfig().get(previous) != null) {
+            return getConfig().getInt(previous, defaultValue);
+        }
+        return getConfig().getInt(base + legacyPath, defaultValue);
     }
 
     private boolean isGeoBlocked(com.siberanka.twiantivpn.core.geo.GeoResult geoResult) {
@@ -395,9 +436,9 @@ public class ConnectionGuardBungeePlugin extends Plugin {
         boolean changed = false;
         changed |= setConfigDefault("login-check.adaptive-sonar.enabled", true);
         changed |= setConfigDefault("login-check.adaptive-sonar.recovery-delay-seconds", 30);
-        changed |= setConfigDefault("login-check.adaptive-sonar.local-attack-detection.enabled", true);
-        changed |= setConfigDefault("login-check.adaptive-sonar.local-attack-detection.window-seconds", 60);
-        changed |= setConfigDefault("login-check.adaptive-sonar.local-attack-detection.block-threshold", 15);
+        changed |= setConfigDefault("login-check.adaptive-sonar.pre-sonar-block-spike.enabled", true);
+        changed |= setConfigDefault("login-check.adaptive-sonar.pre-sonar-block-spike.count-blocks-within-seconds", 60);
+        changed |= setConfigDefault("login-check.adaptive-sonar.pre-sonar-block-spike.trigger-after-blocked-connections", 15);
         changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.username-filter", true);
         changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.proxy-blocklist", true);
         changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.vpn-providers.proxycheck", false);

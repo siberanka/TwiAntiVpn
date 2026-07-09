@@ -48,7 +48,7 @@ The default configuration is designed to work out of the box. Important sections
 - `provider.isp-block`: blocked ASN numbers and ISP/provider names.
 - `username-filter`: blocked username fragments.
 - `login-check`: fixed before/after ordering and adaptive per-module Sonar routing. By default the lightweight username filter and in-memory proxy blocklist are allowed before Sonar; remaining checks run after verification. During a Sonar attack, local pre-Sonar block spike or recovery window, every module moves after Sonar.
-- `login-check.adaptive-sonar.local-attack-detection`: treats repeated pre-Sonar blocks as an attack signal. The default is 15 blocks within 60 seconds.
+- `login-check.adaptive-sonar.pre-sonar-block-spike`: treats repeated pre-Sonar blocks as an attack signal. `count-blocks-within-seconds` defines how far back blocks are counted, and `trigger-after-blocked-connections` defines how many blocks are needed before all checks move after Sonar. The default is 15 blocks within 60 seconds.
 - `security.action-cooldown-seconds`: suppresses repeated staff, webhook and command side effects without allowing blocked connections.
 - `behavior`: kick, notify, command and webhook actions.
 
@@ -107,7 +107,7 @@ YYYY.MM.DD.build
 Example:
 
 ```text
-2026.07.09.19
+2026.07.09.20
 ```
 
 ## Credits

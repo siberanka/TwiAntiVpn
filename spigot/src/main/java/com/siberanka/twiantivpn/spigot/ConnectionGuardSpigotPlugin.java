@@ -257,9 +257,19 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
                 shouldRunBeforeAntiBot(),
                 getConfig().getBoolean("login-check.adaptive-sonar.enabled", true),
                 getConfig().getInt("login-check.adaptive-sonar.recovery-delay-seconds", 30),
-                getConfig().getBoolean("login-check.adaptive-sonar.local-attack-detection.enabled", true),
-                getConfig().getInt("login-check.adaptive-sonar.local-attack-detection.window-seconds", 60),
-                getConfig().getInt("login-check.adaptive-sonar.local-attack-detection.block-threshold", 15),
+                adaptiveBoolean("pre-sonar-block-spike.enabled", "local-attack-detection.enabled", true),
+                adaptiveInt(
+                        "pre-sonar-block-spike.count-blocks-within-seconds",
+                        "pre-sonar-block-spike.rolling-window-seconds",
+                        "local-attack-detection.window-seconds",
+                        60
+                ),
+                adaptiveInt(
+                        "pre-sonar-block-spike.trigger-after-blocked-connections",
+                        "pre-sonar-block-spike.blocked-connections-threshold",
+                        "local-attack-detection.block-threshold",
+                        15
+                ),
                 getLogger(),
                 getLanguageConfig().getString("messages.adaptive-sonar-attack-log", ""),
                 getLanguageConfig().getString("messages.adaptive-sonar-local-attack-log", ""),
@@ -305,6 +315,37 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
     private boolean shouldRunBeforeAntiBot() {
         String order = getConfig().getString("login-check.order", "BEFORE_ANTIBOT");
         return !order.equalsIgnoreCase("AFTER_ANTIBOT");
+    }
+
+    private boolean adaptiveBoolean(String currentPath, String legacyPath, boolean defaultValue) {
+        String base = "login-check.adaptive-sonar.";
+        String current = base + currentPath;
+        if (getConfig().contains(current)) {
+            return getConfig().getBoolean(current, defaultValue);
+        }
+        return getConfig().getBoolean(base + legacyPath, defaultValue);
+    }
+
+    private int adaptiveInt(String currentPath, String legacyPath, int defaultValue) {
+        String base = "login-check.adaptive-sonar.";
+        String current = base + currentPath;
+        if (getConfig().contains(current)) {
+            return getConfig().getInt(current, defaultValue);
+        }
+        return getConfig().getInt(base + legacyPath, defaultValue);
+    }
+
+    private int adaptiveInt(String currentPath, String previousPath, String legacyPath, int defaultValue) {
+        String base = "login-check.adaptive-sonar.";
+        String current = base + currentPath;
+        if (getConfig().contains(current)) {
+            return getConfig().getInt(current, defaultValue);
+        }
+        String previous = base + previousPath;
+        if (getConfig().contains(previous)) {
+            return getConfig().getInt(previous, defaultValue);
+        }
+        return getConfig().getInt(base + legacyPath, defaultValue);
     }
 
     private boolean isGeoBlocked(com.siberanka.twiantivpn.core.geo.GeoResult geoResult) {

@@ -39,7 +39,7 @@ import java.util.Set;
 @Plugin(
         id="twiantivpn",
         name="TwiAntiVpn",
-        version="2026.07.09.19",
+        version="2026.07.09.20",
         url="https://github.com/siberanka",
         authors = {"gerolndnr", "siberanka"},
         dependencies = {
@@ -247,9 +247,19 @@ public class ConnectionGuardVelocityPlugin {
                 shouldRunBeforeAntiBot(),
                 cgVelocityConfig.getConfig().getBoolean("login-check.adaptive-sonar.enabled", true),
                 cgVelocityConfig.getConfig().getInt("login-check.adaptive-sonar.recovery-delay-seconds", 30),
-                cgVelocityConfig.getConfig().getBoolean("login-check.adaptive-sonar.local-attack-detection.enabled", true),
-                cgVelocityConfig.getConfig().getInt("login-check.adaptive-sonar.local-attack-detection.window-seconds", 60),
-                cgVelocityConfig.getConfig().getInt("login-check.adaptive-sonar.local-attack-detection.block-threshold", 15),
+                adaptiveBoolean("pre-sonar-block-spike.enabled", "local-attack-detection.enabled", true),
+                adaptiveInt(
+                        "pre-sonar-block-spike.count-blocks-within-seconds",
+                        "pre-sonar-block-spike.rolling-window-seconds",
+                        "local-attack-detection.window-seconds",
+                        60
+                ),
+                adaptiveInt(
+                        "pre-sonar-block-spike.trigger-after-blocked-connections",
+                        "pre-sonar-block-spike.blocked-connections-threshold",
+                        "local-attack-detection.block-threshold",
+                        15
+                ),
                 ConnectionGuard.getLogger(),
                 cgVelocityConfig.getLanguageConfig().getString("messages.adaptive-sonar-attack-log", ""),
                 cgVelocityConfig.getLanguageConfig().getString("messages.adaptive-sonar-local-attack-log", ""),
@@ -295,6 +305,37 @@ public class ConnectionGuardVelocityPlugin {
     private boolean shouldRunBeforeAntiBot() {
         String order = cgVelocityConfig.getConfig().getString("login-check.order", "BEFORE_ANTIBOT");
         return !order.equalsIgnoreCase("AFTER_ANTIBOT");
+    }
+
+    private boolean adaptiveBoolean(String currentPath, String legacyPath, boolean defaultValue) {
+        String base = "login-check.adaptive-sonar.";
+        String current = base + currentPath;
+        if (cgVelocityConfig.getConfig().get(current) != null) {
+            return cgVelocityConfig.getConfig().getBoolean(current, defaultValue);
+        }
+        return cgVelocityConfig.getConfig().getBoolean(base + legacyPath, defaultValue);
+    }
+
+    private int adaptiveInt(String currentPath, String legacyPath, int defaultValue) {
+        String base = "login-check.adaptive-sonar.";
+        String current = base + currentPath;
+        if (cgVelocityConfig.getConfig().get(current) != null) {
+            return cgVelocityConfig.getConfig().getInt(current, defaultValue);
+        }
+        return cgVelocityConfig.getConfig().getInt(base + legacyPath, defaultValue);
+    }
+
+    private int adaptiveInt(String currentPath, String previousPath, String legacyPath, int defaultValue) {
+        String base = "login-check.adaptive-sonar.";
+        String current = base + currentPath;
+        if (cgVelocityConfig.getConfig().get(current) != null) {
+            return cgVelocityConfig.getConfig().getInt(current, defaultValue);
+        }
+        String previous = base + previousPath;
+        if (cgVelocityConfig.getConfig().get(previous) != null) {
+            return cgVelocityConfig.getConfig().getInt(previous, defaultValue);
+        }
+        return cgVelocityConfig.getConfig().getInt(base + legacyPath, defaultValue);
     }
 
     private boolean isGeoBlocked(com.siberanka.twiantivpn.core.geo.GeoResult geoResult) {
