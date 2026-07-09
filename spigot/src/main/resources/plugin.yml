@@ -16,6 +16,9 @@ softdepend:
 loadbefore:
   - Sonar
   - SonarBukkit
+  - SonarSpigot
+  - SonarPaper
+  - SonarBukkitPlugin
 commands:
   twiantivpn:
     name: twiantivpn

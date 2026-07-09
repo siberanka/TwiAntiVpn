@@ -19,6 +19,7 @@ TwiAntiVpn is a production-focused anti-VPN, proxy, geo and connection-risk plug
 - SQLite, Redis or disabled cache modes.
 - Discord webhook and console command actions.
 - Editable language files for English, Turkish, Azerbaijani and Spanish.
+- Login block and staff notification messages support new lines, legacy color codes, hex colors and common MiniMessage-style tags.
 
 ## Download
 
@@ -103,7 +104,7 @@ YYYY.MM.DD.build
 Example:
 
 ```text
-2026.07.09.10
+2026.07.09.11
 ```
 
 ## Credits
