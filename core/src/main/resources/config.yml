@@ -130,7 +130,7 @@ proxy-blocklist:
   # How often remote proxy/IP lists are refreshed. Unit: minutes.
   refresh-interval: 60
   # Safety limits to avoid excessive memory use when a remote list is malformed or unexpectedly huge.
-  # Default is 750000. You may raise it for very large lists, but it is capped at 2000000 internally.
+  # Default is 750000. You may raise it for very large lists, but it is capped at 15000000 internally.
   # refresh-interval is clamped between 5 and 1440 minutes to prevent accidental or malicious refresh storms.
   max-entries: 750000
   max-line-length: 512
