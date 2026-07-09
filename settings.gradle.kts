@@ -10,7 +10,7 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
 
-rootProject.name = "connection-guard"
+rootProject.name = "TwiAntiVpn"
 include("core")
 include("spigot")
 include("bungeecord")

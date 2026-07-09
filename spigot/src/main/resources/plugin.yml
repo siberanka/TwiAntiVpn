@@ -1,8 +1,10 @@
-name: ConnectionGuard
+name: TwiAntiVpn
 version: '${version}'
-author: gerolndnr
-website: https://github.com/gerolndnr
-main: com.github.gerolndnr.connectionguard.spigot.ConnectionGuardSpigotPlugin
+authors:
+  - gerolndnr
+  - siberanka
+website: https://github.com/siberanka
+main: com.siberanka.twiantivpn.spigot.ConnectionGuardSpigotPlugin
 api-version: 1.13
 folia-supported: true
 softdepend:

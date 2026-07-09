@@ -1,7 +1,7 @@
-name: ConnectionGuard
+name: TwiAntiVpn
 version: '${version}'
-author: gerolndnr
-website: https://github.com/gerolndnr
-main: com.github.gerolndnr.connectionguard.bungee.ConnectionGuardBungeePlugin
+author: gerolndnr, siberanka
+website: https://github.com/siberanka
+main: com.siberanka.twiantivpn.bungee.ConnectionGuardBungeePlugin
 softdepends:
   - LuckPerms

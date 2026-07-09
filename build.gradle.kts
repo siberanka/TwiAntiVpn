@@ -3,13 +3,13 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
     `java-library`
     id("com.github.johnrengelman.shadow").version("8.1.1")
-    id("xyz.jpenilla.run-paper").version("2.3.0")
 }
 
-version = "0.4.9"
+version = "2026.07.09.1"
 
 repositories {
     mavenCentral()
+    maven("https://repo.alessiodp.com/releases/")
 }
 
 dependencies {
@@ -22,13 +22,9 @@ dependencies {
 tasks {
     shadowJar {
         archiveVersion.set(project.version.toString())
-        relocate("com.alessiodp.libby", "com.github.gerolndnr.connectionguard.libs.com.alessiodp.libby")
-        relocate("com.google.gson", "com.github.gerolndnr.connectionguard.libs.com.google.gson")
-        relocate("org.bstats", "com.github.gerolndnr.connectionguard.libs.org.bstats")
+        relocate("com.alessiodp.libby", "com.siberanka.twiantivpn.libs.com.alessiodp.libby")
+        relocate("com.google.gson", "com.siberanka.twiantivpn.libs.com.google.gson")
+        relocate("org.bstats", "com.siberanka.twiantivpn.libs.org.bstats")
     }
 
-    runServer {
-        jvmArgs("-Dcom.mojang.eula.agree=true")
-        minecraftVersion("1.8.8")
-    }
 }

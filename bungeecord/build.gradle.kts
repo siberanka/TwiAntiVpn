@@ -14,13 +14,15 @@ plugins {
 repositories {
     // Use Maven Central for resolving dependencies.
     mavenCentral()
+    maven("https://libraries.minecraft.net")
+    maven("https://repo.md-5.net/content/repositories/snapshots/")
     maven("https://oss.sonatype.org/content/repositories/snapshots")
     maven("https://repo.alessiodp.com/releases/")
 }
 
 dependencies {
     shadow(project(":core"))
-    shadow("net.md-5:bungeecord-api:1.19-R0.1-SNAPSHOT")
+    shadow("net.md-5:bungeecord-api:1.21-R0.1")
     shadow("net.luckperms:api:5.4")
     shadow("org.bstats:bstats-bungeecord:3.0.2")
     implementation("net.byteflux:libby-bungee:1.3.1")
@@ -28,9 +30,8 @@ dependencies {
 
 // Apply a specific Java toolchain to ease working on different environments.
 java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(8)
-    }
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 tasks.named<Test>("test") {

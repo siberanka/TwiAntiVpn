@@ -77,6 +77,30 @@ behavior:
 # Default value: 1
 required-positive-flags: 1
 
+# Proxy/IP blocklists are checked before cached API results and before any external VPN provider call.
+# Supported entries in downloaded .txt/.ipset files: plain IPs, ip:port lines and CIDR ranges.
+proxy-blocklist:
+  enabled: true
+  # Unit: minutes
+  refresh-interval: 60
+  # Safety limits to avoid excessive memory use when a remote list is malformed or unexpectedly huge.
+  max-entries: 750000
+  max-line-length: 512
+  request-timeout-seconds: 15
+  urls:
+    - 'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt'
+    - 'https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt'
+    - 'https://raw.githubusercontent.com/scriptzteam/ProtonVPN-VPN-IPs/main/exit_ips.txt'
+    - 'https://raw.githubusercontent.com/mmpx12/proxy-list/master/ips-list.txt'
+    - 'https://check.torproject.org/torbulkexitlist?ip=1.1.1.1'
+    - 'https://cinsscore.com/list/ci-badguys.txt'
+    - 'https://lists.blocklist.de/lists/all.txt'
+    - 'https://raw.githubusercontent.com/vakhov/fresh-proxy-list/refs/heads/master/socks4.txt'
+    - 'https://blocklist.greensnow.co/greensnow.txt'
+    - 'https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/stopforumspam_7d.ipset'
+    - 'https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies.txt'
+    - 'https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks4.txt'
+
 # There are a lot of different services which help the plugin identify which
 # IP is a vpn and which is not. Some work better than others and some have daily/monthly limits.
 
@@ -104,7 +128,7 @@ provider:
 
     # For advanced usage, there is the option to add other vpn detection provider.
     # You can find settings for different other provider in the Connection Guard wiki!
-    # https://github.com/gerolndnr/connection-guard/wiki/Custom-Services
+    # Configure your own REST API provider here if the built-in services are not enough.
     # Services, that have been implemented as 'custom service':
     # - VPN-API.xyz (https://vpn-api.xyz)
     custom:

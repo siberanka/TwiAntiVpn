@@ -1,96 +1,68 @@
+# TwiAntiVpn
 
-<h1 align="center">
-  <br>
-  <a href="https://github.com/gerolndnr/connection-guard"><img src="https://raw.githubusercontent.com/gerolndnr/connection-guard/master/docs/connection-guard-logo.png" alt="Connection Guard" width="300"></a>
-  <br>
-  Connection Guard
-  <br>
-</h1>
+TwiAntiVpn is a VPN/proxy and geo-blocking plugin for Spigot/Paper, BungeeCord and Velocity.
 
-<h4 align="center">A feature-rich vpn and geo-blocker for Spigot, BungeeCord and Velocity</h4>
+Version format: `YYYY.MM.DD.build`, for example `2026.07.09.1`.
 
-<p align="center">
-  <a href="#key-features">Key Features</a> •
-  <a href="#how-to-use">How To Use</a> •
-  <a href="#credits">Credits</a> •
-  <a href="#related">Related</a> •
-  <a href="#license">License</a>
-</p>
+## Features
 
-## Key Features
+- Blocks VPN/proxy users through configurable detection providers.
+- Checks a local proxy/IP blocklist before cache lookups and before external VPN APIs.
+- Downloads `.txt` and `.ipset` blocklists on a refresh schedule, one source at a time.
+- Retries failed blocklist downloads up to 3 times and waits 1 second between sources/retries.
+- Uses immutable blocklist snapshots to avoid desync while players are joining.
+- Supports IP, `ip:port` and CIDR entries in downloaded blocklists.
+- Supports geo blacklist/whitelist checks, cache providers and Discord webhooks.
 
-* **Detect VPNs** - react to them how you like!
-  * Kick: Prevent players with VPNs to join your server.
-  * Notify: Notify admins or moderators that a VPN user joined.
-  * Command: Execute a command when a VPN user joins.
-* **Multiple Detection Provider** - Minimize false flags, maximize detection!
-  * ProxyCheck (100 queries per day for free without api key, 1.000 queries per day for free with api key)
-  * IP-Hub (1.000 queries per day for free with api key)
-  * IP-API (45 queries per minute for free, no api key required)
-  * VPN-API (1.000 queries per day for free with api key)
-  * Custom Provider (configure the plugin to automatically use the REST-API of the detection provider, supports `GET` and `POST`)
-* **Geo-Blocking** - No more bots from foreign countries!
-  * `Whitelist` or `Blacklist` mode
-  * Over 200 countries supported!
-* **Connection Information** - Know everything about your players connection!
-  * IP address (and whether it is a vpn/proxy)
-  * Country code (e.g. `US`, `CA`, ...)
-  * City name (e.g. `Berlin`, `London`, ...)
-  * ISP provider (e.g. `AT&T`, `Telekom`, ...)
-* **WebHook Support for Discord** - Send messages to discord channels when a geo-blocked or vpn user tries to connect!
-* **Exclude players** from the vpn- and geo-check by giving them the `connectionguard.exemption.vpn` or `connectionguard.exemption.geo` permission! (can be enabled in the config, requires LuckPerms on BungeeCord and Spigot)
+## Default Proxy Blocklists
 
-## How To Use
+The default `config.yml` includes these blocklist sources:
 
-### Installation
+- `https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt`
+- `https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt`
+- `https://raw.githubusercontent.com/scriptzteam/ProtonVPN-VPN-IPs/main/exit_ips.txt`
+- `https://raw.githubusercontent.com/mmpx12/proxy-list/master/ips-list.txt`
+- `https://check.torproject.org/torbulkexitlist?ip=1.1.1.1`
+- `https://cinsscore.com/list/ci-badguys.txt`
+- `https://lists.blocklist.de/lists/all.txt`
+- `https://raw.githubusercontent.com/vakhov/fresh-proxy-list/refs/heads/master/socks4.txt`
+- `https://blocklist.greensnow.co/greensnow.txt`
+- `https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/stopforumspam_7d.ipset`
+- `https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies.txt`
+- `https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks4.txt`
 
-To use Connection Guard, you need a **Spigot server** (or Paper, Pufferfish, Purpur, ...) running on `1.8.X` and `1.21.X` or an up-to-date version of **BungeeCord** (or Waterfall) or **Velocity**.
+## Build
 
-1. Build the project (`./gradlew clean shadowJar`) download it from the [release section](https://github.com/gerolndnr/connection-guard/releases).
-2. Place the downloaded `.jar` file into the plugins folder of your Spigot, BungeeCord or Velocity server.
-3. Start or restart your server.
-4. Optional: Configure Connection Guard configuration in its directory (`config.yml` and `translation/en.yml`)
+```bash
+./gradlew clean shadowJar
+```
 
-### Usage
-When freshly installed, Connection Guard blocks VPN connections and notifies all players with the `connectionguard.notify.vpn` permission (`KICK_NOTIFY`).
-All players are geo checked by default, but when players from Russia or China join, all players with the 
-`connectionguard.notify.geo` permission are notified (`NOTIFY`). You can customize every aspect including all
-messages sent to players in the `config.yml` and the corresponding messages file (`en.yml` by default.)
- - `/connectionguard help` Help overview of Connection Guard commands
-   - Permission: `connectionguard.command.help`
- - `/connectionguard reload` Reload the config and the messages file. Changes to providers require a restart.
-   - Permission: `connectionguard.command.reload`
- - `/connectionguard clear (<Player/UUID/IP>)` Clear the entire cache or just for the specified player/uuid/ip. If you specify a player or an uuid, the player has to be online.
-   - Permission: `connectionguard.command.clear`
- - `/connectionguard info <Player/UUID/IP>` Show all connection information (IP, VPN, Country, City, ISP) about the player or the IP. If you specify a player or an uuid, the player has to be online.
-   - Permission: `connectionguard.command.info`
+On this Windows workspace, Gradle may need the Windows certificate store:
+
+```powershell
+$env:GRADLE_OPTS='-Djavax.net.ssl.trustStoreType=WINDOWS-ROOT'
+F:\gradle-8.14.3\bin\gradle.bat clean shadowJar
+```
+
+The main release jar is generated at:
+
+```text
+build/libs/TwiAntiVpn-2026.07.09.1-all.jar
+```
+
+## Commands
+
+- `/connectionguard help`
+- `/connectionguard reload`
+- `/connectionguard clear (<Player/UUID/IP>)`
+- `/connectionguard info <Player/UUID/IP>`
 
 ## Credits
 
-This software uses the following open source packages:
+Original project by `gerolndnr`.
 
-- [OkHttp](https://github.com/square/okhttp)
-- [Gson](https://github.com/google/gson)
-- [sqlite-jdbc](https://github.com/xerial/sqlite-jdbc)
-- [Jedis](https://github.com/redis/jedis)
-- Readme is taken from [here](https://github.com/amitmerchant1990/electron-markdownify)
-
-## Related
-
-[Connection Guard Spigot Page](https://www.spigotmc.org/resources/connection-guard-vpn-and-geo-blocking-spigot-bungeecord-velocity.121509/) - Official Resource Page
-
-[LNDNR's Anti-VPN & Geo-Blocking](https://www.spigotmc.org/resources/lndnrs-anti-vpn-geo-blocking-1-16-5-1-21-x-bedrock-support.116744/) - Predecessor of Connection Guard
-
-## Help
-
-- [Discord Server](https://discord.gg/GekQVPqsfS) or contact me on discord directly: `gold.ly`
+Maintained for TwiAntiVpn by `siberanka`.
 
 ## License
 
 MIT
-
----
-
-> GitHub [@gerolndnr](https://github.com/gerolndnr)
-
-
