@@ -41,10 +41,10 @@ public class ProxyCheckGeoProvider implements GeoProvider {
                         BoundedResponseBody.read(response.body())
                 ).getAsJsonObject();
             } catch (IOException e) {
-                ConnectionGuard.getLogger().info("ProxyCheck Geo | " + e.getMessage());
+                ConnectionGuard.reportError("ProxyCheck geo provider request", e);
                 return Optional.empty();
             } catch (Exception e) {
-                ConnectionGuard.getLogger().info("ProxyCheck Geo | " + e.getMessage());
+                ConnectionGuard.reportError("ProxyCheck geo provider parse", e);
                 return Optional.empty();
             }
 

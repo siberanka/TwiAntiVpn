@@ -7,10 +7,12 @@ import com.siberanka.twiantivpn.core.geo.GeoProvider;
 import com.siberanka.twiantivpn.core.geo.GeoResult;
 import com.siberanka.twiantivpn.core.isp.IspBlockResult;
 import com.siberanka.twiantivpn.core.isp.IspBlockService;
+import com.siberanka.twiantivpn.core.logging.ErrorReporter;
 import com.siberanka.twiantivpn.core.security.ActionRateLimiter;
 import com.siberanka.twiantivpn.core.vpn.VpnProvider;
 import com.siberanka.twiantivpn.core.vpn.VpnResult;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -39,6 +41,7 @@ public class ConnectionGuard {
     private static final IspBlockService ispBlockService = new IspBlockService();
     private static final UsernameFilterService usernameFilterService = new UsernameFilterService();
     private static final ActionRateLimiter actionRateLimiter = new ActionRateLimiter();
+    private static final ErrorReporter errorReporter = new ErrorReporter();
     private static final ConcurrentMap<String, CompletableFuture<VpnResult>> inFlightVpnChecks =
             new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, CompletableFuture<Optional<VpnResult>>> inFlightProviderChecks =
@@ -151,9 +154,7 @@ public class ConnectionGuard {
                 try {
                     CompletableFuture.allOf(vpnResultList.toArray(new CompletableFuture[0])).join();
                 } catch (Exception exception) {
-                    if (logger != null) {
-                        logger.info("One or more VPN providers failed: " + exception.getMessage());
-                    }
+                    reportError("VPN provider batch check", exception);
                 }
             }
 
@@ -169,9 +170,7 @@ public class ConnectionGuard {
                             vpnPositives++;
                     }
                 } catch (Exception exception) {
-                    if (logger != null) {
-                        logger.info("VPN provider failed: " + exception.getMessage());
-                    }
+                    reportError("VPN provider check", exception);
                 }
             }
 
@@ -320,9 +319,7 @@ public class ConnectionGuard {
                 try {
                     cacheProvider.addGeoResult(geoResultOptional.get()).join();
                 } catch (Exception exception) {
-                    if (logger != null) {
-                        logger.info("Could not cache geo result: " + exception.getMessage());
-                    }
+                    reportError("Geo cache write", exception);
                 }
             }
 
@@ -352,9 +349,7 @@ public class ConnectionGuard {
                     return result;
                 }
             } catch (Exception exception) {
-                if (logger != null) {
-                    logger.info("Geo provider failed: " + exception.getMessage());
-                }
+                reportError("Geo provider check", exception);
             }
         }
         return firstResult;
@@ -436,9 +431,7 @@ public class ConnectionGuard {
         try {
             return Boolean.TRUE.equals(provider.setup().get(15, TimeUnit.SECONDS));
         } catch (Exception exception) {
-            if (logger != null) {
-                logger.info("Cache initialization failed: " + exception.getMessage());
-            }
+            reportError("Cache initialization", exception);
             return false;
         }
     }
@@ -452,9 +445,7 @@ public class ConnectionGuard {
         try {
             provider.disband().get(5, TimeUnit.SECONDS);
         } catch (Exception exception) {
-            if (logger != null) {
-                logger.info("Cache shutdown failed: " + exception.getMessage());
-            }
+            reportError("Cache shutdown", exception);
         }
     }
 
@@ -513,6 +504,17 @@ public class ConnectionGuard {
 
     public static void configureActionRateLimit(int cooldownSeconds) {
         actionRateLimiter.configure(cooldownSeconds);
+    }
+
+    public static void configureErrorReporting(boolean enabled,
+                                               Path dataDirectory,
+                                               int maxSizeKb,
+                                               int consoleCooldownSeconds) {
+        errorReporter.configure(enabled, dataDirectory, maxSizeKb, consoleCooldownSeconds, logger);
+    }
+
+    public static void reportError(String context, Throwable throwable) {
+        errorReporter.report(context, throwable);
     }
 
     public static boolean shouldEmitActions(String actionType, String ipAddress) {

@@ -80,9 +80,7 @@ public final class SonarApiEarlyCheckHook {
         } catch (ClassNotFoundException ignored) {
             // Sonar is not installed on this platform.
         } catch (Throwable throwable) {
-            if (logger != null) {
-                logger.info("TwiAntiVpn | Could not enable Sonar early VPN hook: " + throwable.getMessage());
-            }
+            ConnectionGuard.reportError("Sonar early hook install", throwable);
         }
     }
 
@@ -98,9 +96,7 @@ public final class SonarApiEarlyCheckHook {
             Method unregister = registration.eventManager.getClass().getMethod("unregisterListener", registration.arrayType);
             unregister.invoke(registration.eventManager, listenerArray);
         } catch (Throwable throwable) {
-            if (logger != null) {
-                logger.info("TwiAntiVpn | Could not unregister Sonar early VPN hook: " + throwable.getMessage());
-            }
+            ConnectionGuard.reportError("Sonar early hook uninstall", throwable);
         }
     }
 
@@ -162,9 +158,7 @@ public final class SonarApiEarlyCheckHook {
 
             CompletableFuture.allOf(vpnFuture, geoFuture).whenComplete((ignored, throwable) -> {
                 if (throwable != null) {
-                    if (logger != null) {
-                        logger.info("TwiAntiVpn | Sonar early check failed: " + throwable.getMessage());
-                    }
+                    ConnectionGuard.reportError("Sonar early check", throwable);
                     return;
                 }
                 VpnResult vpnResult = vpnFuture.join();
@@ -197,9 +191,7 @@ public final class SonarApiEarlyCheckHook {
                 }
             });
         } catch (Throwable throwable) {
-            if (logger != null) {
-                logger.info("TwiAntiVpn | Sonar early hook event failed: " + throwable.getMessage());
-            }
+            ConnectionGuard.reportError("Sonar early hook event", throwable);
         }
     }
 

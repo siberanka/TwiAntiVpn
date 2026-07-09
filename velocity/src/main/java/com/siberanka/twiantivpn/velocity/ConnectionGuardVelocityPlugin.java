@@ -39,7 +39,7 @@ import java.util.Set;
 @Plugin(
         id="twiantivpn",
         name="TwiAntiVpn",
-        version="2026.07.09.20",
+        version="2026.07.09.21",
         url="https://github.com/siberanka",
         authors = {"gerolndnr", "siberanka"},
         dependencies = {
@@ -80,6 +80,7 @@ public class ConnectionGuardVelocityPlugin {
     public void onProxyInitialization(ProxyInitializeEvent initializeEvent) {
         // 1. Set logger
         ConnectionGuard.setLogger(java.util.logging.Logger.getLogger(logger.getName()));
+        ConnectionGuard.configureErrorReporting(true, dataDirectory, 2048, 60);
 
         // 2. Download libraries used for vpn and geo checks and config
         VelocityLibraryManager<ConnectionGuardVelocityPlugin> libraryManager = new VelocityLibraryManager<>(logger, dataDirectory, proxyServer.getPluginManager(), this);
@@ -121,6 +122,10 @@ public class ConnectionGuardVelocityPlugin {
         // 3. Create and load configs
         cgVelocityConfig = new CGVelocityConfig(dataDirectory);
         cgVelocityConfig.load();
+        if (cgVelocityConfig.getConfig() == null || cgVelocityConfig.getLanguageConfig() == null) {
+            return;
+        }
+        configureErrorReporting();
 
         // 4. Register specified cache provider
         switch (cgVelocityConfig.getConfig().getString("provider.cache.type").toLowerCase()) {
@@ -156,7 +161,7 @@ public class ConnectionGuardVelocityPlugin {
                 ConnectionGuard.setCacheProvider(new NoCacheProvider());
                 break;
             default:
-                logger.error("The specified cache provider is invalid. Please use SQLite,Redis or disable the cache.");
+                logger.warn("TwiAntiVpn | The specified cache provider is invalid. Please use SQLite, Redis or Disabled.");
                 return;
         }
 
@@ -239,6 +244,15 @@ public class ConnectionGuardVelocityPlugin {
                 cgVelocityConfig.getConfig().getInt("proxy-blocklist.max-line-length"),
                 cgVelocityConfig.getConfig().getInt("proxy-blocklist.request-timeout-seconds"),
                 cgVelocityConfig.getConfig().getInt("proxy-blocklist.source-delay-millis", 250)
+        );
+    }
+
+    public void configureErrorReporting() {
+        ConnectionGuard.configureErrorReporting(
+                cgVelocityConfig.getConfig().getBoolean("security.error-log.enabled", true),
+                dataDirectory,
+                cgVelocityConfig.getConfig().getInt("security.error-log.max-size-kb", 2048),
+                cgVelocityConfig.getConfig().getInt("security.error-log.console-notice-cooldown-seconds", 60)
         );
     }
 

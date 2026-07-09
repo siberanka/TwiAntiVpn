@@ -157,7 +157,7 @@ public class ProxyBlocklistService {
         try {
             refresh(refreshGeneration);
         } catch (Throwable throwable) {
-            log("Unexpected refresh failure: " + throwable.getMessage());
+            ConnectionGuard.reportError("Proxy blocklist refresh", throwable);
         }
     }
 
@@ -199,8 +199,10 @@ public class ProxyBlocklistService {
                     downloaded = true;
                     break;
                 } catch (IOException | IllegalArgumentException exception) {
-                    log("Could not load proxy blocklist source " + url + " (attempt "
-                            + attempt + "/" + MAX_RETRIES + "): " + exception.getMessage());
+                    ConnectionGuard.reportError(
+                            "Proxy blocklist source download attempt " + attempt + "/" + MAX_RETRIES,
+                            exception
+                    );
                     if (attempt < MAX_RETRIES) {
                         sleepBetweenSources();
                     }

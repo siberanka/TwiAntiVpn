@@ -38,7 +38,7 @@ public class IpHubVpnProvider implements VpnProvider {
                         BoundedResponseBody.read(response.body())
                 ).getAsJsonObject();
             } catch (Exception e) {
-                ConnectionGuard.getLogger().info("IP-Hub | " + e.getMessage());
+                ConnectionGuard.reportError("IP-Hub VPN provider request", e);
                 return Optional.empty();
             }
 

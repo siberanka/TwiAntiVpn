@@ -13,6 +13,13 @@ security:
   # Repeated blocks from the same IP are still denied, but staff notifications,
   # webhooks and console commands are emitted at most once per action type in this window.
   action-cooldown-seconds: 5
+  error-log:
+    # When enabled, detailed plugin errors are written to error.log instead of flooding the console.
+    enabled: true
+    # Current error.log is rotated to error.log.1 when it reaches this size. Clamped between 64 and 65536 KB.
+    max-size-kb: 2048
+    # Repeated console notices for the same error area are suppressed for this many seconds.
+    console-notice-cooldown-seconds: 60
 
 # Settings about how to behave when finding a vpn or geo-blocked user.
 behavior:

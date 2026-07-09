@@ -26,7 +26,7 @@ public class SQLiteCacheProvider implements CacheProvider {
                 try {
                     Class.forName("org.sqlite.JDBC");
                 } catch (ClassNotFoundException e) {
-                    ConnectionGuard.getLogger().info("SQLite | " + e.getMessage());
+                    ConnectionGuard.reportError("SQLite driver load", e);
                 }
                 connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFileLocation);
 
@@ -42,7 +42,7 @@ public class SQLiteCacheProvider implements CacheProvider {
                 }
                 return true;
             } catch (SQLException e) {
-                ConnectionGuard.getLogger().info("SQLite | " + e.getMessage());
+                ConnectionGuard.reportError("SQLite setup", e);
                 return false;
             }
             }
@@ -66,7 +66,7 @@ public class SQLiteCacheProvider implements CacheProvider {
                 }
                 return true;
             } catch (SQLException e) {
-                ConnectionGuard.getLogger().info("SQLite | " + e.getMessage());
+                ConnectionGuard.reportError("SQLite shutdown", e);
                 return false;
             }
             }
@@ -108,7 +108,7 @@ public class SQLiteCacheProvider implements CacheProvider {
                     }
                 }
             } catch (SQLException e) {
-                ConnectionGuard.getLogger().info("SQLite | " + e.getMessage());
+                ConnectionGuard.reportError("SQLite VPN cache read", e);
                 return Optional.empty();
             }
             }
@@ -154,7 +154,7 @@ public class SQLiteCacheProvider implements CacheProvider {
                     }
                 }
             } catch (SQLException e) {
-                ConnectionGuard.getLogger().info("SQLite | " + e.getMessage());
+                ConnectionGuard.reportError("SQLite geo cache read", e);
                 return Optional.empty();
             }
             }
@@ -178,7 +178,7 @@ public class SQLiteCacheProvider implements CacheProvider {
                 preparedStatement.executeUpdate();
                 }
             } catch (SQLException e) {
-                ConnectionGuard.getLogger().info("SQLite | " + e.getMessage());
+                ConnectionGuard.reportError("SQLite VPN cache write", e);
             }
             }
         });
@@ -208,7 +208,7 @@ public class SQLiteCacheProvider implements CacheProvider {
                 preparedStatement.executeUpdate();
                 }
             } catch (SQLException e) {
-                ConnectionGuard.getLogger().info("SQLite | " + e.getMessage());
+                ConnectionGuard.reportError("SQLite geo cache write", e);
             }
             }
         });
@@ -250,7 +250,7 @@ public class SQLiteCacheProvider implements CacheProvider {
                 statement.executeUpdate();
                 return true;
             } catch (SQLException e) {
-                ConnectionGuard.getLogger().info("SQLite | " + e.getMessage());
+                ConnectionGuard.reportError("SQLite cache entry remove", e);
                 return false;
             }
         }
@@ -264,7 +264,7 @@ public class SQLiteCacheProvider implements CacheProvider {
                 }
                 return true;
             } catch (SQLException e) {
-                ConnectionGuard.getLogger().info("SQLite | " + e.getMessage());
+                ConnectionGuard.reportError("SQLite cache clear", e);
                 return false;
             }
         }

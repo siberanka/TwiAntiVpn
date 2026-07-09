@@ -50,6 +50,7 @@ The default configuration is designed to work out of the box. Important sections
 - `login-check`: fixed before/after ordering and adaptive per-module Sonar routing. By default the lightweight username filter and in-memory proxy blocklist are allowed before Sonar; remaining checks run after verification. During a Sonar attack, local pre-Sonar block spike or recovery window, every module moves after Sonar.
 - `login-check.adaptive-sonar.pre-sonar-block-spike`: treats repeated pre-Sonar blocks as an attack signal. `count-blocks-within-seconds` defines how far back blocks are counted, and `trigger-after-blocked-connections` defines how many blocks are needed before all checks move after Sonar. The default is 15 blocks within 60 seconds.
 - `security.action-cooldown-seconds`: suppresses repeated staff, webhook and command side effects without allowing blocked connections.
+- `security.error-log`: writes detailed plugin exceptions to `error.log` while keeping console messages short. The default is enabled, with a 2048 KB active log limit and automatic rotation to `error.log.1`.
 - `behavior`: kick, notify, command and webhook actions.
 
 Most scalar values can be written without quotes. Empty strings and JSON examples remain quoted in the default config because YAML would otherwise treat them differently.
@@ -139,7 +140,7 @@ YYYY.MM.DD.build
 Example:
 
 ```text
-2026.07.09.20
+2026.07.09.21
 ```
 
 ## Credits
@@ -206,6 +207,7 @@ Varsayılan config doğrudan çalışacak şekilde hazırlanmıştır. Önemli b
 - `login-check`: anti-bot pluginlerinden önce/sonra çalışma sırası ve Sonar için adaptive modül yönlendirmesi.
 - `login-check.adaptive-sonar.pre-sonar-block-spike`: Sonar öncesi engelleme yoğunluğunu saldırı sinyali olarak değerlendirir. `count-blocks-within-seconds` kaç saniyelik süreye bakılacağını, `trigger-after-blocked-connections` ise bu sürede kaç engellemeden sonra tüm kontrollerin Sonar sonrasına taşınacağını belirler.
 - `security.action-cooldown-seconds`: aynı IP için staff notify, webhook ve console command gibi yan etkileri sınırlar; engelleme davranışını gevşetmez.
+- `security.error-log`: detaylı plugin exception kayıtlarını `error.log` dosyasına yazar, konsolda ise kısa mesaj bırakır. Varsayılan olarak açıktır; aktif log sınırı 2048 KB'dir ve dolunca `error.log.1` olarak döndürülür.
 - `behavior`: kick, notify, command ve webhook aksiyonları.
 
 Çoğu basit değer tırnaksız yazılabilir. Boş stringler ve JSON örnekleri YAML tarafından farklı yorumlanmasın diye varsayılan configte tırnaklı bırakılmıştır.
@@ -295,7 +297,7 @@ YYYY.MM.DD.build
 Örnek:
 
 ```text
-2026.07.09.20
+2026.07.09.21
 ```
 
 ## Katkı

@@ -119,7 +119,7 @@ public class ConnectionGuardBungeeListener implements Listener {
         CompletableFuture.allOf(vpnResultFuture, geoResultOptionalFuture, hasVpnExemptionPermissionFuture, hasGeoExemptionPermissionFuture).whenComplete((ignored, throwable) -> {
             try {
             if (throwable != null) {
-                ConnectionGuard.getLogger().info("Login check failed: " + throwable.getMessage());
+                ConnectionGuard.reportError("Bungee login check", throwable);
                 return;
             }
 
@@ -252,7 +252,7 @@ public class ConnectionGuardBungeeListener implements Listener {
             }
 
             } catch (Throwable callbackFailure) {
-                ConnectionGuard.getLogger().info("Login callback failed: " + callbackFailure.getMessage());
+                ConnectionGuard.reportError("Bungee login callback", callbackFailure);
             } finally {
                 loginEvent.completeIntent(ConnectionGuardBungeePlugin.getInstance());
             }

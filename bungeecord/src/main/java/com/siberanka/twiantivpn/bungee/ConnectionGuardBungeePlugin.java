@@ -61,6 +61,7 @@ public class ConnectionGuardBungeePlugin extends Plugin {
 
         // 1. Set logger
         ConnectionGuard.setLogger(getLogger());
+        ConnectionGuard.configureErrorReporting(true, getDataFolder().toPath(), 2048, 60);
 
         // 2. Copy and load configs
         File translationFolder = getDataFolder().toPath().resolve("translation").toFile();
@@ -77,7 +78,7 @@ public class ConnectionGuardBungeePlugin extends Plugin {
                 InputStream in = ConnectionGuardBungeePlugin.class.getResourceAsStream("/config.yml");
                 Files.copy(in, configFile.toPath());
             } catch (IOException e) {
-                getLogger().info("TwiAntiVpn | " + e.getMessage());
+                ConnectionGuard.reportError("Bungee config copy", e);
                 return;
             }
         }
@@ -85,8 +86,10 @@ public class ConnectionGuardBungeePlugin extends Plugin {
             config = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
             ensureAdaptiveLoginConfig();
         } catch (IOException e) {
-            getLogger().info("TwiAntiVpn | " + e.getMessage());
+            ConnectionGuard.reportError("Bungee config load", e);
+            return;
         }
+        configureErrorReporting();
 
         String selectedLanguageFileName = config.getString("message-language") + ".yml";
         languageFile = new File(getDataFolder().toPath().resolve("translation").toFile(), selectedLanguageFileName);
@@ -97,7 +100,7 @@ public class ConnectionGuardBungeePlugin extends Plugin {
             languageConfig = ConfigurationProvider.getProvider(YamlConfiguration.class).load(languageFile);
             ensureLanguageConfigComplete();
         } catch (IOException e) {
-            getLogger().info("TwiAntiVpn | " + e.getMessage());
+            ConnectionGuard.reportError("Bungee language config load", e);
             return;
         }
 
@@ -246,8 +249,10 @@ public class ConnectionGuardBungeePlugin extends Plugin {
             config = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
             ensureAdaptiveLoginConfig();
         } catch (IOException e) {
-            getLogger().info("TwiAntiVpn | " + e.getMessage());
+            ConnectionGuard.reportError("Bungee config reload", e);
+            return;
         }
+        configureErrorReporting();
         String selectedLanguageFileName = config.getString("message-language") + ".yml";
         languageFile = new File(getDataFolder().toPath().resolve("translation").toFile(), selectedLanguageFileName);
         if (!languageFile.exists()) {
@@ -257,7 +262,8 @@ public class ConnectionGuardBungeePlugin extends Plugin {
             languageConfig = ConfigurationProvider.getProvider(YamlConfiguration.class).load(languageFile);
             ensureLanguageConfigComplete();
         } catch (IOException e) {
-            getLogger().info("TwiAntiVpn | " + e.getMessage());
+            ConnectionGuard.reportError("Bungee language config reload", e);
+            return;
         }
         configureGeoProviders();
         configureSecurityFilters();
@@ -274,6 +280,15 @@ public class ConnectionGuardBungeePlugin extends Plugin {
                 getConfig().getInt("proxy-blocklist.max-line-length"),
                 getConfig().getInt("proxy-blocklist.request-timeout-seconds"),
                 getConfig().getInt("proxy-blocklist.source-delay-millis", 250)
+        );
+    }
+
+    private void configureErrorReporting() {
+        ConnectionGuard.configureErrorReporting(
+                getConfig().getBoolean("security.error-log.enabled", true),
+                getDataFolder().toPath(),
+                getConfig().getInt("security.error-log.max-size-kb", 2048),
+                getConfig().getInt("security.error-log.console-notice-cooldown-seconds", 60)
         );
     }
 
@@ -450,6 +465,9 @@ public class ConnectionGuardBungeePlugin extends Plugin {
         changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.isp-block", false);
         changed |= setConfigDefault("proxy-blocklist.source-delay-millis", 250);
         changed |= setConfigDefault("security.action-cooldown-seconds", 5);
+        changed |= setConfigDefault("security.error-log.enabled", true);
+        changed |= setConfigDefault("security.error-log.max-size-kb", 2048);
+        changed |= setConfigDefault("security.error-log.console-notice-cooldown-seconds", 60);
         if (changed) {
             ConfigurationProvider.getProvider(YamlConfiguration.class).save(config, configFile);
         }
@@ -512,7 +530,7 @@ public class ConnectionGuardBungeePlugin extends Plugin {
                 Files.copy(in, file.toPath());
             }
         } catch (IOException e) {
-            getLogger().info("TwiAntiVpn | " + e.getMessage());
+            ConnectionGuard.reportError("Bungee language resource save", e);
         }
     }
 
@@ -599,7 +617,7 @@ public class ConnectionGuardBungeePlugin extends Plugin {
                 languageConfig = ConfigurationProvider.getProvider(YamlConfiguration.class).load(languageFile);
             }
         } catch (IOException e) {
-            getLogger().info("TwiAntiVpn | Could not update language file: " + e.getMessage());
+            ConnectionGuard.reportError("Bungee language config update", e);
         }
     }
 

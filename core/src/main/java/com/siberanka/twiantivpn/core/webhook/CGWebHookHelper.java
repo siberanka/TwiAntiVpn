@@ -26,7 +26,7 @@ public class CGWebHookHelper {
                     ConnectionGuard.getLogger().info("WebHook | " + response.message());
                 }
             } catch (IOException e) {
-                ConnectionGuard.getLogger().info("WebHook | " + e.getMessage());
+                ConnectionGuard.reportError("Discord webhook send", e);
             }
         });
     }

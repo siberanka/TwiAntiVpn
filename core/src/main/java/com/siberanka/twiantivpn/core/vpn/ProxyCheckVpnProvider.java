@@ -41,7 +41,7 @@ public class ProxyCheckVpnProvider implements VpnProvider {
                         BoundedResponseBody.read(response.body())
                 ).getAsJsonObject();
             } catch (Exception e) {
-                ConnectionGuard.getLogger().info("ProxyCheck | " + e.getMessage());
+                ConnectionGuard.reportError("ProxyCheck VPN provider request", e);
                 return Optional.empty();
             }
             String requestStatus = jsonObject.get("status").getAsString();

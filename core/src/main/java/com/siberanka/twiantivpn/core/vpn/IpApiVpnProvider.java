@@ -36,7 +36,7 @@ public class IpApiVpnProvider implements VpnProvider {
                     return Optional.empty();
                 }
             } catch (Exception e) {
-                ConnectionGuard.getLogger().info("IP-API | " + e.getMessage());
+                ConnectionGuard.reportError("IP-API VPN provider request", e);
                 return Optional.empty();
             }
 

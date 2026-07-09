@@ -61,6 +61,8 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
         saveDefaultConfig();
         getConfig().options().copyDefaults(true);
         saveConfig();
+        ConnectionGuard.setLogger(getLogger());
+        ConnectionGuard.configureErrorReporting(true, getDataFolder().toPath(), 2048, 60);
 
         String selectedLanguageFileName = getConfig().getString("message-language") + ".yml";
         if (!new File(getDataFolder(), "translation").exists()) {
@@ -77,7 +79,7 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
         languageConfig = YamlConfiguration.loadConfiguration(languageFile);
         ensureLanguageConfigComplete();
 
-        ConnectionGuard.setLogger(getLogger());
+        configureErrorReporting();
 
         // 2. Download libraries used for vpn and geo checks
         BukkitLibraryManager libraryManager = new BukkitLibraryManager(this);
@@ -234,10 +236,20 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
         }
         languageConfig = YamlConfiguration.loadConfiguration(languageFile);
         ensureLanguageConfigComplete();
+        configureErrorReporting();
         configureGeoProviders();
         configureSecurityFilters();
         configureProxyBlocklist();
         configureSonarEarlyHook();
+    }
+
+    private void configureErrorReporting() {
+        ConnectionGuard.configureErrorReporting(
+                getConfig().getBoolean("security.error-log.enabled", true),
+                getDataFolder().toPath(),
+                getConfig().getInt("security.error-log.max-size-kb", 2048),
+                getConfig().getInt("security.error-log.console-notice-cooldown-seconds", 60)
+        );
     }
 
     private void configureProxyBlocklist() {
@@ -535,7 +547,7 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
                 languageConfig = YamlConfiguration.loadConfiguration(languageFile);
             }
         } catch (Exception exception) {
-            getLogger().info("TwiAntiVpn | Could not update language file: " + exception.getMessage());
+            ConnectionGuard.reportError("Spigot language config update", exception);
         }
     }
 

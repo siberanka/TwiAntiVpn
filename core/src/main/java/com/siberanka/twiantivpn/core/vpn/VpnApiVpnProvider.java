@@ -36,7 +36,7 @@ public class VpnApiVpnProvider implements VpnProvider {
                         BoundedResponseBody.read(response.body())
                 ).getAsJsonObject();
             } catch (Exception e) {
-                ConnectionGuard.getLogger().info("VPNAPI | " + e.getMessage());
+                ConnectionGuard.reportError("VPNAPI provider request", e);
                 return Optional.empty();
             }
 
@@ -52,7 +52,7 @@ public class VpnApiVpnProvider implements VpnProvider {
                     return Optional.of(new VpnResult(ipAddress, false));
                 }
             } catch (Exception e) {
-                ConnectionGuard.getLogger().info("VPNAPI | " + e.getMessage());
+                ConnectionGuard.reportError("VPNAPI response parse", e);
                 return Optional.empty();
             }
         });

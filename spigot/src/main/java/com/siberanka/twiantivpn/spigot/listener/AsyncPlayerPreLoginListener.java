@@ -117,7 +117,7 @@ public class AsyncPlayerPreLoginListener implements Listener {
         try {
             CompletableFuture.allOf(vpnResultFuture, geoResultOptionalFuture, hasVpnExemptionPermissionFuture, hasGeoExemptionPermissionFuture).join();
         } catch (Exception exception) {
-            ConnectionGuard.getLogger().info("Login check failed: " + exception.getMessage());
+            ConnectionGuard.reportError("Spigot login check", exception);
             return;
         }
 

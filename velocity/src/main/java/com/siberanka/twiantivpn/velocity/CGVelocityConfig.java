@@ -2,6 +2,7 @@ package com.siberanka.twiantivpn.velocity;
 
 import dev.dejvokep.boostedyaml.YamlDocument;
 import dev.dejvokep.boostedyaml.settings.general.GeneralSettings;
+import com.siberanka.twiantivpn.core.ConnectionGuard;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,7 +37,7 @@ public class CGVelocityConfig {
                 InputStream in = ConnectionGuardVelocityPlugin.class.getResourceAsStream("/config.yml");
                 Files.copy(in, configFile.toPath());
             } catch (IOException e) {
-                ConnectionGuardVelocityPlugin.getInstance().getLogger().error("TwiAntiVpn | " + e.getMessage());
+                ConnectionGuard.reportError("Velocity config copy", e);
                 return;
             }
         }
@@ -44,7 +45,8 @@ public class CGVelocityConfig {
             config = YamlDocument.create(configFile, GeneralSettings.builder().setUseDefaults(true).build());
             ensureAdaptiveLoginConfig();
         } catch (IOException e) {
-            ConnectionGuardVelocityPlugin.getInstance().getLogger().error("TwiAntiVpn | " + e.getMessage());
+            ConnectionGuard.reportError("Velocity config load", e);
+            return;
         }
 
         String selectedLanguageFileName = config.getString("message-language") + ".yml";
@@ -56,7 +58,7 @@ public class CGVelocityConfig {
             languageConfig = YamlDocument.create(languageFile, GeneralSettings.builder().setUseDefaults(true).build());
             ensureLanguageConfigComplete();
         } catch (IOException e) {
-            ConnectionGuardVelocityPlugin.getInstance().getLogger().error("TwiAntiVpn | " + e.getMessage());
+            ConnectionGuard.reportError("Velocity language config load", e);
             return;
         }
     }
@@ -79,7 +81,7 @@ public class CGVelocityConfig {
                 Files.copy(in, file.toPath());
             }
         } catch (IOException e) {
-            ConnectionGuardVelocityPlugin.getInstance().getLogger().error("TwiAntiVpn | " + e.getMessage());
+            ConnectionGuard.reportError("Velocity language resource save", e);
         }
     }
 
@@ -110,7 +112,7 @@ public class CGVelocityConfig {
                 languageConfig = YamlDocument.create(languageFile, GeneralSettings.builder().setUseDefaults(true).build());
             }
         } catch (IOException e) {
-            ConnectionGuardVelocityPlugin.getInstance().getLogger().error("TwiAntiVpn | Could not update language file: " + e.getMessage());
+            ConnectionGuard.reportError("Velocity language config update", e);
         }
     }
 
@@ -132,6 +134,9 @@ public class CGVelocityConfig {
         changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.isp-block", false);
         changed |= setConfigDefault("proxy-blocklist.source-delay-millis", 250);
         changed |= setConfigDefault("security.action-cooldown-seconds", 5);
+        changed |= setConfigDefault("security.error-log.enabled", true);
+        changed |= setConfigDefault("security.error-log.max-size-kb", 2048);
+        changed |= setConfigDefault("security.error-log.console-notice-cooldown-seconds", 60);
         if (changed) {
             config.save();
         }

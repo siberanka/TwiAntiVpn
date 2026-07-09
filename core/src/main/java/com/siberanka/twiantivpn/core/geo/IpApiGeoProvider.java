@@ -39,7 +39,7 @@ public class IpApiGeoProvider implements GeoProvider {
                         BoundedResponseBody.read(response.body())
                 ).getAsJsonObject();
             } catch (Exception e) {
-                ConnectionGuard.getLogger().info("IP-API | " + e.getMessage());
+                ConnectionGuard.reportError("IP-API geo provider request", e);
                 return Optional.empty();
             }
 

@@ -101,9 +101,7 @@ public class CustomVpnProvider implements VpnProvider {
             try {
                 response = SharedHttpClient.get().newCall(requestBuilder.build()).execute();
             } catch (IOException e) {
-                ConnectionGuard.getLogger().info(
-                        "Could not execute GET request on custom vpn detection provider."
-                );
+                ConnectionGuard.reportError("Custom VPN provider request", e);
                 return Optional.empty();
             }
 
@@ -122,7 +120,7 @@ public class CustomVpnProvider implements VpnProvider {
                                     BoundedResponseBody.read(response.body())
                             );
                         } catch (Exception e) {
-                            ConnectionGuard.getLogger().info("Custom Detection Provider | Could not parse response.");
+                            ConnectionGuard.reportError("Custom VPN provider response parse", e);
                             return Optional.empty();
                         }
                     default:

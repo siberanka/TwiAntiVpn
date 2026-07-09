@@ -257,7 +257,7 @@ public class ConnectionGuardVelocityListener {
                 // loginEvent.setResult(PreLoginEvent.PreLoginComponentResult.allowed());
             }
             } catch (Exception exception) {
-                ConnectionGuard.getLogger().info("Login check failed: " + exception.getMessage());
+                ConnectionGuard.reportError("Velocity login check", exception);
             }
         });
     }
