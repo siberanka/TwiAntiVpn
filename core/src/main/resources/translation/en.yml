@@ -1,64 +1,40 @@
-# Configure how the command messages should look.
-# Available commands:
-# - /twiantivpn (information about the plugin and sub-commands) - twiantivpn.command.help
-# - /twiantivpn info <Player/UUID/IP> (vpn & geo-data for the player or ip address) - twiantivpn.command.info
-# - /twiantivpn clear (<Player/UUID/IP>) (clear the cache completely or just for the specified player/ip) - twiantivpn.command.clear
-# - /twiantivpn reload (reload the plugin with this config) - twiantivpn.command.reload
+# TwiAntiVpn language file.
+# {prefix} and %PREFIX% are resolved from messages.prefix.
 command:
-  no-permission: "&cYou don't have permissions to execute this command!"
-  unknown-subcommand: "&bTwiAntiVpn &7| &7Unknown subcommand. Enter /twiantivpn help to view all available commands."
-  config-reload: "&bTwiAntiVpn &7| &7Config has been reloaded!"
+  no-permission: "{prefix} &cYou do not have permission to use this command."
+  unknown-subcommand: "{prefix} &7Unknown subcommand. Use &f/twiantivpn help&7 to view available commands."
+  config-reload: "{prefix} &aConfiguration and language files reloaded."
   clear:
-    clear-all: '&bTwiAntiVpn &7| &7Cleared the entire cache.'
-    # Available placeholder: %ENTRY%
-    clear-specific: '&bTwiAntiVpn &7| &7Cleared the cache entries for &f%ENTRY%&7.'
-  invalid-argument: '&bTwiAntiVpn &7| &7Please enter the name or the uuid of an online player or use an ip address instead.'
+    clear-all: "{prefix} &7All VPN and geo cache entries were cleared."
+    clear-specific: "{prefix} &7Cache entries for &f%ENTRY%&7 were cleared."
+  invalid-argument: "{prefix} &7Enter an online player, UUID, or valid IP address."
 
 messages:
-  # The message players see when their username contains a blocked term.
-  # Available placeholders: %NAME%, %IP%, %MATCH%
-  username-block: '&7Your username is &bnot allowed&7 on this server.'
-  username-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) was blocked by the username filter (&e%MATCH%&7).'
-  username-webhook: "%NAME% (%IP%) was blocked by the username filter (%MATCH%)."
-  # The message players see when they are vpn flagged and behaviour is set to KICK or KICK_NOTIFY
-  # Available placeholders: %NAME%, %IP%
-  vpn-block: '&7It looks like you are using a &bVPN&7. Please &bdisable&7 it!'
-  # The message players with the permission twiantivpn.notify.vpn will see, if behaviour is set to
-  # KICK_NOTIFY or NOTIFY.
-  vpn-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) was flagged as a &evpn user&7.'
-  vpn-webhook: "%NAME% (%IP%) tried to connect with a vpn."
-  # The message players see when they are geo flagged and behavior is set to KICK or KICK_NOTIFY
-  # Available placeholders: %NAME%, %IP%, %COUNTRY%, %CITY% and %ISP%
-  geo-block: '&7It looks like you are connecting from &b%COUNTRY%&7, which is &bnot allowed&7 on this server.'
-  # The message players with the permission twiantivpn.notify.geo will see, if behaviour is set to
-  # KICK_NOTIFY or NOTIFY.
-  geo-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) was &egeo-flagged&7 (&e%COUNTRY%&7, %CITY%).'
-
+  prefix: "<bold><gradient:#35d3ff:#6f7dff>TwiAntiVpn</gradient></bold> <dark_gray>|</dark_gray>"
+  username-block: "{prefix}\\n&cConnection blocked\\n&7Your username contains a term that is not allowed on this server.\\n\\n&8Match: &f%MATCH%"
+  username-notify: "{prefix} &e%NAME% &7(%IP%) was blocked by the username filter. &8Match: &f%MATCH%"
+  username-webhook: "%NAME% (%IP%) was blocked by the username filter. Match: %MATCH%."
+  vpn-block: "{prefix}\\n&cConnection blocked\\n&7A VPN, proxy, Tor exit node, or listed anonymizer was detected on your connection.\\n\\n&7Disable it and try again. If this is a mistake, contact staff."
+  vpn-notify: "{prefix} &e%NAME% &7(%IP%) was blocked for VPN/proxy detection."
+  vpn-webhook: "%NAME% (%IP%) tried to connect with a VPN/proxy."
+  geo-block: "{prefix}\\n&cConnection blocked\\n&7Connections from &f%COUNTRY%&7 are not allowed on this server.\\n\\n&7If this is a mistake, contact staff."
+  geo-notify: "{prefix} &e%NAME% &7(%IP%) was blocked by geo rules. &8Location: &f%COUNTRY%&7, &f%CITY%"
   geo-webhook: "%NAME% (%IP%, %ISP%) tried to connect from %CITY%, %COUNTRY%."
-
-  # The message players see when their ASN/ISP is blocked.
-  # Available placeholders: %NAME%, %IP%, %ISP%, %ASN%, %MATCH%
-  isp-block: '&7Connections from your network provider are &bnot allowed&7 on this server.'
-  isp-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) was blocked by ISP/ASN filter (&e%ISP%&7, &e%ASN%&7, match: &e%MATCH%&7).'
-  isp-webhook: "%NAME% (%IP%) was blocked by ISP/ASN filter. ISP: %ISP%, ASN: %ASN%, match: %MATCH%."
-
-  # Customize the output of the /twiantivpn help command!
+  isp-block: "{prefix}\\n&cConnection blocked\\n&7Connections from your network provider are not allowed on this server.\\n\\n&8ISP: &f%ISP% &8| ASN: &f%ASN%"
+  isp-notify: "{prefix} &e%NAME% &7(%IP%) was blocked by ISP/ASN rules. &8ISP: &f%ISP% &8ASN: &f%ASN% &8Match: &f%MATCH%"
+  isp-webhook: "%NAME% (%IP%) was blocked by ISP/ASN rules. ISP: %ISP%, ASN: %ASN%, match: %MATCH%."
   help:
-    - '&bTwiAntiVpn &7| &7Overview of commands'
-    - ' &7- /twiantivpn &fhelp &7(this overview)'
-    - ' &7- /twiantivpn &freload &7(reload config)'
-    - ' &7- /twiantivpn &fclear &7(<&fPlayer&7/&fUUID&7/&fIP&7>) (clear cache)'
-    - ' &7- /twiantivpn &finfo &7<&fPlayer&7/&fUUID&7/&fIP&7> (vpn and geo data)'
-
-  # Output of the /twiantivpn info <Player/UUID/IP> command
+    - "{prefix} &7Commands"
+    - " &8- &f/twiantivpn help &7Show this overview."
+    - " &8- &f/twiantivpn reload &7Reload configuration and language files."
+    - " &8- &f/twiantivpn clear &7[Player/UUID/IP] Clear cache entries."
+    - " &8- &f/twiantivpn info &7<Player/UUID/IP> Show VPN and geo data."
   info:
-    # Available placeholders: %INPUT%, %IP%, %IS_VPN%, %CITY%, %COUNTRY%, %ISP%, %ASN%
     text:
-      - '&bTwiAntiVpn &7| &7Query result for &b%INPUT%'
-      - '&7IP: &f%IP%&7 (VPN: &f%IS_VPN%&7)'
-      - '&7Location: &f%CITY%&7, &f%COUNTRY%'
-      - '&7ISP: &f%ISP%'
-      - '&7ASN: &f%ASN%'
-
-    is-vpn: "&bYes"
-    not-vpn: "&7No"
+      - "{prefix} &7Query result for &f%INPUT%"
+      - "&7IP: &f%IP% &8| &7VPN: %IS_VPN%"
+      - "&7Location: &f%CITY%&7, &f%COUNTRY%"
+      - "&7ISP: &f%ISP%"
+      - "&7ASN: &f%ASN%"
+    is-vpn: "&cDetected"
+    not-vpn: "&aClean"

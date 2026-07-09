@@ -229,15 +229,19 @@ public class AsyncPlayerPreLoginListener implements Listener {
     private String message(String path, String... placeholders) {
         return MessageFormatter.toLegacyText(
                 ConnectionGuardSpigotPlugin.getInstance().getLanguageConfig().getString(path),
-                MessageFormatter.placeholders(placeholders)
+                MessageFormatter.placeholdersWithPrefix(prefix(), placeholders)
         );
     }
 
     private String plainMessage(String path, String... placeholders) {
         return MessageFormatter.toPlainText(
                 ConnectionGuardSpigotPlugin.getInstance().getLanguageConfig().getString(path),
-                MessageFormatter.placeholders(placeholders)
+                MessageFormatter.placeholdersWithPrefix(prefix(), placeholders)
         );
+    }
+
+    private String prefix() {
+        return ConnectionGuardSpigotPlugin.getInstance().getLanguageConfig().getString("messages.prefix", "&bTwiAntiVpn &7|");
     }
 
     private void handleUsernameBlock(AsyncPlayerPreLoginEvent preLoginEvent, String ipAddress, String matchedPart) {

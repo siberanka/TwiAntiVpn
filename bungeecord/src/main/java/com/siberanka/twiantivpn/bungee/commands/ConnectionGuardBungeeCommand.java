@@ -3,9 +3,9 @@ package com.siberanka.twiantivpn.bungee.commands;
 import com.siberanka.twiantivpn.bungee.ConnectionGuardBungeePlugin;
 import com.siberanka.twiantivpn.core.ConnectionGuard;
 import com.siberanka.twiantivpn.core.geo.GeoResult;
+import com.siberanka.twiantivpn.core.message.MessageFormatter;
 import com.siberanka.twiantivpn.core.net.IpAddressUtil;
 import com.siberanka.twiantivpn.core.vpn.VpnResult;
-import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Command;
@@ -24,10 +24,7 @@ public class ConnectionGuardBungeeCommand extends Command implements TabExecutor
 
     @Override
     public void execute(CommandSender commandSender, String[] args) {
-        String noPermissionMessage = ChatColor.translateAlternateColorCodes(
-                '&',
-                ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("command.no-permission")
-        );
+        String noPermissionMessage = message("command.no-permission");
 
         if (args.length == 0) {
             if (!commandSender.hasPermission("twiantivpn.command.help")) {
@@ -91,12 +88,7 @@ public class ConnectionGuardBungeeCommand extends Command implements TabExecutor
     }
 
     private void sendUnknownSubcommandMessage(CommandSender commandSender) {
-        commandSender.sendMessage(
-                ChatColor.translateAlternateColorCodes(
-                        '&',
-                        ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("command.unknown-subcommand")
-                )
-        );
+        commandSender.sendMessage(message("command.unknown-subcommand"));
 
         return;
     }
@@ -142,29 +134,21 @@ public class ConnectionGuardBungeeCommand extends Command implements TabExecutor
                 geoResult = new GeoResult(ipAddress, "-", "-", "-");
             }
 
-            String isVpn = ChatColor.translateAlternateColorCodes(
-                    '&',
-                    ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("messages.info.not-vpn")
-            );
+            String isVpn = message("messages.info.not-vpn");
             if (vpnResult.isVpn()) {
-                isVpn = ChatColor.translateAlternateColorCodes(
-                        '&',
-                        ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("messages.info.is-vpn")
-                );
+                isVpn = message("messages.info.is-vpn");
             }
 
             for (String line : ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getStringList("messages.info.text")) {
                 commandSender.sendMessage(
-                        ChatColor.translateAlternateColorCodes(
-                                '&',
-                                line.replace("%INPUT%", queriedInput)
-                                        .replace("%COUNTRY%", geoResult.getCountryName())
-                                        .replace("%CITY%", geoResult.getCityName())
-                                        .replace("%ISP%", geoResult.getIspName())
-                                        .replace("%ASN%", geoResult.getAsn())
-                                        .replace("%IS_VPN%", isVpn)
-                                        .replace("%IP%", ipAddress)
-                        )
+                        format(line,
+                                "%INPUT%", queriedInput,
+                                "%COUNTRY%", geoResult.getCountryName(),
+                                "%CITY%", geoResult.getCityName(),
+                                "%ISP%", geoResult.getIspName(),
+                                "%ASN%", geoResult.getAsn(),
+                                "%IS_VPN%", isVpn,
+                                "%IP%", ipAddress)
                 );
             }
         });
@@ -206,11 +190,7 @@ public class ConnectionGuardBungeeCommand extends Command implements TabExecutor
             ConnectionGuard.getCacheProvider().removeGeoResult(ipAddress);
             ConnectionGuard.getCacheProvider().removeVpnResult(ipAddress);
             commandSender.sendMessage(
-                    ChatColor.translateAlternateColorCodes(
-                            '&',
-                            ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("command.clear.clear-specific")
-                                    .replace("%ENTRY%", queriedInput)
-                    )
+                    message("command.clear.clear-specific", "%ENTRY%", queriedInput)
             );
         });
 
@@ -218,29 +198,19 @@ public class ConnectionGuardBungeeCommand extends Command implements TabExecutor
     }
 
     private void sendInvalidArgumentMessage(CommandSender commandSender) {
-        commandSender.sendMessage(
-                ChatColor.translateAlternateColorCodes(
-                        '&',
-                        ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("command.invalid-argument")
-                )
-        );
+        commandSender.sendMessage(message("command.invalid-argument"));
     }
 
     private boolean clearCache(CommandSender commandSender) {
         ConnectionGuard.getCacheProvider().removeAllVpnResults();
         ConnectionGuard.getCacheProvider().removeAllGeoResults();
-        commandSender.sendMessage(ChatColor.translateAlternateColorCodes(
-                '&',
-                ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("command.clear.clear-all")
-        ));
+        commandSender.sendMessage(message("command.clear.clear-all"));
         return true;
     }
 
     private boolean sendHelpMessage(CommandSender commandSender) {
         for (String line : ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getStringList("messages.help")) {
-            commandSender.sendMessage(
-                    ChatColor.translateAlternateColorCodes('&', line)
-            );
+            commandSender.sendMessage(format(line));
         }
 
         return true;
@@ -248,13 +218,23 @@ public class ConnectionGuardBungeeCommand extends Command implements TabExecutor
 
     private boolean reloadPlugin(CommandSender commandSender) {
         ConnectionGuardBungeePlugin.getInstance().reloadAllConfigs();
-        commandSender.sendMessage(
-                ChatColor.translateAlternateColorCodes(
-                        '&',
-                        ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("command.config-reload")
-                )
-        );
+        commandSender.sendMessage(message("command.config-reload"));
         return true;
+    }
+
+    private String message(String path, String... placeholders) {
+        return format(ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString(path), placeholders);
+    }
+
+    private String format(String raw, String... placeholders) {
+        return MessageFormatter.toLegacyText(
+                raw,
+                MessageFormatter.placeholdersWithPrefix(prefix(), placeholders)
+        );
+    }
+
+    private String prefix() {
+        return ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("messages.prefix", "&bTwiAntiVpn &7|");
     }
 
     @Override

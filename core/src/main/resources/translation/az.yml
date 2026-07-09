@@ -1,38 +1,40 @@
 # TwiAntiVpn dil fayli.
+# {prefix} ve %PREFIX% messages.prefix sahesinden goturulur.
 command:
-  no-permission: "&cBu əmri istifadə etmək üçün icazən yoxdur!"
-  unknown-subcommand: "&bTwiAntiVpn &7| &7Naməlum alt əmr. Bütün əmrlər üçün /twiantivpn help yaz."
-  config-reload: "&bTwiAntiVpn &7| &7Config yenidən yükləndi!"
+  no-permission: "{prefix} &cBu emri istifade etmek ucun icazen yoxdur."
+  unknown-subcommand: "{prefix} &7Naməlum alt əmr. Əmrləri görmək üçün &f/twiantivpn help&7 yaz."
+  config-reload: "{prefix} &aKonfiqurasiya və dil faylları yenidən yükləndi."
   clear:
-    clear-all: '&bTwiAntiVpn &7| &7Bütün cache təmizləndi.'
-    clear-specific: '&bTwiAntiVpn &7| &f%ENTRY% &7üçün cache qeydləri təmizləndi.'
-  invalid-argument: '&bTwiAntiVpn &7| &7Zəhmət olmasa onlayn oyunçu adı, UUID və ya IP ünvanı daxil et.'
+    clear-all: "{prefix} &7Bütün VPN və geo keş qeydləri təmizləndi."
+    clear-specific: "{prefix} &f%ENTRY% &7üçün keş qeydləri təmizləndi."
+  invalid-argument: "{prefix} &7Onlayn oyunçu, UUID və ya etibarlı IP ünvanı daxil et."
 
 messages:
-  username-block: '&7İstifadəçi adına bu serverdə &b icazə verilmir&7.'
-  username-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) istifadəçi adı filtri ilə bloklandı (&e%MATCH%&7).'
-  username-webhook: "%NAME% (%IP%) istifadəçi adı filtri ilə bloklandı (%MATCH%)."
-  vpn-block: '&7Sanki &bVPN/proxy&7 istifadə edirsən. Zəhmət olmasa söndür!'
-  vpn-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) &eVPN/proxy&7 kimi işarələndi.'
+  prefix: "<bold><gradient:#35d3ff:#6f7dff>TwiAntiVpn</gradient></bold> <dark_gray>|</dark_gray>"
+  username-block: "{prefix}\\n&cBağlantı bloklandı\\n&7İstifadəçi adın bu serverdə icazə verilməyən ifadə ehtiva edir.\\n\\n&8Uyğunluq: &f%MATCH%"
+  username-notify: "{prefix} &e%NAME% &7(%IP%) istifadəçi adı filtrinə görə bloklandı. &8Uyğunluq: &f%MATCH%"
+  username-webhook: "%NAME% (%IP%) istifadəçi adı filtrinə görə bloklandı. Uyğunluq: %MATCH%."
+  vpn-block: "{prefix}\\n&cBağlantı bloklandı\\n&7Bağlantında VPN, proxy, Tor çıxış nöqtəsi və ya siyahıya alınmış anonimləşdirici aşkarlandı.\\n\\n&7Onu söndürüb yenidən yoxla. Bunun səhv olduğunu düşünürsənsə, heyətlə əlaqə saxla."
+  vpn-notify: "{prefix} &e%NAME% &7(%IP%) VPN/proxy aşkarlanmasına görə bloklandı."
   vpn-webhook: "%NAME% (%IP%) VPN/proxy ilə qoşulmağa çalışdı."
-  geo-block: '&b%COUNTRY% &7yerindən qoşulmağa bu serverdə icazə verilmir.'
-  geo-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) geo filtrə düşdü (&e%COUNTRY%&7, %CITY%).'
-  geo-webhook: "%NAME% (%IP%, %ISP%) %CITY%, %COUNTRY% yerindən qoşulmağa çalışdı."
-  isp-block: '&7Şəbəkə provayderindən qoşulmağa bu serverdə &b icazə verilmir&7.'
-  isp-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) ISP/ASN filtri ilə bloklandı (&e%ISP%&7, &e%ASN%&7, uyğunluq: &e%MATCH%&7).'
-  isp-webhook: "%NAME% (%IP%) ISP/ASN filtri ilə bloklandı. ISP: %ISP%, ASN: %ASN%, uyğunluq: %MATCH%."
+  geo-block: "{prefix}\\n&cBağlantı bloklandı\\n&f%COUNTRY% &7məkanından bağlantılara bu serverdə icazə verilmir.\\n\\n&7Bunun səhv olduğunu düşünürsənsə, heyətlə əlaqə saxla."
+  geo-notify: "{prefix} &e%NAME% &7(%IP%) geo qaydalarına görə bloklandı. &8Məkan: &f%COUNTRY%&7, &f%CITY%"
+  geo-webhook: "%NAME% (%IP%, %ISP%) %CITY%, %COUNTRY% məkanından qoşulmağa çalışdı."
+  isp-block: "{prefix}\\n&cBağlantı bloklandı\\n&7Şəbəkə provayderin üzərindən bağlantılara bu serverdə icazə verilmir.\\n\\n&8ISP: &f%ISP% &8| ASN: &f%ASN%"
+  isp-notify: "{prefix} &e%NAME% &7(%IP%) ISP/ASN qaydalarına görə bloklandı. &8ISP: &f%ISP% &8ASN: &f%ASN% &8Uyğunluq: &f%MATCH%"
+  isp-webhook: "%NAME% (%IP%) ISP/ASN qaydalarına görə bloklandı. ISP: %ISP%, ASN: %ASN%, uyğunluq: %MATCH%."
   help:
-    - '&bTwiAntiVpn &7| &7Əmrlər'
-    - ' &7- /twiantivpn &fhelp &7(əmrlər)'
-    - ' &7- /twiantivpn &freload &7(config yenilə)'
-    - ' &7- /twiantivpn &fclear &7(<&fOyunçu&7/&fUUID&7/&fIP&7>) (cache təmizlə)'
-    - ' &7- /twiantivpn &finfo &7<&fOyunçu&7/&fUUID&7/&fIP&7> (vpn və geo məlumatı)'
+    - "{prefix} &7Əmrlər"
+    - " &8- &f/twiantivpn help &7Bu siyahını göstərir."
+    - " &8- &f/twiantivpn reload &7Konfiqurasiya və dil fayllarını yeniləyir."
+    - " &8- &f/twiantivpn clear &7[Oyunçu/UUID/IP] Keş qeydlərini təmizləyir."
+    - " &8- &f/twiantivpn info &7<Oyunçu/UUID/IP> VPN və geo məlumatlarını göstərir."
   info:
     text:
-      - '&bTwiAntiVpn &7| &b%INPUT% &7üçün sorğu nəticəsi'
-      - '&7IP: &f%IP%&7 (VPN: &f%IS_VPN%&7)'
-      - '&7Məkan: &f%CITY%&7, &f%COUNTRY%'
-      - '&7ISP: &f%ISP%'
-      - '&7ASN: &f%ASN%'
-    is-vpn: "&bBəli"
-    not-vpn: "&7Xeyr"
+      - "{prefix} &f%INPUT% &7üçün sorğu nəticəsi"
+      - "&7IP: &f%IP% &8| &7VPN: %IS_VPN%"
+      - "&7Məkan: &f%CITY%&7, &f%COUNTRY%"
+      - "&7ISP: &f%ISP%"
+      - "&7ASN: &f%ASN%"
+    is-vpn: "&cAşkarlandı"
+    not-vpn: "&aTəmiz"

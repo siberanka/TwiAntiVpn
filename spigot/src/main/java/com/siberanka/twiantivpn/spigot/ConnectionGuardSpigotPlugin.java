@@ -341,6 +341,7 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
     private void ensureLanguageConfigComplete() {
         if (languageConfig.contains("messages.username-block")
                 && languageConfig.contains("messages.isp-block")
+                && languageConfig.contains("messages.prefix")
                 && languageConfigUsesCurrentCommandName()) {
             return;
         }

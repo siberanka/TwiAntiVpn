@@ -72,6 +72,23 @@ public final class MessageFormatter {
         return placeholders;
     }
 
+    public static Map<String, String> withPrefix(String prefix, Map<String, String> placeholders) {
+        Map<String, String> resolved = new LinkedHashMap<>();
+        String safePrefix = prefix == null ? "" : prefix;
+        resolved.put("{prefix}", safePrefix);
+        resolved.put("{PREFIX}", safePrefix);
+        resolved.put("%PREFIX%", safePrefix);
+        resolved.put("%prefix%", safePrefix);
+        if (placeholders != null && !placeholders.isEmpty()) {
+            resolved.putAll(placeholders);
+        }
+        return resolved;
+    }
+
+    public static Map<String, String> placeholdersWithPrefix(String prefix, String... values) {
+        return withPrefix(prefix, placeholders(values));
+    }
+
     public static String toLegacyText(String raw, Map<String, String> placeholders) {
         String value = normalize(applyPlaceholders(raw, placeholders));
         value = renderMiniGradients(value);

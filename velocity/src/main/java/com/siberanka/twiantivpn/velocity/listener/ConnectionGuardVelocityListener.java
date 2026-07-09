@@ -249,15 +249,19 @@ public class ConnectionGuardVelocityListener {
     private String message(String path, String... placeholders) {
         return MessageFormatter.toLegacyText(
                 ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString(path),
-                MessageFormatter.placeholders(placeholders)
+                MessageFormatter.placeholdersWithPrefix(prefix(), placeholders)
         );
     }
 
     private String plainMessage(String path, String... placeholders) {
         return MessageFormatter.toPlainText(
                 ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString(path),
-                MessageFormatter.placeholders(placeholders)
+                MessageFormatter.placeholdersWithPrefix(prefix(), placeholders)
         );
+    }
+
+    private String prefix() {
+        return ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString("messages.prefix", "&bTwiAntiVpn &7|");
     }
 
     private void handleUsernameBlock(PreLoginEvent loginEvent, String ipAddress, String playerUsername, String matchedPart) {

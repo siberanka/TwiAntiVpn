@@ -372,6 +372,7 @@ public class ConnectionGuardBungeePlugin extends Plugin {
         if (languageConfig != null
                 && languageConfig.contains("messages.username-block")
                 && languageConfig.contains("messages.isp-block")
+                && languageConfig.contains("messages.prefix")
                 && languageConfigUsesCurrentCommandName()) {
             return;
         }

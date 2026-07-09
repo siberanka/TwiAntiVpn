@@ -240,15 +240,19 @@ public class ConnectionGuardBungeeListener implements Listener {
     private String message(String path, String... placeholders) {
         return MessageFormatter.toLegacyText(
                 ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString(path),
-                MessageFormatter.placeholders(placeholders)
+                MessageFormatter.placeholdersWithPrefix(prefix(), placeholders)
         );
     }
 
     private String plainMessage(String path, String... placeholders) {
         return MessageFormatter.toPlainText(
                 ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString(path),
-                MessageFormatter.placeholders(placeholders)
+                MessageFormatter.placeholdersWithPrefix(prefix(), placeholders)
         );
+    }
+
+    private String prefix() {
+        return ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("messages.prefix", "&bTwiAntiVpn &7|");
     }
 
     private void handleUsernameBlock(LoginEvent loginEvent, String ipAddress, String matchedPart) {

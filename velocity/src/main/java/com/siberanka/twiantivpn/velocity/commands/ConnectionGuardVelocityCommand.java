@@ -2,6 +2,7 @@ package com.siberanka.twiantivpn.velocity.commands;
 
 import com.siberanka.twiantivpn.core.ConnectionGuard;
 import com.siberanka.twiantivpn.core.geo.GeoResult;
+import com.siberanka.twiantivpn.core.message.MessageFormatter;
 import com.siberanka.twiantivpn.core.net.IpAddressUtil;
 import com.siberanka.twiantivpn.core.vpn.VpnResult;
 import com.siberanka.twiantivpn.velocity.ConnectionGuardVelocityPlugin;
@@ -23,9 +24,7 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
         CommandSource commandSender = invocation.source();
         String[] args = invocation.arguments();
 
-        Component noPermissionMessage = LegacyComponentSerializer.legacyAmpersand().deserialize(
-                ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString("command.no-permission")
-        );
+        Component noPermissionMessage = component("command.no-permission");
 
         if (args.length == 0) {
             if (!commandSender.hasPermission("twiantivpn.command.help")) {
@@ -89,11 +88,7 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
     }
 
     private void sendUnknownSubcommandMessage(CommandSource commandSender) {
-        commandSender.sendMessage(
-                LegacyComponentSerializer.legacyAmpersand().deserialize(
-                        ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString("command.unknown-subcommand")
-                )
-        );
+        commandSender.sendMessage(component("command.unknown-subcommand"));
 
         return;
     }
@@ -140,23 +135,22 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
                 geoResult = new GeoResult(ipAddress, "-", "-", "-");
             }
 
-            String isVpn = ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString("messages.info.not-vpn");
+            String isVpn = text("messages.info.not-vpn");
 
             if (vpnResult.isVpn()) {
-                isVpn = ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString("messages.info.is-vpn");
+                isVpn = text("messages.info.is-vpn");
             }
 
             for (String line : ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getStringList("messages.info.text")) {
                 commandSender.sendMessage(
-                        LegacyComponentSerializer.legacyAmpersand().deserialize(
-                                line.replace("%INPUT%", queriedInput)
-                                        .replace("%COUNTRY%", geoResult.getCountryName())
-                                        .replace("%CITY%", geoResult.getCityName())
-                                        .replace("%ISP%", geoResult.getIspName())
-                                        .replace("%ASN%", geoResult.getAsn())
-                                        .replace("%IS_VPN%", isVpn)
-                                        .replace("%IP%", ipAddress)
-                        )
+                        componentFromRaw(line,
+                                "%INPUT%", queriedInput,
+                                "%COUNTRY%", geoResult.getCountryName(),
+                                "%CITY%", geoResult.getCityName(),
+                                "%ISP%", geoResult.getIspName(),
+                                "%ASN%", geoResult.getAsn(),
+                                "%IS_VPN%", isVpn,
+                                "%IP%", ipAddress)
                 );
             }
         });
@@ -199,10 +193,7 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
             ConnectionGuard.getCacheProvider().removeGeoResult(ipAddress);
             ConnectionGuard.getCacheProvider().removeVpnResult(ipAddress);
             commandSender.sendMessage(
-                    LegacyComponentSerializer.legacyAmpersand().deserialize(
-                            ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString("command.clear.clear-specific")
-                                    .replace("%ENTRY%", queriedInput)
-                    )
+                    component("command.clear.clear-specific", "%ENTRY%", queriedInput)
             );
         });
 
@@ -210,27 +201,19 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
     }
 
     private void sendInvalidArgumentMessage(CommandSource commandSender) {
-        commandSender.sendMessage(
-                LegacyComponentSerializer.legacyAmpersand().deserialize(
-                        ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString("command.invalid-argument")
-                )
-        );
+        commandSender.sendMessage(component("command.invalid-argument"));
     }
 
     private boolean clearCache(CommandSource commandSender) {
         ConnectionGuard.getCacheProvider().removeAllVpnResults();
         ConnectionGuard.getCacheProvider().removeAllGeoResults();
-        commandSender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize(
-                ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString("command.clear.clear-all")
-        ));
+        commandSender.sendMessage(component("command.clear.clear-all"));
         return true;
     }
 
     private boolean sendHelpMessage(CommandSource commandSender) {
         for (String line : ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getStringList("messages.help")) {
-            commandSender.sendMessage(
-                    LegacyComponentSerializer.legacyAmpersand().deserialize(line)
-            );
+            commandSender.sendMessage(componentFromRaw(line));
         }
 
         return true;
@@ -242,12 +225,37 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
         ConnectionGuardVelocityPlugin.getInstance().configureSecurityFilters();
         ConnectionGuardVelocityPlugin.getInstance().configureProxyBlocklist();
 
-        commandSender.sendMessage(
-                LegacyComponentSerializer.legacyAmpersand().deserialize(
-                        ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString("command.config-reload")
-                )
-        );
+        commandSender.sendMessage(component("command.config-reload"));
         return true;
+    }
+
+    private Component component(String path, String... placeholders) {
+        return componentFromRaw(
+                ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString(path),
+                placeholders
+        );
+    }
+
+    private Component componentFromRaw(String raw, String... placeholders) {
+        return LegacyComponentSerializer.legacySection().deserialize(format(raw, placeholders));
+    }
+
+    private String text(String path, String... placeholders) {
+        return format(
+                ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString(path),
+                placeholders
+        );
+    }
+
+    private String format(String raw, String... placeholders) {
+        return MessageFormatter.toLegacyText(
+                raw,
+                MessageFormatter.placeholdersWithPrefix(prefix(), placeholders)
+        );
+    }
+
+    private String prefix() {
+        return ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString("messages.prefix", "&bTwiAntiVpn &7|");
     }
 
     @Override
