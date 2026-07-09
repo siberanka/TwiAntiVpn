@@ -83,7 +83,10 @@ public class CGVelocityConfig {
     }
 
     private void ensureLanguageConfigComplete() {
-        if (languageConfig != null && languageConfig.contains("messages.username-block") && languageConfig.contains("messages.isp-block")) {
+        if (languageConfig != null
+                && languageConfig.contains("messages.username-block")
+                && languageConfig.contains("messages.isp-block")
+                && languageConfigUsesCurrentCommandName()) {
             return;
         }
         try {
@@ -102,5 +105,22 @@ public class CGVelocityConfig {
         } catch (IOException e) {
             ConnectionGuardVelocityPlugin.getInstance().getLogger().error("TwiAntiVpn | Could not update language file: " + e.getMessage());
         }
+    }
+
+    private boolean languageConfigUsesCurrentCommandName() {
+        String unknownSubcommand = languageConfig.getString("command.unknown-subcommand");
+        if (usesLegacyCommandName(unknownSubcommand)) {
+            return false;
+        }
+        for (String line : languageConfig.getStringList("messages.help")) {
+            if (usesLegacyCommandName(line)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean usesLegacyCommandName(String value) {
+        return value != null && (value.contains("/connectionguard") || value.contains("/cg"));
     }
 }

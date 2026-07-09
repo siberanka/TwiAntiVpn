@@ -176,8 +176,8 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new AsyncPlayerPreLoginListener(), this);
 
         // 7. Register commands
-        getCommand("connectionguard").setExecutor(new ConnectionGuardSpigotCommand());
-        getCommand("connectionguard").setTabCompleter(new ConnectionGuardSpigotCommand());
+        getCommand("twiantivpn").setExecutor(new ConnectionGuardSpigotCommand());
+        getCommand("twiantivpn").setTabCompleter(new ConnectionGuardSpigotCommand());
 
 
         Metrics metrics = new Metrics(this, 22911);
@@ -266,7 +266,9 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
     }
 
     private void ensureLanguageConfigComplete() {
-        if (languageConfig.contains("messages.username-block") && languageConfig.contains("messages.isp-block")) {
+        if (languageConfig.contains("messages.username-block")
+                && languageConfig.contains("messages.isp-block")
+                && languageConfigUsesCurrentCommandName()) {
             return;
         }
         try {
@@ -285,6 +287,23 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
         } catch (Exception exception) {
             getLogger().info("TwiAntiVpn | Could not update language file: " + exception.getMessage());
         }
+    }
+
+    private boolean languageConfigUsesCurrentCommandName() {
+        String unknownSubcommand = languageConfig.getString("command.unknown-subcommand", "");
+        if (usesLegacyCommandName(unknownSubcommand)) {
+            return false;
+        }
+        for (String line : languageConfig.getStringList("messages.help")) {
+            if (usesLegacyCommandName(line)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean usesLegacyCommandName(String value) {
+        return value != null && (value.contains("/connectionguard") || value.contains("/cg"));
     }
 
     public static ConnectionGuardSpigotPlugin getInstance() {

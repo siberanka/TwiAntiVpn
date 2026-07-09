@@ -32,7 +32,7 @@ import java.util.HashMap;
 @Plugin(
         id="twiantivpn",
         name="TwiAntiVpn",
-        version="2026.07.09.4",
+        version="2026.07.09.5",
         url="https://github.com/siberanka",
         authors = {"gerolndnr", "siberanka"}
 )
@@ -183,8 +183,8 @@ public class ConnectionGuardVelocityPlugin {
         // 7. Register velocity listener and commands
         proxyServer.getEventManager().register(this, new ConnectionGuardVelocityListener());
 
-        CommandMeta commandMeta = proxyServer.getCommandManager().metaBuilder("connectionguard")
-                .aliases("cg")
+        CommandMeta commandMeta = proxyServer.getCommandManager().metaBuilder("twiantivpn")
+                .aliases("twiavpn", "tavpn", "antivpn")
                 .plugin(this)
                 .build();
         SimpleCommand simpleCommand = new ConnectionGuardVelocityCommand();

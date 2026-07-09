@@ -67,7 +67,7 @@ public class ConnectionGuardBungeeListener implements Listener {
             vpnResultFuture = ConnectionGuard.getVpnResult(ipAddress);
 
             if (ConnectionGuardBungeePlugin.getInstance().getConfig().getBoolean("behavior.vpn.use-permission-exemption")) {
-                hasVpnExemptionPermissionFuture = CGLuckPermsHelper.hasPermission(loginEvent.getConnection().getUniqueId(), "connectionguard.exemption.vpn");
+                hasVpnExemptionPermissionFuture = CGLuckPermsHelper.hasPermission(loginEvent.getConnection().getUniqueId(), "twiantivpn.exemption.vpn");
             } else {
                 hasVpnExemptionPermissionFuture = CompletableFuture.completedFuture(false);
             }
@@ -84,7 +84,7 @@ public class ConnectionGuardBungeeListener implements Listener {
             geoResultOptionalFuture = ConnectionGuard.getGeoResult(ipAddress);
 
             if (ConnectionGuardBungeePlugin.getInstance().getConfig().getBoolean("behavior.geo.use-permission-exemption")) {
-                hasGeoExemptionPermissionFuture = CGLuckPermsHelper.hasPermission(loginEvent.getConnection().getUniqueId(), "connectionguard.exemption.geo");
+                hasGeoExemptionPermissionFuture = CGLuckPermsHelper.hasPermission(loginEvent.getConnection().getUniqueId(), "twiantivpn.exemption.geo");
             } else {
                 hasGeoExemptionPermissionFuture = CompletableFuture.completedFuture(false);
             }
@@ -110,7 +110,7 @@ public class ConnectionGuardBungeeListener implements Listener {
                                     .replace("%IP%", vpnResult.getIpAddress())
                                     .replace("%NAME%", loginEvent.getConnection().getName())
                     );
-                    broadcastMessage(notifyMessage, "connectionguard.notify.vpn");
+                    broadcastMessage(notifyMessage, "twiantivpn.notify.vpn");
                 }
 
                 // Check if command should be executed on flag
@@ -187,7 +187,7 @@ public class ConnectionGuardBungeeListener implements Listener {
                                         .replace("%ISP%", geoResult.getIspName())
                                         .replace("%NAME%", loginEvent.getConnection().getName())
                         );
-                        broadcastMessage(notifyMessage, "connectionguard.notify.geo");
+                        broadcastMessage(notifyMessage, "twiantivpn.notify.geo");
                     }
 
                     // Check if command should be executed on flag
@@ -259,7 +259,7 @@ public class ConnectionGuardBungeeListener implements Listener {
                             .replace("%NAME%", loginEvent.getConnection().getName())
                             .replace("%MATCH%", matchedPart)
             );
-            broadcastMessage(notifyMessage, "connectionguard.notify.username");
+            broadcastMessage(notifyMessage, "twiantivpn.notify.username");
         }
         if (ConnectionGuardBungeePlugin.getInstance().getConfig().getBoolean("behavior.username.execute-command.enabled")) {
             ConnectionGuardBungeePlugin.getInstance().getProxy().getPluginManager().dispatchCommand(
@@ -302,7 +302,7 @@ public class ConnectionGuardBungeeListener implements Listener {
                             .replace("%ASN%", geoResult.getAsn())
                             .replace("%MATCH%", ispBlockResult.getMatchedValue())
             );
-            broadcastMessage(notifyMessage, "connectionguard.notify.isp");
+            broadcastMessage(notifyMessage, "twiantivpn.notify.isp");
         }
         if (ConnectionGuardBungeePlugin.getInstance().getConfig().getBoolean("behavior.isp.execute-command.enabled")) {
             ConnectionGuardBungeePlugin.getInstance().getProxy().getPluginManager().dispatchCommand(

@@ -1,7 +1,7 @@
 # Archivo de idioma de TwiAntiVpn.
 command:
   no-permission: "&cNo tienes permiso para ejecutar este comando."
-  unknown-subcommand: "&bTwiAntiVpn &7| &7Subcomando desconocido. Usa /cg help para ver los comandos."
+  unknown-subcommand: "&bTwiAntiVpn &7| &7Subcomando desconocido. Usa /twiantivpn help para ver los comandos."
   config-reload: "&bTwiAntiVpn &7| &7La configuracion se ha recargado."
   clear:
     clear-all: '&bTwiAntiVpn &7| &7Se limpio toda la cache.'
@@ -23,10 +23,10 @@ messages:
   isp-webhook: "%NAME% (%IP%) fue bloqueado por ISP/ASN. ISP: %ISP%, ASN: %ASN%, coincidencia: %MATCH%."
   help:
     - '&bTwiAntiVpn &7| &7Comandos'
-    - ' &7- /cg &fhelp &7(esta lista)'
-    - ' &7- /cg &freload &7(recargar configuracion)'
-    - ' &7- /cg &fclear &7(<&fJugador&7/&fUUID&7/&fIP&7>) (limpiar cache)'
-    - ' &7- /cg &finfo &7<&fJugador&7/&fUUID&7/&fIP&7> (datos vpn y geo)'
+    - ' &7- /twiantivpn &fhelp &7(esta lista)'
+    - ' &7- /twiantivpn &freload &7(recargar configuracion)'
+    - ' &7- /twiantivpn &fclear &7(<&fJugador&7/&fUUID&7/&fIP&7>) (limpiar cache)'
+    - ' &7- /twiantivpn &finfo &7<&fJugador&7/&fUUID&7/&fIP&7> (datos vpn y geo)'
   info:
     text:
       - '&bTwiAntiVpn &7| &7Resultado para &b%INPUT%'

@@ -62,7 +62,7 @@ public class AsyncPlayerPreLoginListener implements Listener {
             vpnResultFuture = ConnectionGuard.getVpnResult(ipAddress);
 
             if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.vpn.use-permission-exemption")) {
-                hasVpnExemptionPermissionFuture = CGLuckPermsHelper.hasPermission(preLoginEvent.getUniqueId(), "connectionguard.exemption.vpn");
+                hasVpnExemptionPermissionFuture = CGLuckPermsHelper.hasPermission(preLoginEvent.getUniqueId(), "twiantivpn.exemption.vpn");
             } else {
                 hasVpnExemptionPermissionFuture = CompletableFuture.completedFuture(false);
             }
@@ -79,7 +79,7 @@ public class AsyncPlayerPreLoginListener implements Listener {
             geoResultOptionalFuture = ConnectionGuard.getGeoResult(ipAddress);
 
             if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.geo.use-permission-exemption")) {
-                hasGeoExemptionPermissionFuture = CGLuckPermsHelper.hasPermission(preLoginEvent.getUniqueId(), "connectionguard.exemption.geo");
+                hasGeoExemptionPermissionFuture = CGLuckPermsHelper.hasPermission(preLoginEvent.getUniqueId(), "twiantivpn.exemption.geo");
             } else {
                 hasGeoExemptionPermissionFuture = CompletableFuture.completedFuture(false);
             }
@@ -105,7 +105,7 @@ public class AsyncPlayerPreLoginListener implements Listener {
                                 .replace("%IP%", vpnResult.getIpAddress())
                                 .replace("%NAME%", preLoginEvent.getName())
                 );
-                ConnectionGuardSpigotPlugin.getInstance().getServer().broadcast(notifyMessage, "connectionguard.notify.vpn");
+                ConnectionGuardSpigotPlugin.getInstance().getServer().broadcast(notifyMessage, "twiantivpn.notify.vpn");
             }
 
             // Check if command should be executed on flag
@@ -184,7 +184,7 @@ public class AsyncPlayerPreLoginListener implements Listener {
                                     .replace("%ISP%", geoResult.getIspName())
                                     .replace("%NAME%", preLoginEvent.getName())
                     );
-                    Bukkit.broadcast(notifyMessage, "connectionguard.notify.geo");
+                    Bukkit.broadcast(notifyMessage, "twiantivpn.notify.geo");
                 }
 
                 // Check if command should be executed on flag
@@ -247,7 +247,7 @@ public class AsyncPlayerPreLoginListener implements Listener {
                             .replace("%NAME%", preLoginEvent.getName())
                             .replace("%MATCH%", matchedPart)
             );
-            Bukkit.broadcast(notifyMessage, "connectionguard.notify.username");
+            Bukkit.broadcast(notifyMessage, "twiantivpn.notify.username");
         }
         if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.username.execute-command.enabled")) {
             Bukkit.getScheduler().runTask(ConnectionGuardSpigotPlugin.getInstance(), () -> Bukkit.dispatchCommand(
@@ -289,7 +289,7 @@ public class AsyncPlayerPreLoginListener implements Listener {
                             .replace("%ASN%", geoResult.getAsn())
                             .replace("%MATCH%", ispBlockResult.getMatchedValue())
             );
-            Bukkit.broadcast(notifyMessage, "connectionguard.notify.isp");
+            Bukkit.broadcast(notifyMessage, "twiantivpn.notify.isp");
         }
         if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.isp.execute-command.enabled")) {
             Bukkit.getScheduler().runTask(ConnectionGuardSpigotPlugin.getInstance(), () -> Bukkit.dispatchCommand(

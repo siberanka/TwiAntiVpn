@@ -2,7 +2,7 @@
 
 TwiAntiVpn is a VPN/proxy and geo-blocking plugin for Spigot/Paper, BungeeCord and Velocity.
 
-Version format: `YYYY.MM.DD.build`, for example `2026.07.09.4`.
+Version format: `YYYY.MM.DD.build`, for example `2026.07.09.5`.
 
 ## Features
 
@@ -52,15 +52,31 @@ F:\gradle-8.14.3\bin\gradle.bat clean shadowJar
 The main release jar is generated at:
 
 ```text
-build/libs/TwiAntiVpn-2026.07.09.4-all.jar
+build/libs/TwiAntiVpn-2026.07.09.5-all.jar
 ```
 
 ## Commands
 
-- `/connectionguard help`
-- `/connectionguard reload`
-- `/connectionguard clear (<Player/UUID/IP>)`
-- `/connectionguard info <Player/UUID/IP>`
+- `/twiantivpn help`
+- `/twiantivpn reload`
+- `/twiantivpn clear (<Player/UUID/IP>)`
+- `/twiantivpn info <Player/UUID/IP>`
+
+Aliases: `/twiavpn`, `/tavpn`, `/antivpn`
+
+## Permissions
+
+- `twiantivpn.command`
+- `twiantivpn.command.help`
+- `twiantivpn.command.reload`
+- `twiantivpn.command.clear`
+- `twiantivpn.command.info`
+- `twiantivpn.notify.vpn`
+- `twiantivpn.notify.geo`
+- `twiantivpn.notify.username`
+- `twiantivpn.notify.isp`
+- `twiantivpn.exemption.vpn`
+- `twiantivpn.exemption.geo`
 
 ## Credits
 

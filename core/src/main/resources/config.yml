@@ -34,7 +34,7 @@ behavior:
   vpn:
     # If set to true, players connected to a vpn cannot join the server.
     kick-player: true
-    # If set to true, players with the permission connectionguard.notify.vpn will receive a notification message
+    # If set to true, players with the permission twiantivpn.notify.vpn will receive a notification message
     # when a player connected to a vpn tries to connect.
     notify-staff: true
     # If set to true, the specified command will be executed by the console when a user connected to a vpn tries to connect.
@@ -52,13 +52,13 @@ behavior:
     exemptions:
       - '069a79f4-44e9-4726-a5be-fca90e38aaf5'
       - '127.0.0.1'
-    # If enabled, players with the permission connectionguard.exemption.vpn will not be flagged as vpn players.
+    # If enabled, players with the permission twiantivpn.exemption.vpn will not be flagged as vpn players.
     # Only available when having LuckPerms installed.
     use-permission-exemption: false
   geo:
     # If set to true, geo-blocked players cannot join the server.
     kick-player: true
-    # If set to true, players with the permission connectionguard.notify.geo will receive a notification message
+    # If set to true, players with the permission twiantivpn.notify.geo will receive a notification message
     # when a geo-blocked player tries to connect.
     notify-staff: true
     # If set to true, the specified command will be executed by the console when a geo-blocked user tries to connect.
@@ -87,7 +87,7 @@ behavior:
     exemptions:
       - '069a79f4-44e9-4726-a5be-fca90e38aaf5'
       - '127.0.0.1'
-    # If enabled, players with the permission connectionguard.exemption.geo will not be flagged as geo-blocked players.
+    # If enabled, players with the permission twiantivpn.exemption.geo will not be flagged as geo-blocked players.
     # Only available when having LuckPerms.
     use-permission-exemption: false
 
@@ -231,7 +231,7 @@ provider:
     # The cache is very important to effectively use the requests you have and avoid running into the request limit.
     # Once a request to a service is made, its data is stored for the specified duration (see below) and used instead of
     # making a new request. This data does not change very frequently and you can cache the results for days, if you want to.
-    # If you want to clear the cache, you can do that by typing in the command /connectionguard clearcache, which is especially
+    # If you want to clear the cache, you can do that by typing in the command /twiantivpn clear, which is especially
     # necessary when you add or remove countries to the geo-block-list.
     # Available types:
     # - SQLite (no further configuration is necessary, stored in a file in the plugins directory)

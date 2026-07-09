@@ -27,7 +27,7 @@ public class ConnectionGuardSpigotCommand implements TabExecutor {
         );
 
         if (args.length == 0) {
-            if (!commandSender.hasPermission("connectionguard.command.help")) {
+            if (!commandSender.hasPermission("twiantivpn.command.help")) {
                 commandSender.sendMessage(noPermissionMessage);
                 return true;
             }
@@ -36,19 +36,19 @@ public class ConnectionGuardSpigotCommand implements TabExecutor {
         if (args.length == 1) {
             switch (args[0].toLowerCase()) {
                 case "help":
-                    if (!commandSender.hasPermission("connectionguard.command.help")) {
+                    if (!commandSender.hasPermission("twiantivpn.command.help")) {
                         commandSender.sendMessage(noPermissionMessage);
                         return true;
                     }
                     return sendHelpMessage(commandSender);
                 case "reload":
-                    if (!commandSender.hasPermission("connectionguard.command.reload")) {
+                    if (!commandSender.hasPermission("twiantivpn.command.reload")) {
                         commandSender.sendMessage(noPermissionMessage);
                         return true;
                     }
                     return reloadPlugin(commandSender);
                 case "clear":
-                    if (!commandSender.hasPermission("connectionguard.command.clear")) {
+                    if (!commandSender.hasPermission("twiantivpn.command.clear")) {
                         commandSender.sendMessage(noPermissionMessage);
                         return true;
                     }
@@ -61,13 +61,13 @@ public class ConnectionGuardSpigotCommand implements TabExecutor {
         if (args.length == 2) {
             switch (args[0].toLowerCase()) {
                 case "clear":
-                    if (!commandSender.hasPermission("connectionguard.command.clear")) {
+                    if (!commandSender.hasPermission("twiantivpn.command.clear")) {
                         commandSender.sendMessage(noPermissionMessage);
                         return true;
                     }
                     return clearCache(commandSender, args[1]);
                 case "info":
-                    if (!commandSender.hasPermission("connectionguard.command.info")) {
+                    if (!commandSender.hasPermission("twiantivpn.command.info")) {
                         commandSender.sendMessage(noPermissionMessage);
                         return true;
                     }
@@ -250,13 +250,13 @@ public class ConnectionGuardSpigotCommand implements TabExecutor {
     public List<String> onTabComplete(CommandSender commandSender, Command command, String s, String[] strings) {
         List<String> proposals = new ArrayList<>();
         if (strings.length == 1) {
-            if (commandSender.hasPermission("connectionguard.command.help"))
+            if (commandSender.hasPermission("twiantivpn.command.help"))
                 proposals.add("help");
-            if (commandSender.hasPermission("connectionguard.command.info"))
+            if (commandSender.hasPermission("twiantivpn.command.info"))
                 proposals.add("info");
-            if (commandSender.hasPermission("connectionguard.command.clear"))
+            if (commandSender.hasPermission("twiantivpn.command.clear"))
                 proposals.add("clear");
-            if (commandSender.hasPermission("connectionguard.command.reload"))
+            if (commandSender.hasPermission("twiantivpn.command.reload"))
                 proposals.add("reload");
         }
         if (strings.length == 2) {

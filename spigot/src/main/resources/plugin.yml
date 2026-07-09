@@ -17,8 +17,45 @@ loadbefore:
   - Sonar
   - SonarBukkit
 commands:
-  connectionguard:
-    name: connectionguard
-    description: Retrieve information about connections ingame.
+  twiantivpn:
+    name: twiantivpn
+    description: Retrieve TwiAntiVpn connection security information ingame.
+    permission: twiantivpn.command
     aliases:
-      - cg
+      - twiavpn
+      - tavpn
+      - antivpn
+permissions:
+  twiantivpn.command:
+    description: Allows access to the TwiAntiVpn command root.
+    default: op
+  twiantivpn.command.help:
+    description: Allows viewing TwiAntiVpn help.
+    default: op
+  twiantivpn.command.reload:
+    description: Allows reloading TwiAntiVpn.
+    default: op
+  twiantivpn.command.clear:
+    description: Allows clearing TwiAntiVpn cache.
+    default: op
+  twiantivpn.command.info:
+    description: Allows querying TwiAntiVpn information.
+    default: op
+  twiantivpn.notify.vpn:
+    description: Receives TwiAntiVpn VPN notifications.
+    default: op
+  twiantivpn.notify.geo:
+    description: Receives TwiAntiVpn geo notifications.
+    default: op
+  twiantivpn.notify.username:
+    description: Receives TwiAntiVpn username filter notifications.
+    default: op
+  twiantivpn.notify.isp:
+    description: Receives TwiAntiVpn ISP/ASN notifications.
+    default: op
+  twiantivpn.exemption.vpn:
+    description: Exempts a player from TwiAntiVpn VPN checks when permission exemptions are enabled.
+    default: false
+  twiantivpn.exemption.geo:
+    description: Exempts a player from TwiAntiVpn geo checks when permission exemptions are enabled.
+    default: false

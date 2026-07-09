@@ -19,7 +19,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class ConnectionGuardBungeeCommand extends Command implements TabExecutor {
     public ConnectionGuardBungeeCommand() {
-        super("connectionguard", "connectionguard.command", "cg");
+        super("twiantivpn", "twiantivpn.command", "twiavpn", "tavpn", "antivpn");
     }
 
     @Override
@@ -30,7 +30,7 @@ public class ConnectionGuardBungeeCommand extends Command implements TabExecutor
         );
 
         if (args.length == 0) {
-            if (!commandSender.hasPermission("connectionguard.command.help")) {
+            if (!commandSender.hasPermission("twiantivpn.command.help")) {
                 commandSender.sendMessage(noPermissionMessage);
                 return;
             }
@@ -40,21 +40,21 @@ public class ConnectionGuardBungeeCommand extends Command implements TabExecutor
         if (args.length == 1) {
             switch (args[0].toLowerCase()) {
                 case "help":
-                    if (!commandSender.hasPermission("connectionguard.command.help")) {
+                    if (!commandSender.hasPermission("twiantivpn.command.help")) {
                         commandSender.sendMessage(noPermissionMessage);
                         return;
                     }
                     sendHelpMessage(commandSender);
                     return;
                 case "reload":
-                    if (!commandSender.hasPermission("connectionguard.command.reload")) {
+                    if (!commandSender.hasPermission("twiantivpn.command.reload")) {
                         commandSender.sendMessage(noPermissionMessage);
                         return;
                     }
                     reloadPlugin(commandSender);
                     return;
                 case "clear":
-                    if (!commandSender.hasPermission("connectionguard.command.clear")) {
+                    if (!commandSender.hasPermission("twiantivpn.command.clear")) {
                         commandSender.sendMessage(noPermissionMessage);
                         return;
                     }
@@ -69,14 +69,14 @@ public class ConnectionGuardBungeeCommand extends Command implements TabExecutor
         if (args.length == 2) {
             switch (args[0].toLowerCase()) {
                 case "clear":
-                    if (!commandSender.hasPermission("connectionguard.command.clear")) {
+                    if (!commandSender.hasPermission("twiantivpn.command.clear")) {
                         commandSender.sendMessage(noPermissionMessage);
                         return;
                     }
                     clearCache(commandSender, args[1]);
                     return;
                 case "info":
-                    if (!commandSender.hasPermission("connectionguard.command.info")) {
+                    if (!commandSender.hasPermission("twiantivpn.command.info")) {
                         commandSender.sendMessage(noPermissionMessage);
                         return;
                     }
@@ -261,13 +261,13 @@ public class ConnectionGuardBungeeCommand extends Command implements TabExecutor
     public Iterable<String> onTabComplete(CommandSender commandSender, String[] strings) {
         List<String> proposals = new ArrayList<>();
         if (strings.length == 1) {
-            if (commandSender.hasPermission("connectionguard.command.help"))
+            if (commandSender.hasPermission("twiantivpn.command.help"))
                 proposals.add("help");
-            if (commandSender.hasPermission("connectionguard.command.info"))
+            if (commandSender.hasPermission("twiantivpn.command.info"))
                 proposals.add("info");
-            if (commandSender.hasPermission("connectionguard.command.clear"))
+            if (commandSender.hasPermission("twiantivpn.command.clear"))
                 proposals.add("clear");
-            if (commandSender.hasPermission("connectionguard.command.reload"))
+            if (commandSender.hasPermission("twiantivpn.command.reload"))
                 proposals.add("reload");
         }
         if (strings.length == 2) {

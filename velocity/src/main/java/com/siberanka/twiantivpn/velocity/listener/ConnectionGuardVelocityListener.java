@@ -82,13 +82,13 @@ public class ConnectionGuardVelocityListener {
 
             // Check if player has a permission exemption
             if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.vpn.use-permission-exemption")) {
-                if (CGLuckPermsHelper.hasPermission(loginEvent.getUniqueId(), "connectionguard.exemption.vpn").join()) {
+                if (CGLuckPermsHelper.hasPermission(loginEvent.getUniqueId(), "twiantivpn.exemption.vpn").join()) {
                     vpnResult = new VpnResult(ipAddress, false);
                 }
             }
 
             if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.geo.use-permission-exemption")) {
-                if (CGLuckPermsHelper.hasPermission(loginEvent.getUniqueId(), "connectionguard.exemption.geo").join()) {
+                if (CGLuckPermsHelper.hasPermission(loginEvent.getUniqueId(), "twiantivpn.exemption.geo").join()) {
                     geoResultOptional = Optional.empty();
                 }
             }
@@ -103,7 +103,7 @@ public class ConnectionGuardVelocityListener {
                                     .replace("%IP%", vpnResult.getIpAddress())
                                     .replace("%NAME%", playerUsername)
                     );
-                    broadcastMessage(notifyMessage, "connectionguard.notify.vpn");
+                    broadcastMessage(notifyMessage, "twiantivpn.notify.vpn");
                 }
 
                 // Check if command should be executed on flag
@@ -175,7 +175,7 @@ public class ConnectionGuardVelocityListener {
                                         .replace("%ISP%", geoResult.getIspName())
                                         .replace("%NAME%", playerUsername)
                         );
-                        broadcastMessage(notifyMessage, "connectionguard.notify.geo");
+                        broadcastMessage(notifyMessage, "twiantivpn.notify.geo");
                     }
 
                     // Check if command should be executed on flag
@@ -249,7 +249,7 @@ public class ConnectionGuardVelocityListener {
                             .replace("%NAME%", playerUsername)
                             .replace("%MATCH%", matchedPart)
             );
-            broadcastMessage(notifyMessage, "connectionguard.notify.username");
+            broadcastMessage(notifyMessage, "twiantivpn.notify.username");
         }
         if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.username.execute-command.enabled")) {
             ConnectionGuardVelocityPlugin.getInstance().getProxyServer().getCommandManager().executeAsync(
@@ -289,7 +289,7 @@ public class ConnectionGuardVelocityListener {
                             .replace("%ASN%", geoResult.getAsn())
                             .replace("%MATCH%", ispBlockResult.getMatchedValue())
             );
-            broadcastMessage(notifyMessage, "connectionguard.notify.isp");
+            broadcastMessage(notifyMessage, "twiantivpn.notify.isp");
         }
         if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.isp.execute-command.enabled")) {
             ConnectionGuardVelocityPlugin.getInstance().getProxyServer().getCommandManager().executeAsync(

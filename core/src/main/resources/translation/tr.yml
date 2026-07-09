@@ -1,7 +1,7 @@
 # TwiAntiVpn dil dosyasi.
 command:
   no-permission: "&cBu komutu kullanmak icin yetkin yok!"
-  unknown-subcommand: "&bTwiAntiVpn &7| &7Bilinmeyen alt komut. Tum komutlar icin /cg help yaz."
+  unknown-subcommand: "&bTwiAntiVpn &7| &7Bilinmeyen alt komut. Tum komutlar icin /twiantivpn help yaz."
   config-reload: "&bTwiAntiVpn &7| &7Config yeniden yuklendi!"
   clear:
     clear-all: '&bTwiAntiVpn &7| &7Tum cache temizlendi.'
@@ -23,10 +23,10 @@ messages:
   isp-webhook: "%NAME% (%IP%) ISP/ASN filtresiyle engellendi. ISP: %ISP%, ASN: %ASN%, eslesme: %MATCH%."
   help:
     - '&bTwiAntiVpn &7| &7Komutlar'
-    - ' &7- /cg &fhelp &7(komutlar)'
-    - ' &7- /cg &freload &7(config yenile)'
-    - ' &7- /cg &fclear &7(<&fOyuncu&7/&fUUID&7/&fIP&7>) (cache temizle)'
-    - ' &7- /cg &finfo &7<&fOyuncu&7/&fUUID&7/&fIP&7> (vpn ve geo bilgisi)'
+    - ' &7- /twiantivpn &fhelp &7(komutlar)'
+    - ' &7- /twiantivpn &freload &7(config yenile)'
+    - ' &7- /twiantivpn &fclear &7(<&fOyuncu&7/&fUUID&7/&fIP&7>) (cache temizle)'
+    - ' &7- /twiantivpn &finfo &7<&fOyuncu&7/&fUUID&7/&fIP&7> (vpn ve geo bilgisi)'
   info:
     text:
       - '&bTwiAntiVpn &7| &b%INPUT% &7icin sorgu sonucu'
