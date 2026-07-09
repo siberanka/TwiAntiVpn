@@ -2,7 +2,7 @@
 
 TwiAntiVpn is a VPN/proxy and geo-blocking plugin for Spigot/Paper, BungeeCord and Velocity.
 
-Version format: `YYYY.MM.DD.build`, for example `2026.07.09.3`.
+Version format: `YYYY.MM.DD.build`, for example `2026.07.09.4`.
 
 ## Features
 
@@ -15,7 +15,7 @@ Version format: `YYYY.MM.DD.build`, for example `2026.07.09.3`.
 - Blocks configured ISP names and ASN numbers after checking supported geo/IP providers in order.
 - Blocks usernames containing configured terms before VPN/API checks.
 - Skips VPN/geo/ISP checks for Asteroid fake players when Asteroid is installed and its registry confirms the UUID.
-- Runs login checks at the earliest supported event priority on Spigot, BungeeCord and Velocity so VPN checks happen before anti-bot plugins such as Sonar.
+- Runs login checks before anti-bot plugins such as Sonar by default, with a config option to run after anti-bot checks instead.
 - Ships editable language files for English, Turkish, Azerbaijani and Spanish. English is the default.
 - Supports geo blacklist/whitelist checks, cache providers and Discord webhooks.
 
@@ -52,7 +52,7 @@ F:\gradle-8.14.3\bin\gradle.bat clean shadowJar
 The main release jar is generated at:
 
 ```text
-build/libs/TwiAntiVpn-2026.07.09.3-all.jar
+build/libs/TwiAntiVpn-2026.07.09.4-all.jar
 ```
 
 ## Commands

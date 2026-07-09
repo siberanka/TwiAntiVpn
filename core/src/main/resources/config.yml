@@ -97,6 +97,13 @@ behavior:
 # Default value: 1
 required-positive-flags: 1
 
+# Controls whether TwiAntiVpn checks run before or after anti-bot plugins that listen to login events.
+# Available options:
+# - BEFORE_ANTIBOT: default; run at the earliest supported event priority.
+# - AFTER_ANTIBOT: run late and skip VPN/API work if another plugin already denied the login.
+login-check:
+  order: 'BEFORE_ANTIBOT'
+
 # Username filter is checked before VPN/cache/API lookups. Matching is case-insensitive and uses "contains".
 username-filter:
   enabled: false
@@ -118,7 +125,7 @@ asteroid-proxy:
 # Supported entries in downloaded .txt/.ipset files: plain IPs, ip:port lines and CIDR ranges.
 proxy-blocklist:
   enabled: true
-  # Unit: minutes
+  # How often remote proxy/IP lists are refreshed. Unit: minutes.
   refresh-interval: 60
   # Safety limits to avoid excessive memory use when a remote list is malformed or unexpectedly huge.
   max-entries: 750000

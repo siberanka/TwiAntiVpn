@@ -20,7 +20,20 @@ import java.util.concurrent.CompletableFuture;
 
 public class AsyncPlayerPreLoginListener implements Listener {
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
-    public void onAsyncPreLogin(AsyncPlayerPreLoginEvent preLoginEvent) {
+    public void onAsyncPreLoginBeforeAntiBot(AsyncPlayerPreLoginEvent preLoginEvent) {
+        if (shouldRunBeforeAntiBot()) {
+            handlePreLogin(preLoginEvent);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onAsyncPreLoginAfterAntiBot(AsyncPlayerPreLoginEvent preLoginEvent) {
+        if (!shouldRunBeforeAntiBot() && preLoginEvent.getLoginResult() == AsyncPlayerPreLoginEvent.Result.ALLOWED) {
+            handlePreLogin(preLoginEvent);
+        }
+    }
+
+    private void handlePreLogin(AsyncPlayerPreLoginEvent preLoginEvent) {
         String ipAddress = preLoginEvent.getAddress().getHostAddress();
         Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(preLoginEvent.getName());
         if (blockedUsernamePart.isPresent()) {
@@ -218,6 +231,11 @@ public class AsyncPlayerPreLoginListener implements Listener {
                 }
             }
         }
+    }
+
+    private boolean shouldRunBeforeAntiBot() {
+        String order = ConnectionGuardSpigotPlugin.getInstance().getConfig().getString("login-check.order", "BEFORE_ANTIBOT");
+        return !order.equalsIgnoreCase("AFTER_ANTIBOT");
     }
 
     private void handleUsernameBlock(AsyncPlayerPreLoginEvent preLoginEvent, String ipAddress, String matchedPart) {

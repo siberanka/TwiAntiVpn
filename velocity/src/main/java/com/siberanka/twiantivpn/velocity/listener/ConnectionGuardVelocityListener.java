@@ -21,7 +21,22 @@ import java.util.concurrent.CompletableFuture;
 
 public class ConnectionGuardVelocityListener {
     @Subscribe(order = PostOrder.FIRST)
-    public EventTask onPreLogin(PreLoginEvent loginEvent) {
+    public EventTask onPreLoginBeforeAntiBot(PreLoginEvent loginEvent) {
+        if (shouldRunBeforeAntiBot()) {
+            return handlePreLogin(loginEvent);
+        }
+        return EventTask.resumeWhenComplete(CompletableFuture.completedFuture(null));
+    }
+
+    @Subscribe(order = PostOrder.LAST)
+    public EventTask onPreLoginAfterAntiBot(PreLoginEvent loginEvent) {
+        if (!shouldRunBeforeAntiBot() && loginEvent.getResult().isAllowed()) {
+            return handlePreLogin(loginEvent);
+        }
+        return EventTask.resumeWhenComplete(CompletableFuture.completedFuture(null));
+    }
+
+    private EventTask handlePreLogin(PreLoginEvent loginEvent) {
         String ipAddress = loginEvent.getConnection().getRemoteAddress().getHostString();
         String playerUuid = (loginEvent.getUniqueId() != null) ? loginEvent.getUniqueId().toString() : "";
         String playerUsername = loginEvent.getUsername();
@@ -211,6 +226,11 @@ public class ConnectionGuardVelocityListener {
                 ConnectionGuard.getLogger().info("Login check failed: " + exception.getMessage());
             }
         });
+    }
+
+    private boolean shouldRunBeforeAntiBot() {
+        String order = ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getString("login-check.order", "BEFORE_ANTIBOT");
+        return !order.equalsIgnoreCase("AFTER_ANTIBOT");
     }
 
     private void broadcastMessage(Component message, String permission) {

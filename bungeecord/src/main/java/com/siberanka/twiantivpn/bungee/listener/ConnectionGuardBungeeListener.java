@@ -21,7 +21,20 @@ import java.util.concurrent.CompletableFuture;
 
 public class ConnectionGuardBungeeListener implements Listener {
     @EventHandler(priority = EventPriority.LOWEST)
-    public void onLogin(LoginEvent loginEvent) {
+    public void onLoginBeforeAntiBot(LoginEvent loginEvent) {
+        if (shouldRunBeforeAntiBot()) {
+            handleLogin(loginEvent);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onLoginAfterAntiBot(LoginEvent loginEvent) {
+        if (!shouldRunBeforeAntiBot() && !loginEvent.isCancelled()) {
+            handleLogin(loginEvent);
+        }
+    }
+
+    private void handleLogin(LoginEvent loginEvent) {
         loginEvent.registerIntent(ConnectionGuardBungeePlugin.getInstance());
 
         String ipAddress = loginEvent.getConnection().getAddress().getAddress().getHostAddress();
@@ -222,6 +235,11 @@ public class ConnectionGuardBungeeListener implements Listener {
             loginEvent.completeIntent(ConnectionGuardBungeePlugin.getInstance());
         });
 
+    }
+
+    private boolean shouldRunBeforeAntiBot() {
+        String order = ConnectionGuardBungeePlugin.getInstance().getConfig().getString("login-check.order");
+        return order == null || !order.equalsIgnoreCase("AFTER_ANTIBOT");
     }
 
     private void broadcastMessage(String message, String permission) {
