@@ -12,6 +12,7 @@ import com.siberanka.twiantivpn.core.geo.GeoProvider;
 import com.siberanka.twiantivpn.core.geo.IpApiGeoProvider;
 import com.siberanka.twiantivpn.core.geo.ProxyCheckGeoProvider;
 import com.siberanka.twiantivpn.core.integration.SonarApiEarlyCheckHook;
+import com.siberanka.twiantivpn.core.integration.AdaptiveLoginOrderService;
 import com.siberanka.twiantivpn.core.message.MessageFormatter;
 import com.siberanka.twiantivpn.core.vpn.*;
 import com.siberanka.twiantivpn.core.vpn.custom.CustomVpnProvider;
@@ -79,6 +80,7 @@ public class ConnectionGuardBungeePlugin extends Plugin {
         }
         try {
             config = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
+            ensureAdaptiveLoginConfig();
         } catch (IOException e) {
             getLogger().info("TwiAntiVpn | " + e.getMessage());
         }
@@ -236,6 +238,7 @@ public class ConnectionGuardBungeePlugin extends Plugin {
     public void reloadAllConfigs() {
         try {
             config = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
+            ensureAdaptiveLoginConfig();
         } catch (IOException e) {
             getLogger().info("TwiAntiVpn | " + e.getMessage());
         }
@@ -268,6 +271,15 @@ public class ConnectionGuardBungeePlugin extends Plugin {
     }
 
     private void configureSonarEarlyHook() {
+        AdaptiveLoginOrderService.getInstance().configure(
+                shouldRunBeforeAntiBot(),
+                getConfig().getBoolean("login-check.adaptive-sonar.enabled", true),
+                getConfig().getInt("login-check.adaptive-sonar.recovery-delay-seconds", 30),
+                getLogger(),
+                getLanguageConfig().getString("messages.adaptive-sonar-attack-log", ""),
+                getLanguageConfig().getString("messages.adaptive-sonar-recovery-log", ""),
+                getLanguageConfig().getString("messages.adaptive-sonar-normal-log", "")
+        );
         if (!shouldRunBeforeAntiBot() || getProxy().getPluginManager().getPlugin("Sonar") == null) {
             SonarApiEarlyCheckHook.uninstall(getLogger());
             return;
@@ -299,6 +311,21 @@ public class ConnectionGuardBungeePlugin extends Plugin {
     private boolean shouldRunBeforeAntiBot() {
         String order = getConfig().getString("login-check.order");
         return order == null || !order.equalsIgnoreCase("AFTER_ANTIBOT");
+    }
+
+    private void ensureAdaptiveLoginConfig() throws IOException {
+        boolean changed = false;
+        if (config.get("login-check.adaptive-sonar.enabled") == null) {
+            config.set("login-check.adaptive-sonar.enabled", true);
+            changed = true;
+        }
+        if (config.get("login-check.adaptive-sonar.recovery-delay-seconds") == null) {
+            config.set("login-check.adaptive-sonar.recovery-delay-seconds", 30);
+            changed = true;
+        }
+        if (changed) {
+            ConfigurationProvider.getProvider(YamlConfiguration.class).save(config, configFile);
+        }
     }
 
     private void configureSecurityFilters() {
@@ -414,6 +441,9 @@ public class ConnectionGuardBungeePlugin extends Plugin {
                 && languageConfig.contains("messages.prefix")
                 && languageConfig.contains("messages.kick-prefix")
                 && languageConfig.contains("messages.kick-contact")
+                && languageConfig.contains("messages.adaptive-sonar-attack-log")
+                && languageConfig.contains("messages.adaptive-sonar-recovery-log")
+                && languageConfig.contains("messages.adaptive-sonar-normal-log")
                 && languageConfigUsesCurrentCommandName()) {
             return;
         }

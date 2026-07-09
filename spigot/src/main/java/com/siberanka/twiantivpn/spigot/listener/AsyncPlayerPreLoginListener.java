@@ -3,6 +3,7 @@ package com.siberanka.twiantivpn.spigot.listener;
 import com.siberanka.twiantivpn.core.asteroid.AsteroidRegistryHook;
 import com.siberanka.twiantivpn.core.ConnectionGuard;
 import com.siberanka.twiantivpn.core.geo.GeoResult;
+import com.siberanka.twiantivpn.core.integration.AdaptiveLoginOrderService;
 import com.siberanka.twiantivpn.core.isp.IspBlockResult;
 import com.siberanka.twiantivpn.core.luckperms.CGLuckPermsHelper;
 import com.siberanka.twiantivpn.core.message.MessageFormatter;
@@ -15,20 +16,29 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 
+import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 
 public class AsyncPlayerPreLoginListener implements Listener {
+    private final Set<AsyncPlayerPreLoginEvent> deferredEvents =
+            Collections.newSetFromMap(Collections.synchronizedMap(new WeakHashMap<>()));
+
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
     public void onAsyncPreLoginBeforeAntiBot(AsyncPlayerPreLoginEvent preLoginEvent) {
         if (shouldRunBeforeAntiBot()) {
             handlePreLogin(preLoginEvent);
+        } else {
+            deferredEvents.add(preLoginEvent);
         }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onAsyncPreLoginAfterAntiBot(AsyncPlayerPreLoginEvent preLoginEvent) {
-        if (!shouldRunBeforeAntiBot() && preLoginEvent.getLoginResult() == AsyncPlayerPreLoginEvent.Result.ALLOWED) {
+        boolean deferred = deferredEvents.remove(preLoginEvent);
+        if (deferred && preLoginEvent.getLoginResult() == AsyncPlayerPreLoginEvent.Result.ALLOWED) {
             handlePreLogin(preLoginEvent);
         }
     }
@@ -222,8 +232,7 @@ public class AsyncPlayerPreLoginListener implements Listener {
     }
 
     private boolean shouldRunBeforeAntiBot() {
-        String order = ConnectionGuardSpigotPlugin.getInstance().getConfig().getString("login-check.order", "BEFORE_ANTIBOT");
-        return !order.equalsIgnoreCase("AFTER_ANTIBOT");
+        return AdaptiveLoginOrderService.getInstance().shouldRunBeforeAntiBot();
     }
 
     private String message(String path, String... placeholders) {

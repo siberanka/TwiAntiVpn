@@ -13,7 +13,7 @@ TwiAntiVpn is a production-focused anti-VPN, proxy, geo and connection-risk plug
 - Memory-optimized primitive storage for large IPv4 blocklists.
 - ISP and ASN blocking by provider name or autonomous system number.
 - Username contains-filter for blocking obvious bot naming patterns before VPN/API work.
-- Configurable login check order for running before or after anti-bot plugins, with an optional Sonar early-check hook.
+- Configurable login check order with adaptive Sonar attack routing and recovery hysteresis.
 - AsteroidProxy/AsteroidSpoofer support for verified fake-player bypasses.
 - Geo blacklist/whitelist support.
 - SQLite, Redis or disabled cache modes.
@@ -47,7 +47,7 @@ The default configuration is designed to work out of the box. Important sections
 - `provider.geo`: geo and ISP data providers.
 - `provider.isp-block`: blocked ASN numbers and ISP/provider names.
 - `username-filter`: blocked username fragments.
-- `login-check`: whether TwiAntiVpn checks run before or after anti-bot plugins.
+- `login-check`: fixed before/after ordering and adaptive Sonar attack routing. With the default settings, VPN checks run first during normal traffic, Sonar runs first while its attack tracker reports an attack, and early VPN checks resume after the configured recovery delay.
 - `behavior`: kick, notify, command and webhook actions.
 
 Most scalar values can be written without quotes. Empty strings and JSON examples remain quoted in the default config because YAML would otherwise treat them differently.
@@ -105,7 +105,7 @@ YYYY.MM.DD.build
 Example:
 
 ```text
-2026.07.09.16
+2026.07.09.17
 ```
 
 ## Credits

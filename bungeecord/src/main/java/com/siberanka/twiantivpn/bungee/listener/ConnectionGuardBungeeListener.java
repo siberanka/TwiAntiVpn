@@ -4,6 +4,7 @@ import com.siberanka.twiantivpn.bungee.ConnectionGuardBungeePlugin;
 import com.siberanka.twiantivpn.core.asteroid.AsteroidRegistryHook;
 import com.siberanka.twiantivpn.core.ConnectionGuard;
 import com.siberanka.twiantivpn.core.geo.GeoResult;
+import com.siberanka.twiantivpn.core.integration.AdaptiveLoginOrderService;
 import com.siberanka.twiantivpn.core.isp.IspBlockResult;
 import com.siberanka.twiantivpn.core.luckperms.CGLuckPermsHelper;
 import com.siberanka.twiantivpn.core.message.MessageFormatter;
@@ -15,20 +16,29 @@ import net.md_5.bungee.api.event.LoginEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.event.EventHandler;
 
+import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 
 public class ConnectionGuardBungeeListener implements Listener {
+    private final Set<LoginEvent> deferredEvents =
+            Collections.newSetFromMap(Collections.synchronizedMap(new WeakHashMap<>()));
+
     @EventHandler(priority = Byte.MIN_VALUE)
     public void onLoginBeforeAntiBot(LoginEvent loginEvent) {
         if (shouldRunBeforeAntiBot()) {
             handleLogin(loginEvent);
+        } else {
+            deferredEvents.add(loginEvent);
         }
     }
 
     @EventHandler(priority = Byte.MAX_VALUE)
     public void onLoginAfterAntiBot(LoginEvent loginEvent) {
-        if (!shouldRunBeforeAntiBot() && !loginEvent.isCancelled()) {
+        boolean deferred = deferredEvents.remove(loginEvent);
+        if (deferred && !loginEvent.isCancelled()) {
             handleLogin(loginEvent);
         }
     }
@@ -225,8 +235,7 @@ public class ConnectionGuardBungeeListener implements Listener {
     }
 
     private boolean shouldRunBeforeAntiBot() {
-        String order = ConnectionGuardBungeePlugin.getInstance().getConfig().getString("login-check.order");
-        return order == null || !order.equalsIgnoreCase("AFTER_ANTIBOT");
+        return AdaptiveLoginOrderService.getInstance().shouldRunBeforeAntiBot();
     }
 
     private void broadcastMessage(String message, String permission) {

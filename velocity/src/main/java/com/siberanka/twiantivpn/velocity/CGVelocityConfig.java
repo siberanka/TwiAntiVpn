@@ -42,6 +42,7 @@ public class CGVelocityConfig {
         }
         try {
             config = YamlDocument.create(configFile, GeneralSettings.builder().setUseDefaults(true).build());
+            ensureAdaptiveLoginConfig();
         } catch (IOException e) {
             ConnectionGuardVelocityPlugin.getInstance().getLogger().error("TwiAntiVpn | " + e.getMessage());
         }
@@ -89,6 +90,9 @@ public class CGVelocityConfig {
                 && languageConfig.contains("messages.prefix")
                 && languageConfig.contains("messages.kick-prefix")
                 && languageConfig.contains("messages.kick-contact")
+                && languageConfig.contains("messages.adaptive-sonar-attack-log")
+                && languageConfig.contains("messages.adaptive-sonar-recovery-log")
+                && languageConfig.contains("messages.adaptive-sonar-normal-log")
                 && languageConfigUsesCurrentCommandName()) {
             return;
         }
@@ -107,6 +111,21 @@ public class CGVelocityConfig {
             }
         } catch (IOException e) {
             ConnectionGuardVelocityPlugin.getInstance().getLogger().error("TwiAntiVpn | Could not update language file: " + e.getMessage());
+        }
+    }
+
+    private void ensureAdaptiveLoginConfig() throws IOException {
+        boolean changed = false;
+        if (config.get("login-check.adaptive-sonar.enabled") == null) {
+            config.set("login-check.adaptive-sonar.enabled", true);
+            changed = true;
+        }
+        if (config.get("login-check.adaptive-sonar.recovery-delay-seconds") == null) {
+            config.set("login-check.adaptive-sonar.recovery-delay-seconds", 30);
+            changed = true;
+        }
+        if (changed) {
+            config.save();
         }
     }
 

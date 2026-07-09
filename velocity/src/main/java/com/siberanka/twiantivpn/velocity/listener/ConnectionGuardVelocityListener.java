@@ -3,6 +3,7 @@ package com.siberanka.twiantivpn.velocity.listener;
 import com.siberanka.twiantivpn.core.asteroid.AsteroidRegistryHook;
 import com.siberanka.twiantivpn.core.ConnectionGuard;
 import com.siberanka.twiantivpn.core.geo.GeoResult;
+import com.siberanka.twiantivpn.core.integration.AdaptiveLoginOrderService;
 import com.siberanka.twiantivpn.core.isp.IspBlockResult;
 import com.siberanka.twiantivpn.core.luckperms.CGLuckPermsHelper;
 import com.siberanka.twiantivpn.core.message.MessageFormatter;
@@ -18,21 +19,29 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 import java.net.InetAddress;
+import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 
 public class ConnectionGuardVelocityListener {
+    private final Set<PreLoginEvent> deferredEvents =
+            Collections.newSetFromMap(Collections.synchronizedMap(new WeakHashMap<>()));
+
     @Subscribe(order = PostOrder.FIRST, priority = Short.MAX_VALUE)
     public EventTask onPreLoginBeforeAntiBot(PreLoginEvent loginEvent) {
         if (shouldRunBeforeAntiBot()) {
             return handlePreLogin(loginEvent);
         }
+        deferredEvents.add(loginEvent);
         return EventTask.resumeWhenComplete(CompletableFuture.completedFuture(null));
     }
 
     @Subscribe(order = PostOrder.LAST, priority = Short.MIN_VALUE)
     public EventTask onPreLoginAfterAntiBot(PreLoginEvent loginEvent) {
-        if (!shouldRunBeforeAntiBot() && loginEvent.getResult().isAllowed()) {
+        boolean deferred = deferredEvents.remove(loginEvent);
+        if (deferred && loginEvent.getResult().isAllowed()) {
             return handlePreLogin(loginEvent);
         }
         return EventTask.resumeWhenComplete(CompletableFuture.completedFuture(null));
@@ -223,8 +232,7 @@ public class ConnectionGuardVelocityListener {
     }
 
     private boolean shouldRunBeforeAntiBot() {
-        String order = ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getString("login-check.order", "BEFORE_ANTIBOT");
-        return !order.equalsIgnoreCase("AFTER_ANTIBOT");
+        return AdaptiveLoginOrderService.getInstance().shouldRunBeforeAntiBot();
     }
 
     private String getIpAddress(PreLoginEvent loginEvent) {

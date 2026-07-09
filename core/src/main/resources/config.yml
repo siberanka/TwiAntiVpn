@@ -104,6 +104,14 @@ required-positive-flags: 1
 # - AFTER_ANTIBOT: run late and skip VPN/API work if another plugin already denied the login.
 login-check:
   order: BEFORE_ANTIBOT
+  adaptive-sonar:
+    # Only applies when order is BEFORE_ANTIBOT and Sonar is installed.
+    # Sonar remains first while its own attack tracker reports an active attack.
+    # TwiAntiVpn resumes early VPN checks after Sonar mitigates the attack and
+    # the recovery window below has elapsed without another attack signal.
+    enabled: true
+    # Clamped between 5 and 600 seconds. Default: 30.
+    recovery-delay-seconds: 30
 
 # Username filter is checked before VPN/cache/API lookups. Matching is case-insensitive and uses "contains".
 username-filter:

@@ -10,6 +10,7 @@ import com.siberanka.twiantivpn.core.geo.GeoProvider;
 import com.siberanka.twiantivpn.core.geo.IpApiGeoProvider;
 import com.siberanka.twiantivpn.core.geo.ProxyCheckGeoProvider;
 import com.siberanka.twiantivpn.core.integration.SonarApiEarlyCheckHook;
+import com.siberanka.twiantivpn.core.integration.AdaptiveLoginOrderService;
 import com.siberanka.twiantivpn.core.message.MessageFormatter;
 import com.siberanka.twiantivpn.core.vpn.*;
 import com.siberanka.twiantivpn.core.vpn.custom.CustomVpnProvider;
@@ -35,7 +36,7 @@ import java.util.HashMap;
 @Plugin(
         id="twiantivpn",
         name="TwiAntiVpn",
-        version="2026.07.09.16",
+        version="2026.07.09.17",
         url="https://github.com/siberanka",
         authors = {"gerolndnr", "siberanka"},
         dependencies = {
@@ -235,6 +236,15 @@ public class ConnectionGuardVelocityPlugin {
     }
 
     public void configureSonarEarlyHook() {
+        AdaptiveLoginOrderService.getInstance().configure(
+                shouldRunBeforeAntiBot(),
+                cgVelocityConfig.getConfig().getBoolean("login-check.adaptive-sonar.enabled", true),
+                cgVelocityConfig.getConfig().getInt("login-check.adaptive-sonar.recovery-delay-seconds", 30),
+                ConnectionGuard.getLogger(),
+                cgVelocityConfig.getLanguageConfig().getString("messages.adaptive-sonar-attack-log", ""),
+                cgVelocityConfig.getLanguageConfig().getString("messages.adaptive-sonar-recovery-log", ""),
+                cgVelocityConfig.getLanguageConfig().getString("messages.adaptive-sonar-normal-log", "")
+        );
         if (!shouldRunBeforeAntiBot() || !proxyServer.getPluginManager().getPlugin("sonar").isPresent()) {
             SonarApiEarlyCheckHook.uninstall(ConnectionGuard.getLogger());
             return;

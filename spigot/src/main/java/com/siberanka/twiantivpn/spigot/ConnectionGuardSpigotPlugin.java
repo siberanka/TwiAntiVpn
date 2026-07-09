@@ -10,6 +10,7 @@ import com.siberanka.twiantivpn.core.geo.GeoProvider;
 import com.siberanka.twiantivpn.core.geo.IpApiGeoProvider;
 import com.siberanka.twiantivpn.core.geo.ProxyCheckGeoProvider;
 import com.siberanka.twiantivpn.core.integration.SonarApiEarlyCheckHook;
+import com.siberanka.twiantivpn.core.integration.AdaptiveLoginOrderService;
 import com.siberanka.twiantivpn.core.message.MessageFormatter;
 import com.siberanka.twiantivpn.core.vpn.*;
 import com.siberanka.twiantivpn.core.vpn.custom.CustomVpnProvider;
@@ -245,6 +246,15 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
     }
 
     private void configureSonarEarlyHook() {
+        AdaptiveLoginOrderService.getInstance().configure(
+                shouldRunBeforeAntiBot(),
+                getConfig().getBoolean("login-check.adaptive-sonar.enabled", true),
+                getConfig().getInt("login-check.adaptive-sonar.recovery-delay-seconds", 30),
+                getLogger(),
+                getLanguageConfig().getString("messages.adaptive-sonar-attack-log", ""),
+                getLanguageConfig().getString("messages.adaptive-sonar-recovery-log", ""),
+                getLanguageConfig().getString("messages.adaptive-sonar-normal-log", "")
+        );
         if (!shouldRunBeforeAntiBot() || getServer().getPluginManager().getPlugin("Sonar") == null) {
             SonarApiEarlyCheckHook.uninstall(getLogger());
             return;
@@ -383,6 +393,9 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
                 && languageConfig.contains("messages.prefix")
                 && languageConfig.contains("messages.kick-prefix")
                 && languageConfig.contains("messages.kick-contact")
+                && languageConfig.contains("messages.adaptive-sonar-attack-log")
+                && languageConfig.contains("messages.adaptive-sonar-recovery-log")
+                && languageConfig.contains("messages.adaptive-sonar-normal-log")
                 && languageConfigUsesCurrentCommandName()) {
             return;
         }
