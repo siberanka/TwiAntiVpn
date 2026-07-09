@@ -2,6 +2,8 @@ package com.siberanka.twiantivpn.velocity.commands;
 
 import com.siberanka.twiantivpn.core.ConnectionGuard;
 import com.siberanka.twiantivpn.core.geo.GeoResult;
+import com.siberanka.twiantivpn.core.integration.AdaptiveLoginOrderService;
+import com.siberanka.twiantivpn.core.isp.IspBlockResult;
 import com.siberanka.twiantivpn.core.message.MessageFormatter;
 import com.siberanka.twiantivpn.core.net.IpAddressUtil;
 import com.siberanka.twiantivpn.core.vpn.VpnResult;
@@ -17,8 +19,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ConnectionGuardVelocityCommand implements SimpleCommand {
+    private final AtomicBoolean testRunning = new AtomicBoolean();
     @Override
     public void execute(Invocation invocation) {
         CommandSource commandSender = invocation.source();
@@ -79,12 +83,109 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
                     }
                     sendInformationMessage(commandSender, args[1]);
                     return;
+                case "test":
+                    if (!commandSender.hasPermission("twiantivpn.command.test")) {
+                        commandSender.sendMessage(noPermissionMessage);
+                        return;
+                    }
+                    if (args[1].equalsIgnoreCase("attack")) {
+                        sendAttackStatus(commandSender);
+                    } else {
+                        testConnection(commandSender, args[1], null);
+                    }
+                    return;
                 default:
                     sendUnknownSubcommandMessage(commandSender);
                     return;
             }
         }
+        if (args.length == 3 && args[0].equalsIgnoreCase("test")
+                && args[1].equalsIgnoreCase("attack")
+                && commandSender.hasPermission("twiantivpn.command.test")) {
+            if (args[2].equalsIgnoreCase("on")) {
+                AdaptiveLoginOrderService.getInstance().onSonarAttackDetected();
+            } else if (args[2].equalsIgnoreCase("off")) {
+                AdaptiveLoginOrderService.getInstance().onSonarAttackMitigated();
+            } else {
+                sendUnknownSubcommandMessage(commandSender);
+                return;
+            }
+            sendAttackStatus(commandSender);
+            return;
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("test")
+                && commandSender.hasPermission("twiantivpn.command.test")) {
+            testConnection(commandSender, args[1], args[2]);
+            return;
+        }
         sendUnknownSubcommandMessage(commandSender);
+    }
+
+    private void sendAttackStatus(CommandSource sender) {
+        AdaptiveLoginOrderService service = AdaptiveLoginOrderService.getInstance();
+        AdaptiveLoginOrderService.ModulePlan plan = service.snapshotModulePlan();
+        sender.sendMessage(component("command.test.attack-status",
+                "%MODE%", service.isDeferringToSonar() ? text("command.test.sonar-first") : text("command.test.antivpn-first"),
+                "%BEFORE%", plan.getBeforePlatformModules().toString(),
+                "%AFTER%", plan.getAfterPlatformModules().toString()));
+    }
+
+    private void testConnection(CommandSource sender, String input, String username) {
+        Optional<String> parsed = IpAddressUtil.toHostAddress(input);
+        if (!parsed.isPresent()) {
+            sendInvalidArgumentMessage(sender);
+            return;
+        }
+        if (!testRunning.compareAndSet(false, true)) {
+            sender.sendMessage(component("command.test.busy"));
+            return;
+        }
+        CompletableFuture.runAsync(() -> {
+            try {
+                String ip = parsed.get();
+                if (username != null && ConnectionGuard.getBlockedUsernamePart(username).isPresent()) {
+                    sender.sendMessage(component("command.test.connection-result",
+                            "%IP%", ip, "%RESULT%", text("command.test.blocked"),
+                            "%REASON%", text("command.test.reason-username")));
+                    return;
+                }
+                VpnResult vpn = ConnectionGuard.getVpnResult(ip).join();
+                Optional<GeoResult> geo = ConnectionGuard.getGeoResult(ip).join();
+                String reason = text("command.test.reason-none");
+                boolean blocked = vpn.isVpn();
+                if (blocked) {
+                    reason = text("command.test.reason-vpn");
+                } else if (geo.isPresent()) {
+                    Optional<IspBlockResult> isp = ConnectionGuard.getIspBlockResult(geo.get());
+                    if (isp.isPresent()) {
+                        blocked = true;
+                        reason = text("command.test.reason-isp");
+                    } else if (isGeoBlocked(geo.get())) {
+                        blocked = true;
+                        reason = text("command.test.reason-geo");
+                    }
+                }
+                sender.sendMessage(component("command.test.connection-result",
+                        "%IP%", ip,
+                        "%RESULT%", blocked ? text("command.test.blocked") : text("command.test.allowed"),
+                        "%REASON%", reason));
+            } catch (Throwable throwable) {
+                ConnectionGuard.reportError("Velocity connection test command", throwable);
+                sender.sendMessage(component("command.test.failed"));
+            } finally {
+                testRunning.set(false);
+            }
+        });
+    }
+
+    private boolean isGeoBlocked(GeoResult geo) {
+        String type = ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig()
+                .getConfig().getString("behavior.geo.type", "BLACKLIST");
+        List<String> list = ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig()
+                .getConfig().getStringList("behavior.geo.list");
+        return type.equalsIgnoreCase("WHITELIST")
+                ? !list.contains(geo.getCountryName())
+                : list.contains(geo.getCountryName());
     }
 
     private void sendUnknownSubcommandMessage(CommandSource commandSender) {
@@ -275,6 +376,8 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
                     proposals.add("clear");
                 if (commandSender.hasPermission("twiantivpn.command.reload"))
                     proposals.add("reload");
+                if (commandSender.hasPermission("twiantivpn.command.test"))
+                    proposals.add("test");
             }
             if (strings.length == 2) {
                 if (strings[0].equalsIgnoreCase("info")) {
@@ -289,6 +392,15 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
                         proposals.add(player.getUsername());
                     }
                 }
+                if (strings[0].equalsIgnoreCase("test")) {
+                    proposals.add("attack");
+                    proposals.add("1.1.1.1");
+                }
+            }
+            if (strings.length == 3 && strings[0].equalsIgnoreCase("test")
+                    && strings[1].equalsIgnoreCase("attack")) {
+                proposals.add("on");
+                proposals.add("off");
             }
             return proposals;
         });

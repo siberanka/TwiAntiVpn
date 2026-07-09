@@ -273,6 +273,9 @@ public final class SonarApiEarlyCheckHook {
                               Result result,
                               Function<Result, String> disconnectMessage) {
         try {
+            if (!prepareSonarDisconnectState(user)) {
+                return false;
+            }
             String message = disconnectMessage == null ? "" : disconnectMessage.apply(result);
             Method disconnectMethod = findDisconnectMethod(user.getClass());
             Class<?> reasonType = disconnectMethod.getParameterTypes()[0];
@@ -281,6 +284,36 @@ public final class SonarApiEarlyCheckHook {
             return true;
         } catch (Throwable throwable) {
             ConnectionGuard.reportError("Sonar pre-verification disconnect", throwable);
+            return false;
+        }
+    }
+
+    private static boolean prepareSonarDisconnectState(Object user) {
+        try {
+            Object channel = user.getClass().getMethod("channel").invoke(user);
+            Object pipeline = channel.getClass().getMethod("pipeline").invoke(channel);
+            Object encoder = pipeline.getClass()
+                    .getMethod("get", String.class)
+                    .invoke(pipeline, "sonar-packet-encoder");
+            if (encoder == null) {
+                return true;
+            }
+            Method getRegistry = encoder.getClass().getMethod("getPacketRegistry");
+            Object registry = getRegistry.invoke(encoder);
+            if (registry == null || !"LOGIN".equals(String.valueOf(registry))) {
+                return true;
+            }
+
+            Class<?> registryType = registry.getClass();
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            Object configRegistry = Enum.valueOf((Class<? extends Enum>) registryType, "CONFIG");
+            encoder.getClass().getMethod("updateRegistry", registryType)
+                    .invoke(encoder, configRegistry);
+            return true;
+        } catch (NoSuchMethodException ignored) {
+            return true;
+        } catch (Throwable throwable) {
+            ConnectionGuard.reportError("Sonar disconnect protocol state", throwable);
             return false;
         }
     }

@@ -43,6 +43,20 @@ class SonarApiEarlyCheckHookTest {
         assertEquals("blocked", user.reason);
     }
 
+    @Test
+    void disconnectMovesModernSonarEncoderToConfigurationState() {
+        StatefulUser user = new StatefulUser();
+
+        assertTrue(SonarApiEarlyCheckHook.disconnect(
+                user,
+                SonarApiEarlyCheckHook.Result.vpn("127.0.0.1", "Player"),
+                result -> "blocked"
+        ));
+
+        assertEquals(FakeRegistry.CONFIG, user.channel.pipeline.encoder.registry);
+        assertEquals("blocked", user.reason);
+    }
+
     public interface RelocatedComponent {
         static RelocatedComponent text(String content) {
             return new RelocatedTextComponent(content);
@@ -74,6 +88,52 @@ class SonarApiEarlyCheckHookTest {
 
     public static final class StringReasonUser {
         private String reason;
+
+        public void disconnect(String reason) {
+            this.reason = reason;
+        }
+    }
+
+    public enum FakeRegistry {
+        LOGIN,
+        CONFIG
+    }
+
+    public static final class FakeEncoder {
+        private FakeRegistry registry = FakeRegistry.LOGIN;
+
+        public FakeRegistry getPacketRegistry() {
+            return registry;
+        }
+
+        public void updateRegistry(FakeRegistry registry) {
+            this.registry = registry;
+        }
+    }
+
+    public static final class FakePipeline {
+        private final FakeEncoder encoder = new FakeEncoder();
+
+        public Object get(String name) {
+            return "sonar-packet-encoder".equals(name) ? encoder : null;
+        }
+    }
+
+    public static final class FakeChannel {
+        private final FakePipeline pipeline = new FakePipeline();
+
+        public FakePipeline pipeline() {
+            return pipeline;
+        }
+    }
+
+    public static final class StatefulUser {
+        private final FakeChannel channel = new FakeChannel();
+        private String reason;
+
+        public FakeChannel channel() {
+            return channel;
+        }
 
         public void disconnect(String reason) {
             this.reason = reason;

@@ -96,6 +96,10 @@ For compatibility, older config keys are still accepted, but new configs should 
 - `/twiantivpn reload`
 - `/twiantivpn clear (<Player/UUID/IP>)`
 - `/twiantivpn info <Player/UUID/IP>`
+- `/twiantivpn test <IP> [username]`
+- `/twiantivpn test attack [on|off]`
+
+`test <IP> [username]` evaluates the configured VPN/proxy, username, geo and ISP/ASN policies without disconnecting anyone. `test attack` shows the current module routing; `on` simulates an attack signal and `off` moves adaptive routing into recovery.
 
 Aliases:
 
@@ -110,6 +114,7 @@ Aliases:
 - `twiantivpn.command.reload`
 - `twiantivpn.command.clear`
 - `twiantivpn.command.info`
+- `twiantivpn.command.test`
 - `twiantivpn.notify.vpn`
 - `twiantivpn.notify.geo`
 - `twiantivpn.notify.username`
@@ -143,7 +148,7 @@ YYYY.MM.DD.build
 Example:
 
 ```text
-2026.07.09.24
+2026.07.09.25
 ```
 
 ## Credits
@@ -256,6 +261,10 @@ Eski config anahtarları geriye dönük olarak desteklenir, fakat yeni configler
 - `/twiantivpn reload`
 - `/twiantivpn clear (<Oyuncu/UUID/IP>)`
 - `/twiantivpn info <Oyuncu/UUID/IP>`
+- `/twiantivpn test <IP> [kullanıcı-adı]`
+- `/twiantivpn test attack [on|off]`
+
+`test <IP> [kullanıcı-adı]` aktif VPN/proxy, kullanıcı adı, geo ve ISP/ASN politikalarını kimsenin bağlantısını kesmeden değerlendirir. `test attack` mevcut modül sırasını gösterir; `on` saldırı sinyali simüle eder, `off` adaptive yönlendirmeyi toparlanma moduna geçirir.
 
 Aliaslar:
 
@@ -270,6 +279,7 @@ Aliaslar:
 - `twiantivpn.command.reload`
 - `twiantivpn.command.clear`
 - `twiantivpn.command.info`
+- `twiantivpn.command.test`
 - `twiantivpn.notify.vpn`
 - `twiantivpn.notify.geo`
 - `twiantivpn.notify.username`
@@ -303,7 +313,7 @@ YYYY.MM.DD.build
 Örnek:
 
 ```text
-2026.07.09.24
+2026.07.09.25
 ```
 
 ## Katkı

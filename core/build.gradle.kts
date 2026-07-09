@@ -25,6 +25,8 @@ dependencies {
     shadow("net.luckperms:api:5.4")
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testRuntimeOnly("org.xerial:sqlite-jdbc:3.46.0.0")
+    testRuntimeOnly("org.slf4j:slf4j-simple:1.7.36")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.

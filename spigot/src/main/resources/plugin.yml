@@ -43,6 +43,9 @@ permissions:
   twiantivpn.command.info:
     description: Allows querying TwiAntiVpn information.
     default: op
+  twiantivpn.command.test:
+    description: Allows testing TwiAntiVpn routing and connection decisions.
+    default: op
   twiantivpn.notify.vpn:
     description: Receives TwiAntiVpn VPN notifications.
     default: op

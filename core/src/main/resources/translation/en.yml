@@ -8,6 +8,20 @@ command:
     clear-all: "{prefix} &7All VPN and geo cache entries were cleared."
     clear-specific: "{prefix} &7Cache entries for &f%ENTRY%&7 were cleared."
   invalid-argument: "{prefix} &7Enter an online player, UUID, or valid IP address."
+  test:
+    busy: "{prefix} &eA connection test is already running. Wait for it to finish."
+    failed: "{prefix} &cThe connection test failed safely. Review error.log for details."
+    attack-status: "{prefix} &7Routing mode: &f%MODE% &8| &7Before: &f%BEFORE% &8| &7After: &f%AFTER%"
+    sonar-first: "Sonar first"
+    antivpn-first: "TwiAntiVpn first"
+    connection-result: "{prefix} &7Connection test for &f%IP%&7: %RESULT% &8| &7Reason: &f%REASON%"
+    allowed: "&aALLOWED"
+    blocked: "&cBLOCKED"
+    reason-none: "No enabled policy matched"
+    reason-username: "Prohibited username term"
+    reason-vpn: "VPN, proxy, Tor, or proxy blocklist"
+    reason-isp: "Restricted ISP or ASN"
+    reason-geo: "Restricted region"
 
 messages:
   prefix: "<bold><gradient:#35d3ff:#6f7dff>TwiAntiVpn</gradient></bold> <dark_gray>|</dark_gray>"
@@ -36,6 +50,7 @@ messages:
     - " &8- &f/twiantivpn reload &7Reload configuration and language files."
     - " &8- &f/twiantivpn clear &7[Player/UUID/IP] Clear cache entries."
     - " &8- &f/twiantivpn info &7<Player/UUID/IP> Show VPN and geo data."
+    - " &8- &f/twiantivpn test &7<IP|attack [on|off]> Test decisions and adaptive routing."
   info:
     text:
       - "{prefix} &7Query result for &f%INPUT%"

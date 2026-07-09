@@ -96,6 +96,7 @@ public class CGVelocityConfig {
                 && languageConfig.contains("messages.adaptive-sonar-recovery-log")
                 && languageConfig.contains("messages.adaptive-sonar-normal-log")
                 && languageConfig.contains("messages.pre-sonar-check-failed")
+                && languageConfig.contains("command.test.connection-result")
                 && languageConfigUsesCurrentCommandName()) {
             return;
         }

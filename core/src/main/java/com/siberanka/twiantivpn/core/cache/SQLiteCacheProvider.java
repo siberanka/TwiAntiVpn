@@ -29,16 +29,29 @@ public class SQLiteCacheProvider implements CacheProvider {
                     ConnectionGuard.reportError("SQLite driver load", e);
                 }
                 connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFileLocation);
-
+                try (Statement pragma = connection.createStatement()) {
+                    pragma.execute("PRAGMA busy_timeout=5000");
+                }
+                connection.setAutoCommit(false);
                 try (Statement statement = connection.createStatement()) {
-                    statement.execute("CREATE TABLE IF NOT EXISTS connectionguard_vpn_cache (address TEXT, vpn BOOLEAN, cached_on INTEGER);");
-                    statement.execute("CREATE TABLE IF NOT EXISTS connectionguard_geo_cache (address TEXT, country_name TEXT, city_name TEXT, isp_name TEXT, cached_on INTEGER);");
+                    statement.execute("CREATE TABLE IF NOT EXISTS connectionguard_vpn_cache (address TEXT, vpn BOOLEAN, cached_on INTEGER)");
+                    statement.execute("CREATE TABLE IF NOT EXISTS connectionguard_geo_cache (address TEXT, country_name TEXT, city_name TEXT, isp_name TEXT, cached_on INTEGER)");
                     addColumnIfMissing(statement, "connectionguard_geo_cache", "asn", "TEXT");
                     addColumnIfMissing(statement, "connectionguard_geo_cache", "organization", "TEXT");
                     statement.execute("DELETE FROM connectionguard_vpn_cache WHERE rowid NOT IN (SELECT MAX(rowid) FROM connectionguard_vpn_cache GROUP BY address)");
                     statement.execute("DELETE FROM connectionguard_geo_cache WHERE rowid NOT IN (SELECT MAX(rowid) FROM connectionguard_geo_cache GROUP BY address)");
-                    statement.execute("CREATE UNIQUE INDEX IF NOT EXISTS vpn_address ON connectionguard_vpn_cache (address)");
-                    statement.execute("CREATE UNIQUE INDEX IF NOT EXISTS geo_address ON connectionguard_geo_cache (address)");
+                    // Older releases created non-unique indexes with these names. IF NOT EXISTS
+                    // cannot upgrade those indexes, so rebuild the plugin-owned indexes atomically.
+                    statement.execute("DROP INDEX IF EXISTS vpn_address");
+                    statement.execute("DROP INDEX IF EXISTS geo_address");
+                    statement.execute("CREATE UNIQUE INDEX vpn_address ON connectionguard_vpn_cache (address)");
+                    statement.execute("CREATE UNIQUE INDEX geo_address ON connectionguard_geo_cache (address)");
+                    connection.commit();
+                } catch (SQLException migrationFailure) {
+                    connection.rollback();
+                    throw migrationFailure;
+                } finally {
+                    connection.setAutoCommit(true);
                 }
                 return true;
             } catch (SQLException e) {

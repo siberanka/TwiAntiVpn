@@ -8,6 +8,20 @@ command:
     clear-all: "{prefix} &7Tüm VPN ve geo önbellek kayıtları temizlendi."
     clear-specific: "{prefix} &f%ENTRY% &7için önbellek kayıtları temizlendi."
   invalid-argument: "{prefix} &7Çevrimiçi oyuncu, UUID veya geçerli bir IP adresi gir."
+  test:
+    busy: "{prefix} &eBir bağlantı testi zaten çalışıyor. Tamamlanmasını bekle."
+    failed: "{prefix} &cBağlantı testi güvenli biçimde başarısız oldu. Ayrıntılar için error.log dosyasını incele."
+    attack-status: "{prefix} &7Yönlendirme modu: &f%MODE% &8| &7Önce: &f%BEFORE% &8| &7Sonra: &f%AFTER%"
+    sonar-first: "Önce Sonar"
+    antivpn-first: "Önce TwiAntiVpn"
+    connection-result: "{prefix} &f%IP% &7bağlantı testi: %RESULT% &8| &7Neden: &f%REASON%"
+    allowed: "&aİZİN VERİLİR"
+    blocked: "&cENGELLENİR"
+    reason-none: "Aktif politikalarla eşleşmedi"
+    reason-username: "Yasaklı kullanıcı adı ifadesi"
+    reason-vpn: "VPN, proxy, Tor veya proxy kara listesi"
+    reason-isp: "Kısıtlı ISP veya ASN"
+    reason-geo: "Kısıtlı bölge"
 
 messages:
   prefix: "<bold><gradient:#35d3ff:#6f7dff>TwiAntiVpn</gradient></bold> <dark_gray>|</dark_gray>"
@@ -36,6 +50,7 @@ messages:
     - " &8- &f/twiantivpn reload &7Yapılandırma ve dil dosyalarını yeniler."
     - " &8- &f/twiantivpn clear &7[Oyuncu/UUID/IP] Önbellek kayıtlarını temizler."
     - " &8- &f/twiantivpn info &7<Oyuncu/UUID/IP> VPN ve geo bilgilerini gösterir."
+    - " &8- &f/twiantivpn test &7<IP|attack [on|off]> Kararı ve adaptive yönlendirmeyi test eder."
   info:
     text:
       - "{prefix} &f%INPUT% &7için sorgu sonucu"
