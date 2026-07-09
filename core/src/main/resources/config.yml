@@ -7,7 +7,7 @@
 # Message config used for all messages send to the player.
 # You can add your own languages by creating a file called <language>.yml and setting the
 # entry below to the file name without the .yml extension.
-message-language: 'en'
+message-language: en
 
 # Settings about how to behave when finding a vpn or geo-blocked user.
 behavior:
@@ -17,7 +17,7 @@ behavior:
     notify-staff: true
     execute-command:
       enabled: false
-      command: 'kick %NAME% Forbidden username'
+      command: kick %NAME% Forbidden username
     send-webhook:
       enabled: false
       url: ''
@@ -27,7 +27,7 @@ behavior:
     notify-staff: true
     execute-command:
       enabled: false
-      command: 'ban-ip %IP%'
+      command: ban-ip %IP%
     send-webhook:
       enabled: false
       url: ''
@@ -41,7 +41,7 @@ behavior:
     # Available placeholders: %NAME%, %IP%
     execute-command:
       enabled: false
-      command: 'ban-ip %IP%'
+      command: ban-ip %IP%
     # If set to true, a discord webhook message is sent.
     send-webhook:
       enabled: false
@@ -50,8 +50,8 @@ behavior:
     # If you want some players or ip addresses to be exempted from the vpn check,
     # you can add them here.
     exemptions:
-      - '069a79f4-44e9-4726-a5be-fca90e38aaf5'
-      - '127.0.0.1'
+      - 069a79f4-44e9-4726-a5be-fca90e38aaf5
+      - 127.0.0.1
     # If enabled, players with the permission twiantivpn.exemption.vpn will not be flagged as vpn players.
     # Only available when having LuckPerms installed.
     use-permission-exemption: false
@@ -65,7 +65,7 @@ behavior:
     # Available placeholders: %NAME%, %IP%
     execute-command:
       enabled: false
-      command: 'ban-ip %IP%'
+      command: ban-ip %IP%
     # If set to true, a discord webhook message is sent.
     send-webhook:
       enabled: false
@@ -75,7 +75,7 @@ behavior:
     # Available options:
     # - BLACKLIST (action specified by 'flag' below will be executed, if the country is on the list)
     # - WHITELIST (action specified by 'flag' below will be executed, if the country is not on the list)
-    type: 'BLACKLIST'
+    type: BLACKLIST
 
     # Countries are specified by their Alpha 2 code.
     # A full list can be found here: https://www.iban.com/country-codes
@@ -85,8 +85,8 @@ behavior:
     # If you want some players or ip addresses to be exempted from the geo check,
     # you can add them here.
     exemptions:
-      - '069a79f4-44e9-4726-a5be-fca90e38aaf5'
-      - '127.0.0.1'
+      - 069a79f4-44e9-4726-a5be-fca90e38aaf5
+      - 127.0.0.1
     # If enabled, players with the permission twiantivpn.exemption.geo will not be flagged as geo-blocked players.
     # Only available when having LuckPerms.
     use-permission-exemption: false
@@ -102,48 +102,52 @@ required-positive-flags: 1
 # - BEFORE_ANTIBOT: default; run at the earliest supported event priority.
 # - AFTER_ANTIBOT: run late and skip VPN/API work if another plugin already denied the login.
 login-check:
-  order: 'BEFORE_ANTIBOT'
+  order: BEFORE_ANTIBOT
 
 # Username filter is checked before VPN/cache/API lookups. Matching is case-insensitive and uses "contains".
 username-filter:
   enabled: false
   blocked-contains:
-    - 'bot'
-    - 'proxy'
+    - bot
+    - proxy
 
 asteroid-proxy:
   # When Asteroid/AsteroidProxy/AsteroidSpoofer is installed, verified Asteroid fake players skip VPN/geo/ISP checks.
   # The bypass is only applied when Asteroid's fake-player registry confirms the UUID.
   enabled: true
   plugin-names:
-    - 'Asteroid'
-    - 'AsteroidProxy'
-    - 'AsteroidSpoofer'
-    - 'AsteroidLibs'
+    - Asteroid
+    - AsteroidProxy
+    - AsteroidSpoofer
+    - AsteroidLibs
 
 # Proxy/IP blocklists are checked before cached API results and before any external VPN provider call.
-# Supported entries in downloaded .txt/.ipset files: plain IPs, ip:port lines and CIDR ranges.
+# Supported entries in downloaded IP list files: plain IPs, ip:port lines and CIDR ranges.
+# Common .txt, .ipset, .lst, .netset and extensionless list URLs are all accepted.
+# The parser scans whitespace/comma separated tokens, so ipset/netset-style lines such as "add list 1.2.3.0/24" work too.
 proxy-blocklist:
   enabled: true
   # How often remote proxy/IP lists are refreshed. Unit: minutes.
   refresh-interval: 60
   # Safety limits to avoid excessive memory use when a remote list is malformed or unexpectedly huge.
+  # max-entries is capped at 750000 internally even if a higher value is configured.
+  # refresh-interval is clamped between 5 and 1440 minutes to prevent accidental or malicious refresh storms.
   max-entries: 750000
   max-line-length: 512
   request-timeout-seconds: 15
   urls:
-    - 'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt'
-    - 'https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt'
-    - 'https://raw.githubusercontent.com/scriptzteam/ProtonVPN-VPN-IPs/main/exit_ips.txt'
-    - 'https://raw.githubusercontent.com/mmpx12/proxy-list/master/ips-list.txt'
-    - 'https://check.torproject.org/torbulkexitlist?ip=1.1.1.1'
-    - 'https://cinsscore.com/list/ci-badguys.txt'
-    - 'https://lists.blocklist.de/lists/all.txt'
-    - 'https://raw.githubusercontent.com/vakhov/fresh-proxy-list/refs/heads/master/socks4.txt'
-    - 'https://blocklist.greensnow.co/greensnow.txt'
-    - 'https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/stopforumspam_7d.ipset'
-    - 'https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies.txt'
-    - 'https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks4.txt'
+    - https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt
+    - https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt
+    - https://raw.githubusercontent.com/scriptzteam/ProtonVPN-VPN-IPs/main/exit_ips.txt
+    - https://raw.githubusercontent.com/mmpx12/proxy-list/master/ips-list.txt
+    - https://check.torproject.org/torbulkexitlist?ip=1.1.1.1
+    - https://cinsscore.com/list/ci-badguys.txt
+    - https://lists.blocklist.de/lists/all.txt
+    - https://raw.githubusercontent.com/vakhov/fresh-proxy-list/refs/heads/master/socks4.txt
+    - https://blocklist.greensnow.co/greensnow.txt
+    - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/stopforumspam_7d.ipset
+    - https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies.txt
+    - https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks4.txt
 
 # There are a lot of different services which help the plugin identify which
 # IP is a vpn and which is not. Some work better than others and some have daily/monthly limits.
@@ -180,27 +184,27 @@ provider:
 
       # Request options
       # Available options: GET, POST
-      request-type: 'GET'
+      request-type: GET
       # Available placeholders: %IP%
-      request-url: 'https://my-provider.com/%IP%?key=123456789'
+      request-url: https://my-provider.com/%IP%?key=123456789
       # Available placeholders: %IP%
       request-header:
         - "X-Key:123456789"
       # Available options: 'application/json'
       # Only used when request-type is set to 'POST'!
-      request-body-type: 'application/json'
+      request-body-type: application/json
       # Available placeholders: %IP%
       request-body: '{ "ip": "%IP%" }'
 
       # Response options
       # Available options: application/json
-      response-type: 'application/json'
+      response-type: application/json
       response-format:
         is-vpn-field:
           # Nested data can be accessed with '#', e.g. { "data": { "isVpn": true }} with 'data#isVpn'
           field-name: "data#isVpn"
           # Available options: BOOLEAN, STRING
-          field-type: 'BOOLEAN'
+          field-type: BOOLEAN
           # Only necessary when field-type is set to STRING
           string-options:
             # If you set 'field-type' to STRING, the IP is treated as a vpn, when the field contains the following string.
@@ -216,17 +220,17 @@ provider:
     #               100 requests per day without api key or 1.000 requests per day with api key)
     # If ISP blocking is enabled, the plugin checks these providers in order until ISP/ASN data is found.
     services:
-      - 'IP-API'
-      - 'ProxyCheck'
-    service: 'IP-API'
+      - IP-API
+      - ProxyCheck
+    service: IP-API
   isp-block:
     enabled: false
     # ASN entries may be written as AS12345 or 12345.
     asns:
-      - 'AS12345'
+      - AS12345
     # Case-insensitive "contains" matching against ISP/provider/organization names.
     isp-names:
-      - 'Example Hosting'
+      - Example Hosting
   cache:
     # The cache is very important to effectively use the requests you have and avoid running into the request limit.
     # Once a request to a service is made, its data is stored for the specified duration (see below) and used instead of
@@ -237,7 +241,7 @@ provider:
     # - SQLite (no further configuration is necessary, stored in a file in the plugins directory)
     # - Redis (configure connection details below, useful when deploying TwiAntiVpn on multiple servers)
     # - Disabled (disable any caching, make absolutely sure that you don't run into request limits!)
-    type: 'SQLite'
+    type: SQLite
 
     # Time after which a new request is made to the services and the existing data is refreshed (when the player connects).
     # Unit: minutes
@@ -246,6 +250,6 @@ provider:
       geo: 4320
 
     redis:
-      hostname: 'localhost'
+      hostname: localhost
       port: 6379
       password: ''

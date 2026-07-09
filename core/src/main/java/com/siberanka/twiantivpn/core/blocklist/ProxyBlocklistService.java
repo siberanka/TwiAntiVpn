@@ -8,11 +8,14 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 import java.io.BufferedReader;
+import java.io.FilterInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,8 +36,16 @@ public class ProxyBlocklistService {
     private static final int DEFAULT_MAX_ENTRIES = 750000;
     private static final int DEFAULT_MAX_LINE_LENGTH = 512;
     private static final int DEFAULT_TIMEOUT_SECONDS = 15;
+    private static final int MIN_INTERVAL_MINUTES = 5;
+    private static final int MAX_INTERVAL_MINUTES = 1440;
+    private static final int MAX_ENTRIES_LIMIT = 750000;
+    private static final int MIN_LINE_LENGTH = 64;
+    private static final int MAX_LINE_LENGTH_LIMIT = 2048;
+    private static final int MIN_TIMEOUT_SECONDS = 3;
+    private static final int MAX_TIMEOUT_SECONDS = 30;
     private static final int MAX_URLS = 64;
     private static final int MAX_RETRIES = 3;
+    private static final long MAX_SOURCE_BYTES = 64L * 1024L * 1024L;
     private static final long SOURCE_DELAY_MILLIS = 1000L;
 
     private final AtomicReference<Snapshot> snapshot = new AtomicReference<>(Snapshot.empty());
@@ -58,10 +69,14 @@ public class ProxyBlocklistService {
     ) {
         this.enabled = enabled;
         this.urls = sanitizeUrls(urls);
-        this.refreshIntervalMinutes = positiveOrDefault(refreshIntervalMinutes, DEFAULT_INTERVAL_MINUTES);
-        this.maxEntries = positiveOrDefault(maxEntries, DEFAULT_MAX_ENTRIES);
-        this.maxLineLength = positiveOrDefault(maxLineLength, DEFAULT_MAX_LINE_LENGTH);
-        this.timeoutSeconds = positiveOrDefault(timeoutSeconds, DEFAULT_TIMEOUT_SECONDS);
+        this.refreshIntervalMinutes = boundedOrDefault("refresh-interval", refreshIntervalMinutes,
+                DEFAULT_INTERVAL_MINUTES, MIN_INTERVAL_MINUTES, MAX_INTERVAL_MINUTES);
+        this.maxEntries = boundedOrDefault("max-entries", maxEntries,
+                DEFAULT_MAX_ENTRIES, 1, MAX_ENTRIES_LIMIT);
+        this.maxLineLength = boundedOrDefault("max-line-length", maxLineLength,
+                DEFAULT_MAX_LINE_LENGTH, MIN_LINE_LENGTH, MAX_LINE_LENGTH_LIMIT);
+        this.timeoutSeconds = boundedOrDefault("request-timeout-seconds", timeoutSeconds,
+                DEFAULT_TIMEOUT_SECONDS, MIN_TIMEOUT_SECONDS, MAX_TIMEOUT_SECONDS);
     }
 
     public void start() {
@@ -211,15 +226,21 @@ public class ProxyBlocklistService {
             if (body == null) {
                 throw new IOException("empty response body");
             }
+            if (body.contentLength() > MAX_SOURCE_BYTES) {
+                throw new IOException("response body is too large");
+            }
 
             int before = builder.size();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(body.byteStream(), StandardCharsets.UTF_8));
+            BufferedReader reader = new BufferedReader(new InputStreamReader(
+                    new LimitedInputStream(body.byteStream(), MAX_SOURCE_BYTES),
+                    StandardCharsets.UTF_8
+            ));
             String line;
-            while ((line = reader.readLine()) != null && !builder.isFull()) {
+            while ((line = readBoundedLine(reader)) != null && !builder.isFull()) {
                 if (Thread.currentThread().isInterrupted()) {
                     throw new IOException("refresh interrupted");
                 }
-                if (line.length() > maxLineLength) {
+                if (line.isEmpty()) {
                     continue;
                 }
                 Optional<Entry> entry = parseEntry(line);
@@ -239,7 +260,7 @@ public class ProxyBlocklistService {
             return Optional.empty();
         }
 
-        String[] tokens = trimmed.split("\\s+");
+        String[] tokens = trimmed.split("[\\s,]+");
         for (String token : tokens) {
             Optional<Entry> parsed = parseToken(token);
             if (parsed.isPresent()) {
@@ -331,8 +352,51 @@ public class ProxyBlocklistService {
         return Collections.unmodifiableList(sanitized);
     }
 
-    private int positiveOrDefault(int value, int defaultValue) {
-        return value > 0 ? value : defaultValue;
+    private String readBoundedLine(BufferedReader reader) throws IOException {
+        StringBuilder builder = new StringBuilder(Math.min(maxLineLength, 128));
+        boolean readAny = false;
+        boolean exceededLimit = false;
+
+        while (true) {
+            int value = reader.read();
+            if (value == -1) {
+                if (!readAny) {
+                    return null;
+                }
+                return exceededLimit ? "" : builder.toString();
+            }
+
+            readAny = true;
+            if (value == '\n') {
+                return exceededLimit ? "" : builder.toString();
+            }
+            if (value == '\r') {
+                continue;
+            }
+            if (exceededLimit) {
+                continue;
+            }
+            if (builder.length() >= maxLineLength) {
+                exceededLimit = true;
+                continue;
+            }
+            builder.append((char) value);
+        }
+    }
+
+    private int boundedOrDefault(String name, int value, int defaultValue, int minValue, int maxValue) {
+        if (value <= 0) {
+            return defaultValue;
+        }
+        if (value < minValue) {
+            log("Config value proxy-blocklist." + name + " is below the safe minimum; using " + minValue + ".");
+            return minValue;
+        }
+        if (value > maxValue) {
+            log("Config value proxy-blocklist." + name + " is above the safe maximum; using " + maxValue + ".");
+            return maxValue;
+        }
+        return value;
     }
 
     private void sleepBetweenSources() {
@@ -371,7 +435,7 @@ public class ProxyBlocklistService {
         private final int maxEntries;
         private final Set<String> exactAddresses = new HashSet<>();
         private final Map<Integer, Set<Long>> ipv4Networks = new HashMap<>();
-        private final List<Ipv6Network> ipv6Networks = new ArrayList<>();
+        private final Map<Integer, Set<Ipv6Network>> ipv6Networks = new HashMap<>();
 
         private SnapshotBuilder(int maxEntries) {
             this.maxEntries = maxEntries;
@@ -389,12 +453,18 @@ public class ProxyBlocklistService {
 
             IpAddressUtil.Cidr cidr = entry.cidr;
             IpAddressUtil.Address address = cidr.getAddress();
+            if ((address.isIpv4() && cidr.getPrefixLength() == 32)
+                    || (!address.isIpv4() && cidr.getPrefixLength() == 128)) {
+                exactAddresses.add(address.getNormalized());
+                return;
+            }
             if (address.isIpv4()) {
                 long mask = ipv4Mask(cidr.getPrefixLength());
                 long network = address.getIpv4Value() & mask;
                 ipv4Networks.computeIfAbsent(cidr.getPrefixLength(), ignored -> new HashSet<>()).add(network);
             } else {
-                ipv6Networks.add(new Ipv6Network(address.getBytes(), cidr.getPrefixLength()));
+                ipv6Networks.computeIfAbsent(cidr.getPrefixLength(), ignored -> new HashSet<>())
+                        .add(new Ipv6Network(address.getBytes(), cidr.getPrefixLength()));
             }
         }
 
@@ -407,7 +477,10 @@ public class ProxyBlocklistService {
             for (Set<Long> values : ipv4Networks.values()) {
                 networks += values.size();
             }
-            return exactAddresses.size() + networks + ipv6Networks.size();
+            for (Set<Ipv6Network> values : ipv6Networks.values()) {
+                networks += values.size();
+            }
+            return exactAddresses.size() + networks;
         }
 
         private Snapshot build() {
@@ -415,10 +488,14 @@ public class ProxyBlocklistService {
             for (Map.Entry<Integer, Set<Long>> entry : ipv4Networks.entrySet()) {
                 immutableIpv4Networks.put(entry.getKey(), Collections.unmodifiableSet(new HashSet<>(entry.getValue())));
             }
+            Map<Integer, Set<Ipv6Network>> immutableIpv6Networks = new HashMap<>();
+            for (Map.Entry<Integer, Set<Ipv6Network>> entry : ipv6Networks.entrySet()) {
+                immutableIpv6Networks.put(entry.getKey(), Collections.unmodifiableSet(new HashSet<>(entry.getValue())));
+            }
             return new Snapshot(
                     Collections.unmodifiableSet(new HashSet<>(exactAddresses)),
                     Collections.unmodifiableMap(immutableIpv4Networks),
-                    Collections.unmodifiableList(new ArrayList<>(ipv6Networks)),
+                    Collections.unmodifiableMap(immutableIpv6Networks),
                     size(),
                     System.currentTimeMillis()
             );
@@ -428,14 +505,14 @@ public class ProxyBlocklistService {
     private static final class Snapshot {
         private final Set<String> exactAddresses;
         private final Map<Integer, Set<Long>> ipv4Networks;
-        private final List<Ipv6Network> ipv6Networks;
+        private final Map<Integer, Set<Ipv6Network>> ipv6Networks;
         private final long size;
         private final long createdAtMillis;
 
         private Snapshot(
                 Set<String> exactAddresses,
                 Map<Integer, Set<Long>> ipv4Networks,
-                List<Ipv6Network> ipv6Networks,
+                Map<Integer, Set<Ipv6Network>> ipv6Networks,
                 long size,
                 long createdAtMillis
         ) {
@@ -450,7 +527,7 @@ public class ProxyBlocklistService {
             return new Snapshot(
                     Collections.emptySet(),
                     Collections.emptyMap(),
-                    Collections.emptyList(),
+                    Collections.emptyMap(),
                     0L,
                     0L
             );
@@ -470,8 +547,8 @@ public class ProxyBlocklistService {
                 return false;
             }
             byte[] bytes = address.getBytes();
-            for (Ipv6Network network : ipv6Networks) {
-                if (network.matches(bytes)) {
+            for (Map.Entry<Integer, Set<Ipv6Network>> entry : ipv6Networks.entrySet()) {
+                if (entry.getValue().contains(new Ipv6Network(bytes, entry.getKey()))) {
                     return true;
                 }
             }
@@ -488,14 +565,58 @@ public class ProxyBlocklistService {
             this.networkBytes = maskIpv6(addressBytes, prefixLength);
         }
 
-        private boolean matches(byte[] addressBytes) {
-            byte[] maskedAddress = maskIpv6(addressBytes, prefixLength);
-            for (int i = 0; i < networkBytes.length; i++) {
-                if (networkBytes[i] != maskedAddress[i]) {
-                    return false;
-                }
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
             }
-            return true;
+            if (!(other instanceof Ipv6Network)) {
+                return false;
+            }
+            Ipv6Network that = (Ipv6Network) other;
+            return prefixLength == that.prefixLength && Arrays.equals(networkBytes, that.networkBytes);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = Arrays.hashCode(networkBytes);
+            result = 31 * result + prefixLength;
+            return result;
+        }
+    }
+
+    private static final class LimitedInputStream extends FilterInputStream {
+        private final long maxBytes;
+        private long bytesRead;
+
+        private LimitedInputStream(InputStream inputStream, long maxBytes) {
+            super(inputStream);
+            this.maxBytes = maxBytes;
+        }
+
+        @Override
+        public int read() throws IOException {
+            int value = super.read();
+            if (value != -1) {
+                countBytes(1);
+            }
+            return value;
+        }
+
+        @Override
+        public int read(byte[] bytes, int offset, int length) throws IOException {
+            int read = super.read(bytes, offset, length);
+            if (read > 0) {
+                countBytes(read);
+            }
+            return read;
+        }
+
+        private void countBytes(int count) throws IOException {
+            bytesRead += count;
+            if (bytesRead > maxBytes) {
+                throw new IOException("response body exceeded the safe size limit");
+            }
         }
     }
 
