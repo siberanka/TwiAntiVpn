@@ -1,0 +1,38 @@
+# TwiAntiVpn dil fayli.
+command:
+  no-permission: "&cBu əmri istifadə etmək üçün icazən yoxdur!"
+  unknown-subcommand: "&bTwiAntiVpn &7| &7Naməlum alt əmr. Bütün əmrlər üçün /cg help yaz."
+  config-reload: "&bTwiAntiVpn &7| &7Config yenidən yükləndi!"
+  clear:
+    clear-all: '&bTwiAntiVpn &7| &7Bütün cache təmizləndi.'
+    clear-specific: '&bTwiAntiVpn &7| &f%ENTRY% &7üçün cache qeydləri təmizləndi.'
+  invalid-argument: '&bTwiAntiVpn &7| &7Zəhmət olmasa onlayn oyunçu adı, UUID və ya IP ünvanı daxil et.'
+
+messages:
+  username-block: '&7İstifadəçi adına bu serverdə &b icazə verilmir&7.'
+  username-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) istifadəçi adı filtri ilə bloklandı (&e%MATCH%&7).'
+  username-webhook: "%NAME% (%IP%) istifadəçi adı filtri ilə bloklandı (%MATCH%)."
+  vpn-block: '&7Sanki &bVPN/proxy&7 istifadə edirsən. Zəhmət olmasa söndür!'
+  vpn-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) &eVPN/proxy&7 kimi işarələndi.'
+  vpn-webhook: "%NAME% (%IP%) VPN/proxy ilə qoşulmağa çalışdı."
+  geo-block: '&b%COUNTRY% &7yerindən qoşulmağa bu serverdə icazə verilmir.'
+  geo-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) geo filtrə düşdü (&e%COUNTRY%&7, %CITY%).'
+  geo-webhook: "%NAME% (%IP%, %ISP%) %CITY%, %COUNTRY% yerindən qoşulmağa çalışdı."
+  isp-block: '&7Şəbəkə provayderindən qoşulmağa bu serverdə &b icazə verilmir&7.'
+  isp-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) ISP/ASN filtri ilə bloklandı (&e%ISP%&7, &e%ASN%&7, uyğunluq: &e%MATCH%&7).'
+  isp-webhook: "%NAME% (%IP%) ISP/ASN filtri ilə bloklandı. ISP: %ISP%, ASN: %ASN%, uyğunluq: %MATCH%."
+  help:
+    - '&bTwiAntiVpn &7| &7Əmrlər'
+    - ' &7- /cg &fhelp &7(əmrlər)'
+    - ' &7- /cg &freload &7(config yenilə)'
+    - ' &7- /cg &fclear &7(<&fOyunçu&7/&fUUID&7/&fIP&7>) (cache təmizlə)'
+    - ' &7- /cg &finfo &7<&fOyunçu&7/&fUUID&7/&fIP&7> (vpn və geo məlumatı)'
+  info:
+    text:
+      - '&bTwiAntiVpn &7| &b%INPUT% &7üçün sorğu nəticəsi'
+      - '&7IP: &f%IP%&7 (VPN: &f%IS_VPN%&7)'
+      - '&7Məkan: &f%CITY%&7, &f%COUNTRY%'
+      - '&7ISP: &f%ISP%'
+      - '&7ASN: &f%ASN%'
+    is-vpn: "&bBəli"
+    not-vpn: "&7Xeyr"

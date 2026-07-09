@@ -6,6 +6,7 @@ import com.siberanka.twiantivpn.core.ConnectionGuard;
 import com.siberanka.twiantivpn.core.cache.NoCacheProvider;
 import com.siberanka.twiantivpn.core.cache.RedisCacheProvider;
 import com.siberanka.twiantivpn.core.cache.SQLiteCacheProvider;
+import com.siberanka.twiantivpn.core.geo.GeoProvider;
 import com.siberanka.twiantivpn.core.geo.IpApiGeoProvider;
 import com.siberanka.twiantivpn.core.geo.ProxyCheckGeoProvider;
 import com.siberanka.twiantivpn.core.vpn.*;
@@ -17,6 +18,9 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -37,13 +41,23 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
     public void onEnable() {
         // 1. Save Default Config & set logger
         saveDefaultConfig();
+        getConfig().options().copyDefaults(true);
+        saveConfig();
 
         String selectedLanguageFileName = getConfig().getString("message-language") + ".yml";
         if (!new File(getDataFolder(), "translation").exists()) {
-            saveResource("translation" + File.separator + "en.yml", false);
+            new File(getDataFolder(), "translation").mkdirs();
         }
+        saveLanguageResource("en.yml");
+        saveLanguageResource("tr.yml");
+        saveLanguageResource("az.yml");
+        saveLanguageResource("es.yml");
         languageFile = new File(getDataFolder().toPath().resolve("translation").toFile(), selectedLanguageFileName);
+        if (!languageFile.exists()) {
+            languageFile = new File(getDataFolder().toPath().resolve("translation").toFile(), "en.yml");
+        }
         languageConfig = YamlConfiguration.loadConfiguration(languageFile);
+        ensureLanguageConfigComplete();
 
         ConnectionGuard.setLogger(getLogger());
 
@@ -149,21 +163,13 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
 
         ConnectionGuard.setVpnProviders(vpnProviders);
 
-        switch (getConfig().getString("provider.geo.service").toLowerCase()) {
-            case "ip-api":
-                ConnectionGuard.setGeoProvider(new IpApiGeoProvider());
-                break;
-            case "proxycheck":
-                ConnectionGuard.setGeoProvider(new ProxyCheckGeoProvider(getConfig().getString("provider.vpn.proxycheck.api-key")));
-                break;
-            default:
-                getLogger().info("The specified geo provider is invalid. Please use IP-API.");
-        }
+        configureGeoProviders();
 
         // 5. Set required positive vpn flags and cache expiration
         ConnectionGuard.setRequiredPositiveFlags(getConfig().getInt("required-positive-flags"));
         ConnectionGuard.setVpnCacheExpirationTime(getConfig().getInt("provider.cache.expiration.vpn"));
         ConnectionGuard.setGeoCacheExpirationTime(getConfig().getInt("provider.cache.expiration.geo"));
+        configureSecurityFilters();
         configureProxyBlocklist();
 
         // 6. Register bukkit listener
@@ -191,7 +197,17 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
 
     public void reloadAllConfigs() {
         reloadConfig();
+        getConfig().options().copyDefaults(true);
+        saveConfig();
+        String selectedLanguageFileName = getConfig().getString("message-language") + ".yml";
+        languageFile = new File(getDataFolder().toPath().resolve("translation").toFile(), selectedLanguageFileName);
+        if (!languageFile.exists()) {
+            languageFile = new File(getDataFolder().toPath().resolve("translation").toFile(), "en.yml");
+        }
         languageConfig = YamlConfiguration.loadConfiguration(languageFile);
+        ensureLanguageConfigComplete();
+        configureGeoProviders();
+        configureSecurityFilters();
         configureProxyBlocklist();
     }
 
@@ -204,6 +220,71 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
                 getConfig().getInt("proxy-blocklist.max-line-length"),
                 getConfig().getInt("proxy-blocklist.request-timeout-seconds")
         );
+    }
+
+    private void configureSecurityFilters() {
+        ConnectionGuard.configureUsernameFilter(
+                getConfig().getBoolean("username-filter.enabled"),
+                getConfig().getStringList("username-filter.blocked-contains")
+        );
+        ConnectionGuard.configureIspBlocker(
+                getConfig().getBoolean("provider.isp-block.enabled"),
+                getConfig().getStringList("provider.isp-block.asns"),
+                getConfig().getStringList("provider.isp-block.isp-names")
+        );
+    }
+
+    private void configureGeoProviders() {
+        ArrayList<GeoProvider> geoProviders = new ArrayList<>();
+        java.util.List<String> services = getConfig().getStringList("provider.geo.services");
+        if (services.isEmpty()) {
+            services.add(getConfig().getString("provider.geo.service", "IP-API"));
+        }
+        for (String service : services) {
+            if (service == null) {
+                continue;
+            }
+            switch (service.toLowerCase()) {
+                case "ip-api":
+                    geoProviders.add(new IpApiGeoProvider());
+                    break;
+                case "proxycheck":
+                    geoProviders.add(new ProxyCheckGeoProvider(getConfig().getString("provider.vpn.proxycheck.api-key")));
+                    break;
+                default:
+                    getLogger().info("The specified geo provider is invalid: " + service);
+            }
+        }
+        ConnectionGuard.setGeoProviders(geoProviders);
+    }
+
+    private void saveLanguageResource(String fileName) {
+        File file = new File(getDataFolder().toPath().resolve("translation").toFile(), fileName);
+        if (!file.exists()) {
+            saveResource("translation" + File.separator + fileName, false);
+        }
+    }
+
+    private void ensureLanguageConfigComplete() {
+        if (languageConfig.contains("messages.username-block") && languageConfig.contains("messages.isp-block")) {
+            return;
+        }
+        try {
+            Files.copy(languageFile.toPath(), new File(languageFile.getAbsolutePath() + ".bak." + System.currentTimeMillis()).toPath());
+            String resourceName = "translation/" + languageFile.getName();
+            InputStream inputStream = getResource(resourceName);
+            if (inputStream == null) {
+                inputStream = getResource("translation/en.yml");
+            }
+            if (inputStream != null) {
+                try (InputStream input = inputStream) {
+                    Files.copy(input, languageFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                }
+                languageConfig = YamlConfiguration.loadConfiguration(languageFile);
+            }
+        } catch (Exception exception) {
+            getLogger().info("TwiAntiVpn | Could not update language file: " + exception.getMessage());
+        }
     }
 
     public static ConnectionGuardSpigotPlugin getInstance() {

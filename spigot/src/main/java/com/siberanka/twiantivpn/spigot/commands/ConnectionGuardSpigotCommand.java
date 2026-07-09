@@ -150,6 +150,7 @@ public class ConnectionGuardSpigotCommand implements TabExecutor {
                                         .replace("%COUNTRY%", geoResult.getCountryName())
                                         .replace("%CITY%", geoResult.getCityName())
                                         .replace("%ISP%", geoResult.getIspName())
+                                        .replace("%ASN%", geoResult.getAsn())
                                         .replace("%IS_VPN%", isVpn)
                                         .replace("%IP%", ipAddress)
                         )
@@ -168,7 +169,7 @@ public class ConnectionGuardSpigotCommand implements TabExecutor {
 
             if (Bukkit.getPlayer(entry) != null) {
                 Player player = Bukkit.getPlayer(entry);
-                ipAddress = player.getAddress().getHostName();
+                ipAddress = player.getAddress().getAddress().getHostAddress();
                 queriedInput = player.getName();
             } else {
                 try {
@@ -209,7 +210,7 @@ public class ConnectionGuardSpigotCommand implements TabExecutor {
         commandSender.sendMessage(
                 ChatColor.translateAlternateColorCodes(
                         '&',
-                        ConnectionGuardSpigotPlugin.getInstance().getLanguageConfig().getString("messages.invalid-argument")
+                        ConnectionGuardSpigotPlugin.getInstance().getLanguageConfig().getString("command.invalid-argument")
                 )
         );
     }

@@ -11,7 +11,6 @@ import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -154,6 +153,7 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
                                         .replace("%COUNTRY%", geoResult.getCountryName())
                                         .replace("%CITY%", geoResult.getCityName())
                                         .replace("%ISP%", geoResult.getIspName())
+                                        .replace("%ASN%", geoResult.getAsn())
                                         .replace("%IS_VPN%", isVpn)
                                         .replace("%IP%", ipAddress)
                         )
@@ -172,7 +172,7 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
 
             if (ConnectionGuardVelocityPlugin.getInstance().getProxyServer().getPlayer(entry).isPresent()) {
                 Player player = ConnectionGuardVelocityPlugin.getInstance().getProxyServer().getPlayer(entry).get();
-                ipAddress = player.getRemoteAddress().getHostName();
+                ipAddress = player.getRemoteAddress().getAddress().getHostAddress();
                 queriedInput = player.getUsername();
             } else {
                 try {
@@ -212,7 +212,7 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
     private void sendInvalidArgumentMessage(CommandSource commandSender) {
         commandSender.sendMessage(
                 LegacyComponentSerializer.legacyAmpersand().deserialize(
-                        ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString("messages.invalid-argument")
+                        ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString("command.invalid-argument")
                 )
         );
     }
@@ -237,19 +237,14 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
     }
 
     private boolean reloadPlugin(CommandSource commandSender) {
-        try {
-            ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().reload();
-            ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().reload();
-            ConnectionGuardVelocityPlugin.getInstance().configureProxyBlocklist();
-        } catch (IOException e) {
-            ConnectionGuardVelocityPlugin.getInstance().getLogger().error("Boosted YAML | " + e.getMessage());
-            return true;
-        }
+        ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().load();
+        ConnectionGuardVelocityPlugin.getInstance().configureGeoProviders();
+        ConnectionGuardVelocityPlugin.getInstance().configureSecurityFilters();
+        ConnectionGuardVelocityPlugin.getInstance().configureProxyBlocklist();
 
         commandSender.sendMessage(
                 LegacyComponentSerializer.legacyAmpersand().deserialize(
                         ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString("command.config-reload")
-                                .replace("&", "§")
                 )
         );
         return true;

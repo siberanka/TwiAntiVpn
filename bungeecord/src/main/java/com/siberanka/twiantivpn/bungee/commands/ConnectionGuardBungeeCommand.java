@@ -161,6 +161,7 @@ public class ConnectionGuardBungeeCommand extends Command implements TabExecutor
                                         .replace("%COUNTRY%", geoResult.getCountryName())
                                         .replace("%CITY%", geoResult.getCityName())
                                         .replace("%ISP%", geoResult.getIspName())
+                                        .replace("%ASN%", geoResult.getAsn())
                                         .replace("%IS_VPN%", isVpn)
                                         .replace("%IP%", ipAddress)
                         )
@@ -179,7 +180,7 @@ public class ConnectionGuardBungeeCommand extends Command implements TabExecutor
 
             if (ConnectionGuardBungeePlugin.getInstance().getProxy().getPlayer(entry) != null) {
                 ProxiedPlayer player = ConnectionGuardBungeePlugin.getInstance().getProxy().getPlayer(entry);
-                ipAddress = player.getAddress().getHostName();
+                ipAddress = player.getAddress().getAddress().getHostAddress();
                 queriedInput = player.getName();
             } else {
                 try {
@@ -220,7 +221,7 @@ public class ConnectionGuardBungeeCommand extends Command implements TabExecutor
         commandSender.sendMessage(
                 ChatColor.translateAlternateColorCodes(
                         '&',
-                        ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("messages.invalid-argument")
+                        ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("command.invalid-argument")
                 )
         );
     }

@@ -1,0 +1,38 @@
+# Archivo de idioma de TwiAntiVpn.
+command:
+  no-permission: "&cNo tienes permiso para ejecutar este comando."
+  unknown-subcommand: "&bTwiAntiVpn &7| &7Subcomando desconocido. Usa /cg help para ver los comandos."
+  config-reload: "&bTwiAntiVpn &7| &7La configuracion se ha recargado."
+  clear:
+    clear-all: '&bTwiAntiVpn &7| &7Se limpio toda la cache.'
+    clear-specific: '&bTwiAntiVpn &7| &7Se limpiaron las entradas de cache para &f%ENTRY%&7.'
+  invalid-argument: '&bTwiAntiVpn &7| &7Introduce un jugador en linea, UUID o direccion IP.'
+
+messages:
+  username-block: '&7Tu nombre de usuario &bno esta permitido&7 en este servidor.'
+  username-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) fue bloqueado por el filtro de nombres (&e%MATCH%&7).'
+  username-webhook: "%NAME% (%IP%) fue bloqueado por el filtro de nombres (%MATCH%)."
+  vpn-block: '&7Parece que estas usando una &bVPN/proxy&7. Desactivala, por favor.'
+  vpn-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) fue marcado como usuario de &eVPN/proxy&7.'
+  vpn-webhook: "%NAME% (%IP%) intento conectarse con VPN/proxy."
+  geo-block: '&7No se permiten conexiones desde &b%COUNTRY%&7 en este servidor.'
+  geo-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) fue bloqueado por geolocalizacion (&e%COUNTRY%&7, %CITY%).'
+  geo-webhook: "%NAME% (%IP%, %ISP%) intento conectarse desde %CITY%, %COUNTRY%."
+  isp-block: '&7Las conexiones desde tu proveedor de red &bno estan permitidas&7 en este servidor.'
+  isp-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) fue bloqueado por ISP/ASN (&e%ISP%&7, &e%ASN%&7, coincidencia: &e%MATCH%&7).'
+  isp-webhook: "%NAME% (%IP%) fue bloqueado por ISP/ASN. ISP: %ISP%, ASN: %ASN%, coincidencia: %MATCH%."
+  help:
+    - '&bTwiAntiVpn &7| &7Comandos'
+    - ' &7- /cg &fhelp &7(esta lista)'
+    - ' &7- /cg &freload &7(recargar configuracion)'
+    - ' &7- /cg &fclear &7(<&fJugador&7/&fUUID&7/&fIP&7>) (limpiar cache)'
+    - ' &7- /cg &finfo &7<&fJugador&7/&fUUID&7/&fIP&7> (datos vpn y geo)'
+  info:
+    text:
+      - '&bTwiAntiVpn &7| &7Resultado para &b%INPUT%'
+      - '&7IP: &f%IP%&7 (VPN: &f%IS_VPN%&7)'
+      - '&7Ubicacion: &f%CITY%&7, &f%COUNTRY%'
+      - '&7ISP: &f%ISP%'
+      - '&7ASN: &f%ASN%'
+    is-vpn: "&bSi"
+    not-vpn: "&7No"

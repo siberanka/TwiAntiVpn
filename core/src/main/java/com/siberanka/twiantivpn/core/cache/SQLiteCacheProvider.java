@@ -31,6 +31,8 @@ public class SQLiteCacheProvider implements CacheProvider {
                 Statement statement = connection.createStatement();
                 statement.execute("CREATE TABLE IF NOT EXISTS connectionguard_vpn_cache (address TEXT, vpn BOOLEAN, cached_on INTEGER);");
                 statement.execute("CREATE TABLE IF NOT EXISTS connectionguard_geo_cache (address TEXT, country_name TEXT, city_name TEXT, isp_name TEXT, cached_on INTEGER);");
+                addColumnIfMissing(statement, "connectionguard_geo_cache", "asn", "TEXT");
+                addColumnIfMissing(statement, "connectionguard_geo_cache", "organization", "TEXT");
                 statement.execute("CREATE INDEX IF NOT EXISTS vpn_address ON connectionguard_vpn_cache (address)");
                 statement.execute("CREATE INDEX IF NOT EXISTS geo_address ON connectionguard_geo_cache (address)");
                 return true;
@@ -39,6 +41,13 @@ public class SQLiteCacheProvider implements CacheProvider {
                 return false;
             }
         });
+    }
+
+    private void addColumnIfMissing(Statement statement, String table, String column, String type) {
+        try {
+            statement.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
+        } catch (SQLException ignored) {
+        }
     }
 
     @Override
@@ -96,7 +105,7 @@ public class SQLiteCacheProvider implements CacheProvider {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 PreparedStatement preparedStatement = connection.prepareStatement(
-                        "SELECT country_name, city_name, isp_name, cached_on FROM connectionguard_geo_cache WHERE address=?"
+                        "SELECT country_name, city_name, isp_name, asn, organization, cached_on FROM connectionguard_geo_cache WHERE address=?"
                 );
                 preparedStatement.setString(1, ipAddress);
                 ResultSet resultSet = preparedStatement.executeQuery();
@@ -105,12 +114,14 @@ public class SQLiteCacheProvider implements CacheProvider {
                     String countryName = resultSet.getString("country_name");
                     String cityName = resultSet.getString("city_name");
                     String ispName = resultSet.getString("isp_name");
+                    String asn = resultSet.getString("asn");
+                    String organization = resultSet.getString("organization");
                     long cachedOn = resultSet.getLong("cached_on");
 
                     // Check if cache data is expired
                     if ((cachedOn + ConnectionGuard.getGeoCacheExpirationTime() * 60 * 1000) > new Date().getTime()) {
                         // Data is not expired.
-                        return Optional.of(new GeoResult(ipAddress, countryName, cityName, ispName));
+                        return Optional.of(new GeoResult(ipAddress, countryName, cityName, ispName, asn, organization));
                     } else {
                         // Data is expired and needs to be removed.
                         PreparedStatement removeEntryStatement = connection.prepareStatement(
@@ -154,14 +165,16 @@ public class SQLiteCacheProvider implements CacheProvider {
         return CompletableFuture.runAsync(() -> {
             try {
                 PreparedStatement preparedStatement = connection.prepareStatement(
-                        "INSERT INTO connectionguard_geo_cache (address, country_name, city_name, isp_name, cached_on) VALUES (?, ?, ?, ?, ?)"
+                        "INSERT INTO connectionguard_geo_cache (address, country_name, city_name, isp_name, asn, organization, cached_on) VALUES (?, ?, ?, ?, ?, ?, ?)"
                 );
 
                 preparedStatement.setString(1, geoResult.getIpAddress());
                 preparedStatement.setString(2, geoResult.getCountryName());
                 preparedStatement.setString(3, geoResult.getCityName());
                 preparedStatement.setString(4, geoResult.getIspName());
-                preparedStatement.setLong(5, new Date().getTime());
+                preparedStatement.setString(5, geoResult.getAsn());
+                preparedStatement.setString(6, geoResult.getOrganization());
+                preparedStatement.setLong(7, new Date().getTime());
 
                 preparedStatement.execute();
             } catch (SQLException e) {

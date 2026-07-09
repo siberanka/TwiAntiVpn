@@ -9,42 +9,57 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public class IpApiGeoProvider implements GeoProvider {
+    private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .callTimeout(15, TimeUnit.SECONDS)
+            .build();
+
     @Override
     public CompletableFuture<Optional<GeoResult>> getGeoResult(String ipAddress) {
         return CompletableFuture.supplyAsync(() -> {
-            OkHttpClient httpClient = new OkHttpClient();
             Request request = new Request.Builder()
-                    .url("http://ip-api.com/json/" + ipAddress + "?fields=status,message,countryCode,city,isp")
+                    .url("http://ip-api.com/json/" + ipAddress + "?fields=status,message,countryCode,city,isp,as,asname,org")
                     .build();
-            Response response;
 
             String status;
             String message;
             String countryCode;
             String cityName;
             String ispName;
+            String asn;
+            String organization;
             JsonObject jsonObject;
-            try {
-                response = httpClient.newCall(request).execute();
+            try (Response response = HTTP_CLIENT.newCall(request).execute()) {
+                if (response.body() == null) {
+                    return Optional.empty();
+                }
                 jsonObject = JsonParser.parseString(response.body().string()).getAsJsonObject();
-            } catch (IOException e) {
+            } catch (Exception e) {
                 ConnectionGuard.getLogger().info("IP-API | " + e.getMessage());
                 return Optional.empty();
             }
 
-            status = jsonObject.get("status").getAsString();
-            countryCode = jsonObject.get("countryCode").getAsString();
-            cityName = jsonObject.get("city").getAsString();
-            ispName = jsonObject.get("isp").getAsString();
+            status = getString(jsonObject, "status");
 
             if (status.equalsIgnoreCase("fail")) {
-                message = jsonObject.get("message").getAsString();
+                message = getString(jsonObject, "message");
                 ConnectionGuard.getLogger().info("IP-API | " + message);
                 return Optional.empty();
+            }
+
+            countryCode = getString(jsonObject, "countryCode");
+            cityName = getString(jsonObject, "city");
+            ispName = getString(jsonObject, "isp");
+            asn = getString(jsonObject, "as");
+            organization = getString(jsonObject, "org");
+            if (organization.isEmpty()) {
+                organization = getString(jsonObject, "asname");
             }
 
             return Optional.of(
@@ -52,9 +67,22 @@ public class IpApiGeoProvider implements GeoProvider {
                             ipAddress,
                             countryCode,
                             cityName,
-                            ispName
+                            ispName,
+                            asn,
+                            organization
                     )
             );
         });
+    }
+
+    private String getString(JsonObject jsonObject, String key) {
+        if (jsonObject == null || !jsonObject.has(key) || jsonObject.get(key).isJsonNull()) {
+            return "";
+        }
+        try {
+            return jsonObject.get(key).getAsString();
+        } catch (Exception ignored) {
+            return "";
+        }
     }
 }

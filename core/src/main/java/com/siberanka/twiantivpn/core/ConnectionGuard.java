@@ -2,8 +2,11 @@ package com.siberanka.twiantivpn.core;
 
 import com.siberanka.twiantivpn.core.cache.CacheProvider;
 import com.siberanka.twiantivpn.core.blocklist.ProxyBlocklistService;
+import com.siberanka.twiantivpn.core.filter.UsernameFilterService;
 import com.siberanka.twiantivpn.core.geo.GeoProvider;
 import com.siberanka.twiantivpn.core.geo.GeoResult;
+import com.siberanka.twiantivpn.core.isp.IspBlockResult;
+import com.siberanka.twiantivpn.core.isp.IspBlockService;
 import com.siberanka.twiantivpn.core.vpn.VpnProvider;
 import com.siberanka.twiantivpn.core.vpn.VpnResult;
 
@@ -17,12 +20,15 @@ import java.util.logging.Logger;
 public class ConnectionGuard {
     private static int requiredPositiveFlags = 1;
     private static ArrayList<VpnProvider> vpnProviders = new ArrayList<>();
+    private static ArrayList<GeoProvider> geoProviders = new ArrayList<>();
     private static GeoProvider geoProvider;
     private static CacheProvider cacheProvider;
     private static Logger logger;
     private static int vpnCacheExpirationTime = 1440;
     private static int geoCacheExpirationTime = 1440;
     private static final ProxyBlocklistService proxyBlocklistService = new ProxyBlocklistService();
+    private static final IspBlockService ispBlockService = new IspBlockService();
+    private static final UsernameFilterService usernameFilterService = new UsernameFilterService();
 
     public static CompletableFuture<VpnResult> getVpnResult(String ipAddress) {
         return CompletableFuture.supplyAsync(() -> {
@@ -94,10 +100,56 @@ public class ConnectionGuard {
             if (geoResultOptional.isPresent())
                 return geoResultOptional;
 
-            geoResultOptional = geoProvider.getGeoResult(ipAddress).join();
+            geoResultOptional = queryGeoProviders(ipAddress);
+
+            if (geoResultOptional.isPresent() && cacheProvider != null) {
+                try {
+                    cacheProvider.addGeoResult(geoResultOptional.get()).join();
+                } catch (Exception exception) {
+                    if (logger != null) {
+                        logger.info("Could not cache geo result: " + exception.getMessage());
+                    }
+                }
+            }
 
             return geoResultOptional;
         });
+    }
+
+    private static Optional<GeoResult> queryGeoProviders(String ipAddress) {
+        ArrayList<GeoProvider> providers = !geoProviders.isEmpty() ? geoProviders : new ArrayList<>();
+        if (providers.isEmpty() && geoProvider != null) {
+            providers.add(geoProvider);
+        }
+
+        Optional<GeoResult> firstResult = Optional.empty();
+        for (GeoProvider provider : providers) {
+            try {
+                Optional<GeoResult> result = provider.getGeoResult(ipAddress).join();
+                if (!result.isPresent()) {
+                    continue;
+                }
+                if (!firstResult.isPresent()) {
+                    firstResult = result;
+                }
+                if (result.get().hasNetworkIdentity()) {
+                    return result;
+                }
+            } catch (Exception exception) {
+                if (logger != null) {
+                    logger.info("Geo provider failed: " + exception.getMessage());
+                }
+            }
+        }
+        return firstResult;
+    }
+
+    public static Optional<IspBlockResult> getIspBlockResult(GeoResult geoResult) {
+        return ispBlockService.match(geoResult);
+    }
+
+    public static Optional<String> getBlockedUsernamePart(String username) {
+        return usernameFilterService.findMatch(username);
     }
 
     public static void setRequiredPositiveFlags(int requiredPositiveFlags) {
@@ -110,6 +162,15 @@ public class ConnectionGuard {
 
     public static void setGeoProvider(GeoProvider geoProvider) {
         ConnectionGuard.geoProvider = geoProvider;
+        ConnectionGuard.geoProviders = new ArrayList<>();
+        if (geoProvider != null) {
+            ConnectionGuard.geoProviders.add(geoProvider);
+        }
+    }
+
+    public static void setGeoProviders(ArrayList<GeoProvider> geoProviders) {
+        ConnectionGuard.geoProviders = geoProviders == null ? new ArrayList<>() : geoProviders;
+        ConnectionGuard.geoProvider = ConnectionGuard.geoProviders.isEmpty() ? null : ConnectionGuard.geoProviders.get(0);
     }
 
     public static void setCacheProvider(CacheProvider cacheProvider) {
@@ -153,6 +214,14 @@ public class ConnectionGuard {
 
     public static ProxyBlocklistService getProxyBlocklistService() {
         return proxyBlocklistService;
+    }
+
+    public static void configureIspBlocker(boolean enabled, List<String> asns, List<String> ispNames) {
+        ispBlockService.configure(enabled, asns, ispNames);
+    }
+
+    public static void configureUsernameFilter(boolean enabled, List<String> blockedContains) {
+        usernameFilterService.configure(enabled, blockedContains);
     }
 
     public static int getRequiredPositiveFlags() {

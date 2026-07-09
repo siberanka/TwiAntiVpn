@@ -1,8 +1,10 @@
 package com.siberanka.twiantivpn.bungee.listener;
 
 import com.siberanka.twiantivpn.bungee.ConnectionGuardBungeePlugin;
+import com.siberanka.twiantivpn.core.asteroid.AsteroidRegistryHook;
 import com.siberanka.twiantivpn.core.ConnectionGuard;
 import com.siberanka.twiantivpn.core.geo.GeoResult;
+import com.siberanka.twiantivpn.core.isp.IspBlockResult;
 import com.siberanka.twiantivpn.core.luckperms.CGLuckPermsHelper;
 import com.siberanka.twiantivpn.core.vpn.VpnResult;
 import com.siberanka.twiantivpn.core.webhook.CGWebHookHelper;
@@ -22,6 +24,17 @@ public class ConnectionGuardBungeeListener implements Listener {
         loginEvent.registerIntent(ConnectionGuardBungeePlugin.getInstance());
 
         String ipAddress = loginEvent.getConnection().getAddress().getAddress().getHostAddress();
+        Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(loginEvent.getConnection().getName());
+        if (blockedUsernamePart.isPresent()) {
+            handleUsernameBlock(loginEvent, ipAddress, blockedUsernamePart.get());
+            loginEvent.completeIntent(ConnectionGuardBungeePlugin.getInstance());
+            return;
+        }
+
+        if (shouldBypassAsteroid(loginEvent)) {
+            loginEvent.completeIntent(ConnectionGuardBungeePlugin.getInstance());
+            return;
+        }
 
         CompletableFuture<VpnResult> vpnResultFuture;
         CompletableFuture<Optional<GeoResult>> geoResultOptionalFuture;
@@ -125,6 +138,13 @@ public class ConnectionGuardBungeeListener implements Listener {
             Optional<GeoResult> geoResultOptional = geoResultOptionalFuture.join();
             if (geoResultOptional.isPresent() && !hasGeoExemption) {
                 GeoResult geoResult = geoResultOptional.get();
+                Optional<IspBlockResult> ispBlockResult = ConnectionGuard.getIspBlockResult(geoResult);
+                if (ispBlockResult.isPresent()) {
+                    handleIspBlock(loginEvent, ipAddress, ispBlockResult.get());
+                    loginEvent.completeIntent(ConnectionGuardBungeePlugin.getInstance());
+                    return;
+                }
+
                 boolean isGeoFlagged = false;
 
                 switch (ConnectionGuardBungeePlugin.getInstance().getConfig().getString("behavior.geo.type").toLowerCase()) {
@@ -209,5 +229,108 @@ public class ConnectionGuardBungeeListener implements Listener {
                 proxiedPlayer.sendMessage(TextComponent.fromLegacyText(message));
             }
         }
+    }
+
+    private void handleUsernameBlock(LoginEvent loginEvent, String ipAddress, String matchedPart) {
+        if (ConnectionGuardBungeePlugin.getInstance().getConfig().getBoolean("behavior.username.notify-staff")) {
+            String notifyMessage = ChatColor.translateAlternateColorCodes(
+                    '&',
+                    ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("messages.username-notify")
+                            .replace("%IP%", ipAddress)
+                            .replace("%NAME%", loginEvent.getConnection().getName())
+                            .replace("%MATCH%", matchedPart)
+            );
+            broadcastMessage(notifyMessage, "connectionguard.notify.username");
+        }
+        if (ConnectionGuardBungeePlugin.getInstance().getConfig().getBoolean("behavior.username.execute-command.enabled")) {
+            ConnectionGuardBungeePlugin.getInstance().getProxy().getPluginManager().dispatchCommand(
+                    ConnectionGuardBungeePlugin.getInstance().getProxy().getConsole(),
+                    ConnectionGuardBungeePlugin.getInstance().getConfig().getString("behavior.username.execute-command.command")
+                            .replace("%NAME%", loginEvent.getConnection().getName())
+                            .replace("%IP%", ipAddress)
+                            .replace("%MATCH%", matchedPart)
+            );
+        }
+        if (ConnectionGuardBungeePlugin.getInstance().getConfig().getBoolean("behavior.username.send-webhook.enabled")) {
+            String webhookMessage = ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("messages.username-webhook")
+                    .replace("%NAME%", loginEvent.getConnection().getName())
+                    .replace("%IP%", ipAddress)
+                    .replace("%MATCH%", matchedPart);
+            CGWebHookHelper.sendWebHook(ConnectionGuardBungeePlugin.getInstance().getConfig().getString("behavior.username.send-webhook.url"), webhookMessage);
+        }
+        if (ConnectionGuardBungeePlugin.getInstance().getConfig().getBoolean("behavior.username.kick-player")) {
+            String kickMessage = ChatColor.translateAlternateColorCodes(
+                    '&',
+                    ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("messages.username-block")
+                            .replace("%IP%", ipAddress)
+                            .replace("%NAME%", loginEvent.getConnection().getName())
+                            .replace("%MATCH%", matchedPart)
+            );
+            loginEvent.setCancelReason(new TextComponent(kickMessage));
+            loginEvent.setCancelled(true);
+        }
+    }
+
+    private void handleIspBlock(LoginEvent loginEvent, String ipAddress, IspBlockResult ispBlockResult) {
+        GeoResult geoResult = ispBlockResult.getGeoResult();
+        if (ConnectionGuardBungeePlugin.getInstance().getConfig().getBoolean("behavior.isp.notify-staff")) {
+            String notifyMessage = ChatColor.translateAlternateColorCodes(
+                    '&',
+                    ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("messages.isp-notify")
+                            .replace("%IP%", ipAddress)
+                            .replace("%NAME%", loginEvent.getConnection().getName())
+                            .replace("%ISP%", geoResult.getIspName())
+                            .replace("%ASN%", geoResult.getAsn())
+                            .replace("%MATCH%", ispBlockResult.getMatchedValue())
+            );
+            broadcastMessage(notifyMessage, "connectionguard.notify.isp");
+        }
+        if (ConnectionGuardBungeePlugin.getInstance().getConfig().getBoolean("behavior.isp.execute-command.enabled")) {
+            ConnectionGuardBungeePlugin.getInstance().getProxy().getPluginManager().dispatchCommand(
+                    ConnectionGuardBungeePlugin.getInstance().getProxy().getConsole(),
+                    ConnectionGuardBungeePlugin.getInstance().getConfig().getString("behavior.isp.execute-command.command")
+                            .replace("%NAME%", loginEvent.getConnection().getName())
+                            .replace("%IP%", ipAddress)
+                            .replace("%ISP%", geoResult.getIspName())
+                            .replace("%ASN%", geoResult.getAsn())
+                            .replace("%MATCH%", ispBlockResult.getMatchedValue())
+            );
+        }
+        if (ConnectionGuardBungeePlugin.getInstance().getConfig().getBoolean("behavior.isp.send-webhook.enabled")) {
+            String webhookMessage = ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("messages.isp-webhook")
+                    .replace("%NAME%", loginEvent.getConnection().getName())
+                    .replace("%IP%", ipAddress)
+                    .replace("%ISP%", geoResult.getIspName())
+                    .replace("%ASN%", geoResult.getAsn())
+                    .replace("%MATCH%", ispBlockResult.getMatchedValue());
+            CGWebHookHelper.sendWebHook(ConnectionGuardBungeePlugin.getInstance().getConfig().getString("behavior.isp.send-webhook.url"), webhookMessage);
+        }
+        if (ConnectionGuardBungeePlugin.getInstance().getConfig().getBoolean("behavior.isp.kick-player")) {
+            String kickMessage = ChatColor.translateAlternateColorCodes(
+                    '&',
+                    ConnectionGuardBungeePlugin.getInstance().getLanguageConfig().getString("messages.isp-block")
+                            .replace("%IP%", ipAddress)
+                            .replace("%NAME%", loginEvent.getConnection().getName())
+                            .replace("%ISP%", geoResult.getIspName())
+                            .replace("%ASN%", geoResult.getAsn())
+                            .replace("%MATCH%", ispBlockResult.getMatchedValue())
+            );
+            loginEvent.setCancelReason(new TextComponent(kickMessage));
+            loginEvent.setCancelled(true);
+        }
+    }
+
+    private boolean shouldBypassAsteroid(LoginEvent loginEvent) {
+        if (!ConnectionGuardBungeePlugin.getInstance().getConfig().getBoolean("asteroid-proxy.enabled")) {
+            return false;
+        }
+        boolean asteroidInstalled = false;
+        for (String pluginName : ConnectionGuardBungeePlugin.getInstance().getConfig().getStringList("asteroid-proxy.plugin-names")) {
+            if (ConnectionGuardBungeePlugin.getInstance().getProxy().getPluginManager().getPlugin(pluginName) != null) {
+                asteroidInstalled = true;
+                break;
+            }
+        }
+        return asteroidInstalled && AsteroidRegistryHook.isFakePlayer(loginEvent.getConnection().getUniqueId());
     }
 }

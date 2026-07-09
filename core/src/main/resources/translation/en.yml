@@ -6,34 +6,45 @@
 # - /connectionguard reload (reload the plugin with this config) - connectionguard.command.reload
 command:
   no-permission: "&cYou don't have permissions to execute this command!"
-  unknown-subcommand: "&bConnection Guard &7| &7Unknown subcommand. Enter /cg help to view all available commands."
-  config-reload: "&bConnection Guard &7| &7Config has been reloaded!"
+  unknown-subcommand: "&bTwiAntiVpn &7| &7Unknown subcommand. Enter /cg help to view all available commands."
+  config-reload: "&bTwiAntiVpn &7| &7Config has been reloaded!"
   clear:
-    clear-all: '&bConnection Guard &7| &7Cleared the entire cache.'
+    clear-all: '&bTwiAntiVpn &7| &7Cleared the entire cache.'
     # Available placeholder: %ENTRY%
-    clear-specific: '&bConnection Guard &7| &7Cleared the cache entries for &f%ENTRY%&7.'
-  invalid-argument: '&bConnection Guard &7| &7Please enter the name or the uuid of an online player or use an ip address instead.'
+    clear-specific: '&bTwiAntiVpn &7| &7Cleared the cache entries for &f%ENTRY%&7.'
+  invalid-argument: '&bTwiAntiVpn &7| &7Please enter the name or the uuid of an online player or use an ip address instead.'
 
 messages:
+  # The message players see when their username contains a blocked term.
+  # Available placeholders: %NAME%, %IP%, %MATCH%
+  username-block: '&7Your username is &bnot allowed&7 on this server.'
+  username-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) was blocked by the username filter (&e%MATCH%&7).'
+  username-webhook: "%NAME% (%IP%) was blocked by the username filter (%MATCH%)."
   # The message players see when they are vpn flagged and behaviour is set to KICK or KICK_NOTIFY
   # Available placeholders: %NAME%, %IP%
   vpn-block: '&7It looks like you are using a &bVPN&7. Please &bdisable&7 it!'
   # The message players with the permission connectionguard.notify.vpn will see, if behaviour is set to
   # KICK_NOTIFY or NOTIFY.
-  vpn-notify: '&bConnection Guard &7| &e%NAME% &7(%IP%) was flagged as a &evpn user&7.'
+  vpn-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) was flagged as a &evpn user&7.'
   vpn-webhook: "%NAME% (%IP%) tried to connect with a vpn."
   # The message players see when they are geo flagged and behavior is set to KICK or KICK_NOTIFY
   # Available placeholders: %NAME%, %IP%, %COUNTRY%, %CITY% and %ISP%
   geo-block: '&7It looks like you are connecting from &b%COUNTRY%&7, which is &bnot allowed&7 on this server.'
   # The message players with the permission connectionguard.notify.geo will see, if behaviour is set to
   # KICK_NOTIFY or NOTIFY.
-  geo-notify: '&bConnection Guard &7| &e%NAME% &7(%IP%) was &egeo-flagged&7 (&e%COUNTRY%&7, %CITY%).'
+  geo-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) was &egeo-flagged&7 (&e%COUNTRY%&7, %CITY%).'
 
   geo-webhook: "%NAME% (%IP%, %ISP%) tried to connect from %CITY%, %COUNTRY%."
 
+  # The message players see when their ASN/ISP is blocked.
+  # Available placeholders: %NAME%, %IP%, %ISP%, %ASN%, %MATCH%
+  isp-block: '&7Connections from your network provider are &bnot allowed&7 on this server.'
+  isp-notify: '&bTwiAntiVpn &7| &e%NAME% &7(%IP%) was blocked by ISP/ASN filter (&e%ISP%&7, &e%ASN%&7, match: &e%MATCH%&7).'
+  isp-webhook: "%NAME% (%IP%) was blocked by ISP/ASN filter. ISP: %ISP%, ASN: %ASN%, match: %MATCH%."
+
   # Customize the output of the /connectionguard help command!
   help:
-    - '&bConnection Guard &7| &7Overview of commands'
+    - '&bTwiAntiVpn &7| &7Overview of commands'
     - ' &7- /cg &fhelp &7(this overview)'
     - ' &7- /cg &freload &7(reload config)'
     - ' &7- /cg &fclear &7(<&fPlayer&7/&fUUID&7/&fIP&7>) (clear cache)'
@@ -41,12 +52,13 @@ messages:
 
   # Output of the /connectionguard info <Player/UUID/IP> command
   info:
-    # Available placeholders: %INPUT%, %IP%, %IS_VPN%, %CITY%, %COUNTRY%, %ISP%
+    # Available placeholders: %INPUT%, %IP%, %IS_VPN%, %CITY%, %COUNTRY%, %ISP%, %ASN%
     text:
-      - '&bConnection Guard &7| &7Query result for &b%INPUT%'
+      - '&bTwiAntiVpn &7| &7Query result for &b%INPUT%'
       - '&7IP: &f%IP%&7 (VPN: &f%IS_VPN%&7)'
       - '&7Location: &f%CITY%&7, &f%COUNTRY%'
       - '&7ISP: &f%ISP%'
+      - '&7ASN: &f%ASN%'
 
     is-vpn: "&bYes"
     not-vpn: "&7No"

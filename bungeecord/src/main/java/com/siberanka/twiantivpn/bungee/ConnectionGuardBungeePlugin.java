@@ -8,6 +8,7 @@ import com.siberanka.twiantivpn.core.ConnectionGuard;
 import com.siberanka.twiantivpn.core.cache.NoCacheProvider;
 import com.siberanka.twiantivpn.core.cache.RedisCacheProvider;
 import com.siberanka.twiantivpn.core.cache.SQLiteCacheProvider;
+import com.siberanka.twiantivpn.core.geo.GeoProvider;
 import com.siberanka.twiantivpn.core.geo.IpApiGeoProvider;
 import com.siberanka.twiantivpn.core.geo.ProxyCheckGeoProvider;
 import com.siberanka.twiantivpn.core.vpn.*;
@@ -22,6 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -47,37 +49,36 @@ public class ConnectionGuardBungeePlugin extends Plugin {
         if (!translationFolder.exists()) {
             translationFolder.mkdirs();
         }
+        saveLanguageResource("en.yml");
+        saveLanguageResource("tr.yml");
+        saveLanguageResource("az.yml");
+        saveLanguageResource("es.yml");
         configFile = new File(getDataFolder(), "config.yml");
         if (!configFile.exists()) {
             try {
                 InputStream in = ConnectionGuardBungeePlugin.class.getResourceAsStream("/config.yml");
                 Files.copy(in, configFile.toPath());
             } catch (IOException e) {
-                getLogger().info("Connection Guard | " + e.getMessage());
+                getLogger().info("TwiAntiVpn | " + e.getMessage());
                 return;
             }
         }
         try {
             config = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
         } catch (IOException e) {
-            getLogger().info("Connection Guard | " + e.getMessage());
+            getLogger().info("TwiAntiVpn | " + e.getMessage());
         }
 
         String selectedLanguageFileName = config.getString("message-language") + ".yml";
         languageFile = new File(getDataFolder().toPath().resolve("translation").toFile(), selectedLanguageFileName);
         if (!languageFile.exists()) {
-            try {
-                InputStream in = ConnectionGuardBungeePlugin.class.getResourceAsStream("/translation/en.yml");
-                Files.copy(in, languageFile.toPath());
-            } catch (IOException e) {
-                getLogger().info("Connection Guard | " + e.getMessage());
-                return;
-            }
+            languageFile = new File(getDataFolder().toPath().resolve("translation").toFile(), "en.yml");
         }
         try {
             languageConfig = ConfigurationProvider.getProvider(YamlConfiguration.class).load(languageFile);
+            ensureLanguageConfigComplete();
         } catch (IOException e) {
-            getLogger().info("Connection Guard | " + e.getMessage());
+            getLogger().info("TwiAntiVpn | " + e.getMessage());
             return;
         }
 
@@ -182,21 +183,13 @@ public class ConnectionGuardBungeePlugin extends Plugin {
 
         ConnectionGuard.setVpnProviders(vpnProviders);
 
-        switch (getConfig().getString("provider.geo.service").toLowerCase()) {
-            case "ip-api":
-                ConnectionGuard.setGeoProvider(new IpApiGeoProvider());
-                break;
-            case "proxycheck":
-                ConnectionGuard.setGeoProvider(new ProxyCheckGeoProvider(getConfig().getString("provider.vpn.proxycheck.api-key")));
-                break;
-            default:
-                getLogger().info("The specified geo provider is invalid. Please use IP-API.");
-        }
+        configureGeoProviders();
 
         // 6. Set required positive vpn flags and cache expiration
         ConnectionGuard.setRequiredPositiveFlags(getConfig().getInt("required-positive-flags"));
         ConnectionGuard.setVpnCacheExpirationTime(getConfig().getInt("provider.cache.expiration.vpn"));
         ConnectionGuard.setGeoCacheExpirationTime(getConfig().getInt("provider.cache.expiration.geo"));
+        configureSecurityFilters();
         configureProxyBlocklist();
 
         // 7. Register bungeecord listener and commands
@@ -223,13 +216,21 @@ public class ConnectionGuardBungeePlugin extends Plugin {
         try {
             config = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
         } catch (IOException e) {
-            getLogger().info("Connection Guard | " + e.getMessage());
+            getLogger().info("TwiAntiVpn | " + e.getMessage());
+        }
+        String selectedLanguageFileName = config.getString("message-language") + ".yml";
+        languageFile = new File(getDataFolder().toPath().resolve("translation").toFile(), selectedLanguageFileName);
+        if (!languageFile.exists()) {
+            languageFile = new File(getDataFolder().toPath().resolve("translation").toFile(), "en.yml");
         }
         try {
             languageConfig = ConfigurationProvider.getProvider(YamlConfiguration.class).load(languageFile);
+            ensureLanguageConfigComplete();
         } catch (IOException e) {
-            getLogger().info("Connection Guard | " + e.getMessage());
+            getLogger().info("TwiAntiVpn | " + e.getMessage());
         }
+        configureGeoProviders();
+        configureSecurityFilters();
         configureProxyBlocklist();
     }
 
@@ -242,6 +243,78 @@ public class ConnectionGuardBungeePlugin extends Plugin {
                 getConfig().getInt("proxy-blocklist.max-line-length"),
                 getConfig().getInt("proxy-blocklist.request-timeout-seconds")
         );
+    }
+
+    private void configureSecurityFilters() {
+        ConnectionGuard.configureUsernameFilter(
+                getConfig().getBoolean("username-filter.enabled"),
+                getConfig().getStringList("username-filter.blocked-contains")
+        );
+        ConnectionGuard.configureIspBlocker(
+                getConfig().getBoolean("provider.isp-block.enabled"),
+                getConfig().getStringList("provider.isp-block.asns"),
+                getConfig().getStringList("provider.isp-block.isp-names")
+        );
+    }
+
+    private void configureGeoProviders() {
+        ArrayList<GeoProvider> geoProviders = new ArrayList<>();
+        java.util.Collection<String> services = getConfig().getStringList("provider.geo.services");
+        if (services.isEmpty()) {
+            services.add(getConfig().getString("provider.geo.service", "IP-API"));
+        }
+        for (String service : services) {
+            if (service == null) {
+                continue;
+            }
+            switch (service.toLowerCase()) {
+                case "ip-api":
+                    geoProviders.add(new IpApiGeoProvider());
+                    break;
+                case "proxycheck":
+                    geoProviders.add(new ProxyCheckGeoProvider(getConfig().getString("provider.vpn.proxycheck.api-key")));
+                    break;
+                default:
+                    getLogger().info("The specified geo provider is invalid: " + service);
+            }
+        }
+        ConnectionGuard.setGeoProviders(geoProviders);
+    }
+
+    private void saveLanguageResource(String fileName) {
+        File file = new File(getDataFolder().toPath().resolve("translation").toFile(), fileName);
+        if (file.exists()) {
+            return;
+        }
+        try (InputStream in = ConnectionGuardBungeePlugin.class.getResourceAsStream("/translation/" + fileName)) {
+            if (in != null) {
+                Files.copy(in, file.toPath());
+            }
+        } catch (IOException e) {
+            getLogger().info("TwiAntiVpn | " + e.getMessage());
+        }
+    }
+
+    private void ensureLanguageConfigComplete() {
+        if (languageConfig != null && languageConfig.contains("messages.username-block") && languageConfig.contains("messages.isp-block")) {
+            return;
+        }
+        try {
+            Files.copy(languageFile.toPath(), new File(languageFile.getAbsolutePath() + ".bak." + System.currentTimeMillis()).toPath());
+            String resourceName = "/translation/" + languageFile.getName();
+            InputStream inputStream = ConnectionGuardBungeePlugin.class.getResourceAsStream(resourceName);
+            if (inputStream == null) {
+                inputStream = ConnectionGuardBungeePlugin.class.getResourceAsStream("/translation/en.yml");
+            }
+            if (inputStream != null) {
+                try (InputStream input = inputStream) {
+                    Files.copy(input, languageFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                }
+                languageConfig = ConfigurationProvider.getProvider(YamlConfiguration.class).load(languageFile);
+            }
+        } catch (IOException e) {
+            getLogger().info("TwiAntiVpn | Could not update language file: " + e.getMessage());
+        }
     }
 
     public Configuration getLanguageConfig() {

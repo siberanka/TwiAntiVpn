@@ -1,7 +1,7 @@
-# Thanks for using Connection Guard, the free connection security plugin with premium quality.
+# Thanks for using TwiAntiVpn, the free connection security plugin with premium quality.
 # There is a lot to configure, if you want to. If not, you don't have to!
-# If you leave it as default, Connection Guard will use ProxyCheck (https://proxycheck.io/)
-# to check for vpn or proxy usage and block connections from those. For geo data, Connection Guard
+# If you leave it as default, TwiAntiVpn will use ProxyCheck (https://proxycheck.io/)
+# to check for vpn or proxy usage and block connections from those. For geo data, TwiAntiVpn
 # will use the IP-API (https://ip-api.com/) service.
 
 # Message config used for all messages send to the player.
@@ -11,6 +11,26 @@ message-language: 'en'
 
 # Settings about how to behave when finding a vpn or geo-blocked user.
 behavior:
+  username:
+    # If set to true, usernames containing any entry under username-filter.blocked-contains are blocked before VPN/API checks.
+    kick-player: true
+    notify-staff: true
+    execute-command:
+      enabled: false
+      command: 'kick %NAME% Forbidden username'
+    send-webhook:
+      enabled: false
+      url: ''
+  isp:
+    # If set to true, players connecting through a blocked ASN/ISP cannot join the server.
+    kick-player: true
+    notify-staff: true
+    execute-command:
+      enabled: false
+      command: 'ban-ip %IP%'
+    send-webhook:
+      enabled: false
+      url: ''
   vpn:
     # If set to true, players connected to a vpn cannot join the server.
     kick-player: true
@@ -77,6 +97,23 @@ behavior:
 # Default value: 1
 required-positive-flags: 1
 
+# Username filter is checked before VPN/cache/API lookups. Matching is case-insensitive and uses "contains".
+username-filter:
+  enabled: false
+  blocked-contains:
+    - 'bot'
+    - 'proxy'
+
+asteroid-proxy:
+  # When Asteroid/AsteroidProxy/AsteroidSpoofer is installed, verified Asteroid fake players skip VPN/geo/ISP checks.
+  # The bypass is only applied when Asteroid's fake-player registry confirms the UUID.
+  enabled: true
+  plugin-names:
+    - 'Asteroid'
+    - 'AsteroidProxy'
+    - 'AsteroidSpoofer'
+    - 'AsteroidLibs'
+
 # Proxy/IP blocklists are checked before cached API results and before any external VPN provider call.
 # Supported entries in downloaded .txt/.ipset files: plain IPs, ip:port lines and CIDR ranges.
 proxy-blocklist:
@@ -127,7 +164,7 @@ provider:
       api-key: ''
 
     # For advanced usage, there is the option to add other vpn detection provider.
-    # You can find settings for different other provider in the Connection Guard wiki!
+    # Configure additional providers here if the built-in providers are not enough.
     # Configure your own REST API provider here if the built-in services are not enough.
     # Services, that have been implemented as 'custom service':
     # - VPN-API.xyz (https://vpn-api.xyz)
@@ -170,7 +207,19 @@ provider:
     # - IP-API (Free, no api key required, 45 requests per minute)
     # - ProxyCheck (Free, api key is free and optional and can be configured above in the vpn section,
     #               100 requests per day without api key or 1.000 requests per day with api key)
+    # If ISP blocking is enabled, the plugin checks these providers in order until ISP/ASN data is found.
+    services:
+      - 'IP-API'
+      - 'ProxyCheck'
     service: 'IP-API'
+  isp-block:
+    enabled: false
+    # ASN entries may be written as AS12345 or 12345.
+    asns:
+      - 'AS12345'
+    # Case-insensitive "contains" matching against ISP/provider/organization names.
+    isp-names:
+      - 'Example Hosting'
   cache:
     # The cache is very important to effectively use the requests you have and avoid running into the request limit.
     # Once a request to a service is made, its data is stored for the specified duration (see below) and used instead of
@@ -179,7 +228,7 @@ provider:
     # necessary when you add or remove countries to the geo-block-list.
     # Available types:
     # - SQLite (no further configuration is necessary, stored in a file in the plugins directory)
-    # - Redis (configure connection details below, useful when deploying Connection Guard on multiple servers)
+    # - Redis (configure connection details below, useful when deploying TwiAntiVpn on multiple servers)
     # - Disabled (disable any caching, make absolutely sure that you don't run into request limits!)
     type: 'SQLite'
 

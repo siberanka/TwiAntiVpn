@@ -11,9 +11,15 @@ import okhttp3.Response;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 public class ProxyCheckGeoProvider implements GeoProvider {
     private String apiKey;
+    private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .callTimeout(15, TimeUnit.SECONDS)
+            .build();
 
     public ProxyCheckGeoProvider(String apiKey) {
         this.apiKey = apiKey;
@@ -22,34 +28,29 @@ public class ProxyCheckGeoProvider implements GeoProvider {
     @Override
     public CompletableFuture<Optional<GeoResult>> getGeoResult(String ipAddress) {
         return CompletableFuture.supplyAsync(() -> {
-            OkHttpClient httpClient = new OkHttpClient();
-
             Request request = new Request.Builder()
                     .url(
-                            "http://proxycheck.io/v2/"
+                            "https://proxycheck.io/v2/"
                             + ipAddress
                             + "?key=" + apiKey
                             + "&asn=1"
                     ).build();
 
-            Response response;
-
-            try {
-                response = httpClient.newCall(request).execute();
-            } catch (IOException e) {
-                ConnectionGuard.getLogger().info("ProxyCheck Geo | " + e.getMessage());
-                return Optional.empty();
-            }
-
             JsonObject jsonObject;
-            try {
+            try (Response response = HTTP_CLIENT.newCall(request).execute()) {
+                if (response.body() == null) {
+                    return Optional.empty();
+                }
                 jsonObject = JsonParser.parseString(response.body().string()).getAsJsonObject();
             } catch (IOException e) {
                 ConnectionGuard.getLogger().info("ProxyCheck Geo | " + e.getMessage());
                 return Optional.empty();
+            } catch (Exception e) {
+                ConnectionGuard.getLogger().info("ProxyCheck Geo | " + e.getMessage());
+                return Optional.empty();
             }
 
-            String requestStatus = jsonObject.get("status").getAsString();
+            String requestStatus = getString(jsonObject, "status");
 
             switch (requestStatus.toLowerCase()) {
                 case "ok":
@@ -57,23 +58,55 @@ public class ProxyCheckGeoProvider implements GeoProvider {
                 case "warning":
                     ConnectionGuard.getLogger().info(
                             "ProxyCheck | "
-                                    + jsonObject.get("message").getAsString()
+                                    + getString(jsonObject, "message")
                     );
                     break;
                 case "denied":
                 case "error":
                     ConnectionGuard.getLogger().info(
                             "ProxyCheck | "
-                                    + jsonObject.get("message").getAsString()
+                                    + getString(jsonObject, "message")
                     );
                     return Optional.empty();
             }
 
-            JsonObject ipObject = jsonObject.get(ipAddress).getAsJsonObject();
-            String providerName = ipObject.get("provider").getAsString();
-            String countryCode = ipObject.get("isocode").getAsString();
+            if (!jsonObject.has(ipAddress) || !jsonObject.get(ipAddress).isJsonObject()) {
+                return Optional.empty();
+            }
 
-            return Optional.of(new GeoResult(ipAddress, countryCode, "Unknown", providerName));
+            JsonObject ipObject = jsonObject.get(ipAddress).getAsJsonObject();
+            JsonObject networkObject = ipObject.has("network") && ipObject.get("network").isJsonObject()
+                    ? ipObject.get("network").getAsJsonObject()
+                    : ipObject;
+            String providerName = firstNonEmpty(
+                    getString(networkObject, "provider"),
+                    getString(networkObject, "organisation"),
+                    getString(ipObject, "provider")
+            );
+            String countryCode = firstNonEmpty(getString(ipObject, "isocode"), getString(ipObject, "country"));
+            String asn = getString(networkObject, "asn");
+
+            return Optional.of(new GeoResult(ipAddress, countryCode, "Unknown", providerName, asn, getString(networkObject, "organisation")));
         });
+    }
+
+    private String getString(JsonObject jsonObject, String key) {
+        if (jsonObject == null || !jsonObject.has(key) || jsonObject.get(key).isJsonNull()) {
+            return "";
+        }
+        try {
+            return jsonObject.get(key).getAsString();
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private String firstNonEmpty(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isEmpty()) {
+                return value;
+            }
+        }
+        return "";
     }
 }

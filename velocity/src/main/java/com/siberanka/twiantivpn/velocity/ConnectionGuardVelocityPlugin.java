@@ -6,6 +6,7 @@ import com.siberanka.twiantivpn.core.ConnectionGuard;
 import com.siberanka.twiantivpn.core.cache.NoCacheProvider;
 import com.siberanka.twiantivpn.core.cache.RedisCacheProvider;
 import com.siberanka.twiantivpn.core.cache.SQLiteCacheProvider;
+import com.siberanka.twiantivpn.core.geo.GeoProvider;
 import com.siberanka.twiantivpn.core.geo.IpApiGeoProvider;
 import com.siberanka.twiantivpn.core.geo.ProxyCheckGeoProvider;
 import com.siberanka.twiantivpn.core.vpn.*;
@@ -31,7 +32,7 @@ import java.util.HashMap;
 @Plugin(
         id="twiantivpn",
         name="TwiAntiVpn",
-        version="2026.07.09.1",
+        version="2026.07.09.2",
         url="https://github.com/siberanka",
         authors = {"gerolndnr", "siberanka"}
 )
@@ -170,23 +171,13 @@ public class ConnectionGuardVelocityPlugin {
 
         ConnectionGuard.setVpnProviders(vpnProviders);
 
-        switch (cgVelocityConfig.getConfig().getString("provider.geo.service").toLowerCase()) {
-            case "ip-api":
-                ConnectionGuard.setGeoProvider(new IpApiGeoProvider());
-                break;
-            case "proxycheck":
-                ConnectionGuard.setGeoProvider(new ProxyCheckGeoProvider(
-                        getCgVelocityConfig().getConfig().getString("provider.vpn.proxycheck.api-key")
-                ));
-                break;
-            default:
-                logger.info("The specified geo provider is invalid. Please use IP-API.");
-        }
+        configureGeoProviders();
 
         // 6. Set required positive vpn flags and cache expiration
         ConnectionGuard.setRequiredPositiveFlags(cgVelocityConfig.getConfig().getInt("required-positive-flags"));
         ConnectionGuard.setVpnCacheExpirationTime(cgVelocityConfig.getConfig().getInt("provider.cache.expiration.vpn"));
         ConnectionGuard.setGeoCacheExpirationTime(cgVelocityConfig.getConfig().getInt("provider.cache.expiration.geo"));
+        configureSecurityFilters();
         configureProxyBlocklist();
 
         // 7. Register velocity listener and commands
@@ -217,6 +208,42 @@ public class ConnectionGuardVelocityPlugin {
                 cgVelocityConfig.getConfig().getInt("proxy-blocklist.max-line-length"),
                 cgVelocityConfig.getConfig().getInt("proxy-blocklist.request-timeout-seconds")
         );
+    }
+
+    public void configureSecurityFilters() {
+        ConnectionGuard.configureUsernameFilter(
+                cgVelocityConfig.getConfig().getBoolean("username-filter.enabled"),
+                cgVelocityConfig.getConfig().getStringList("username-filter.blocked-contains")
+        );
+        ConnectionGuard.configureIspBlocker(
+                cgVelocityConfig.getConfig().getBoolean("provider.isp-block.enabled"),
+                cgVelocityConfig.getConfig().getStringList("provider.isp-block.asns"),
+                cgVelocityConfig.getConfig().getStringList("provider.isp-block.isp-names")
+        );
+    }
+
+    public void configureGeoProviders() {
+        ArrayList<GeoProvider> geoProviders = new ArrayList<>();
+        java.util.List<String> services = cgVelocityConfig.getConfig().getStringList("provider.geo.services");
+        if (services.isEmpty()) {
+            services.add(cgVelocityConfig.getConfig().getString("provider.geo.service", "IP-API"));
+        }
+        for (String service : services) {
+            if (service == null) {
+                continue;
+            }
+            switch (service.toLowerCase()) {
+                case "ip-api":
+                    geoProviders.add(new IpApiGeoProvider());
+                    break;
+                case "proxycheck":
+                    geoProviders.add(new ProxyCheckGeoProvider(getCgVelocityConfig().getConfig().getString("provider.vpn.proxycheck.api-key")));
+                    break;
+                default:
+                    logger.info("The specified geo provider is invalid: " + service);
+            }
+        }
+        ConnectionGuard.setGeoProviders(geoProviders);
     }
 
     public Logger getLogger() {
