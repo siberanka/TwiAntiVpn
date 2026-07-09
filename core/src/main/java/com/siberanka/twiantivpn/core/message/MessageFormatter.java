@@ -89,6 +89,16 @@ public final class MessageFormatter {
         return withPrefix(prefix, placeholders(values));
     }
 
+    public static Map<String, String> placeholdersWithKickLayout(String prefix,
+                                                                  String kickPrefix,
+                                                                  String kickContact,
+                                                                  String... values) {
+        Map<String, String> resolved = withPrefix(prefix, placeholders(values));
+        putAliases(resolved, "kick_prefix", kickPrefix);
+        putAliases(resolved, "kick_contact", kickContact);
+        return resolved;
+    }
+
     public static String toLegacyText(String raw, Map<String, String> placeholders) {
         String value = normalize(applyPlaceholders(raw, placeholders));
         value = renderMiniGradients(value);
@@ -124,6 +134,15 @@ public final class MessageFormatter {
                 .replace("\\r", "\n")
                 .replace("\r\n", "\n")
                 .replace('\r', '\n');
+    }
+
+    private static void putAliases(Map<String, String> placeholders, String name, String value) {
+        String safeValue = value == null ? "" : value;
+        String upperName = name.toUpperCase(Locale.ROOT);
+        placeholders.put("{" + name + "}", safeValue);
+        placeholders.put("{" + upperName + "}", safeValue);
+        placeholders.put("%" + name + "%", safeValue);
+        placeholders.put("%" + upperName + "%", safeValue);
     }
 
     private static String renderMiniGradients(String value) {

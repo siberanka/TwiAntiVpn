@@ -35,7 +35,7 @@ import java.util.HashMap;
 @Plugin(
         id="twiantivpn",
         name="TwiAntiVpn",
-        version="2026.07.09.15",
+        version="2026.07.09.16",
         url="https://github.com/siberanka",
         authors = {"gerolndnr", "siberanka"},
         dependencies = {
@@ -247,8 +247,13 @@ public class ConnectionGuardVelocityPlugin {
                     String path = result.getType().equals("username") ? "messages.username-block" : "messages.vpn-block";
                     return MessageFormatter.toPlainText(
                             cgVelocityConfig.getLanguageConfig().getString(path),
-                            MessageFormatter.placeholdersWithPrefix(
+                            MessageFormatter.placeholdersWithKickLayout(
                                     cgVelocityConfig.getLanguageConfig().getString("messages.prefix", "&bTwiAntiVpn &7|"),
+                                    cgVelocityConfig.getLanguageConfig().getString("messages.kick-prefix", "&b&lTwiAntiVpn"),
+                                    cgVelocityConfig.getLanguageConfig().getString(
+                                            "messages.kick-contact",
+                                            "store.example.net    discord.gg/invite"
+                                    ),
                                     "%IP%", result.getIpAddress(),
                                     "%NAME%", result.getUsername(),
                                     "%MATCH%", result.getMatch()

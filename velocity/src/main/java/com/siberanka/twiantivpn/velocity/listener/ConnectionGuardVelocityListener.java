@@ -249,19 +249,33 @@ public class ConnectionGuardVelocityListener {
     private String message(String path, String... placeholders) {
         return MessageFormatter.toLegacyText(
                 ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString(path),
-                MessageFormatter.placeholdersWithPrefix(prefix(), placeholders)
+                MessageFormatter.placeholdersWithKickLayout(prefix(), kickPrefix(), kickContact(), placeholders)
         );
     }
 
     private String plainMessage(String path, String... placeholders) {
         return MessageFormatter.toPlainText(
                 ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString(path),
-                MessageFormatter.placeholdersWithPrefix(prefix(), placeholders)
+                MessageFormatter.placeholdersWithKickLayout(prefix(), kickPrefix(), kickContact(), placeholders)
         );
     }
 
     private String prefix() {
         return ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString("messages.prefix", "&bTwiAntiVpn &7|");
+    }
+
+    private String kickPrefix() {
+        return ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString(
+                "messages.kick-prefix",
+                "&b&lTwiAntiVpn"
+        );
+    }
+
+    private String kickContact() {
+        return ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getLanguageConfig().getString(
+                "messages.kick-contact",
+                "&#35D3FFstore.example.net &8| &#6F7DFFdiscord.gg/invite"
+        );
     }
 
     private void handleUsernameBlock(PreLoginEvent loginEvent, String ipAddress, String playerUsername, String matchedPart) {

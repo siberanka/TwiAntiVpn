@@ -1,5 +1,5 @@
 # TwiAntiVpn dil faylı.
-# {prefix} və %PREFIX% messages.prefix sahəsindən götürülür.
+# {prefix}, {kick_prefix} və {kick_contact} müvafiq messages sahələrindən götürülür.
 command:
   no-permission: "{prefix} &cBu əmrdən istifadə etmək üçün icazən yoxdur."
   unknown-subcommand: "{prefix} &7Naməlum alt əmr. Əmrləri görmək üçün &f/twiantivpn help&7 yaz."
@@ -11,16 +11,18 @@ command:
 
 messages:
   prefix: "<bold><gradient:#35d3ff:#6f7dff>TwiAntiVpn</gradient></bold> <dark_gray>|</dark_gray>"
-  username-block: "{prefix}\\n&cBağlantı bloklandı\\n&7İstifadəçi adın bu serverdə icazə verilməyən ifadə ehtiva edir.\\n\\n&8Uyğunluq: &f%MATCH%"
+  kick-prefix: "<bold><gradient:#35d3ff:#6f7dff>TwiAntiVpn</gradient></bold>"
+  kick-contact: "&#35D3FFstore.example.net    &#6F7DFFdiscord.gg/invite"
+  username-block: "{kick_prefix}\\n\\n&c&lGiriş rədd edildi\\n&7İstifadəçi adında serverin adlandırma qaydaları ilə qadağan olunmuş ifadə var.\\n\\n&8Səbəb: &fQadağan olunmuş istifadəçi adı ifadəsi\\n&8Uyğun gələn ifadə: &f%MATCH%\\n\\n{kick_contact}"
   username-notify: "{prefix} &e%NAME% &7(%IP%) istifadəçi adı filtrinə görə bloklandı. &8Uyğunluq: &f%MATCH%"
   username-webhook: "%NAME% (%IP%) istifadəçi adı filtrinə görə bloklandı. Uyğunluq: %MATCH%."
-  vpn-block: "{prefix}\\n&cBağlantı bloklandı\\n&7Bağlantında VPN, proxy, Tor çıxış nöqtəsi və ya siyahıya alınmış anonimləşdirici aşkarlandı.\\n\\n&7Onu söndürüb yenidən yoxla. Bunun səhv olduğunu düşünürsənsə, heyətlə əlaqə saxla."
+  vpn-block: "{kick_prefix}\\n\\n&c&lGiriş rədd edildi\\n&7Bağlantın VPN, proxy, Tor çıxış nöqtəsi və ya məlum anonimləşdirici kimi aşkarlandı.\\n\\n&8Səbəb: &fEtibarsız şəbəkə bağlantısı\\n&7VPN və ya proxy xidmətini söndürüb yenidən qoşul. Aşkarlamanın səhv olduğunu düşünürsənsə, dəstək komandası ilə əlaqə saxla.\\n\\n{kick_contact}"
   vpn-notify: "{prefix} &e%NAME% &7(%IP%) VPN/proxy aşkarlanmasına görə bloklandı."
   vpn-webhook: "%NAME% (%IP%) VPN/proxy ilə qoşulmağa çalışdı."
-  geo-block: "{prefix}\\n&cBağlantı bloklandı\\n&f%COUNTRY% &7məkanından bağlantılara bu serverdə icazə verilmir.\\n\\n&7Bunun səhv olduğunu düşünürsənsə, heyətlə əlaqə saxla."
+  geo-block: "{kick_prefix}\\n\\n&c&lGiriş rədd edildi\\n&7Bağlantının aşkar edilən məkanı serverin regional giriş qaydalarına uyğun deyil.\\n\\n&8Səbəb: &fMəhdudlaşdırılmış region\\n&8Aşkar edilən ölkə: &f%COUNTRY%\\n&7Məkan məlumatının səhv olduğunu düşünürsənsə, dəstək komandası ilə əlaqə saxla.\\n\\n{kick_contact}"
   geo-notify: "{prefix} &e%NAME% &7(%IP%) geo qaydalarına görə bloklandı. &8Məkan: &f%COUNTRY%&7, &f%CITY%"
   geo-webhook: "%NAME% (%IP%, %ISP%) %CITY%, %COUNTRY% məkanından qoşulmağa çalışdı."
-  isp-block: "{prefix}\\n&cBağlantı bloklandı\\n&7Şəbəkə provayderin üzərindən bağlantılara bu serverdə icazə verilmir.\\n\\n&8ISP: &f%ISP% &8| ASN: &f%ASN%"
+  isp-block: "{kick_prefix}\\n\\n&c&lGiriş rədd edildi\\n&7Şəbəkə provayderin və ya avtonom sistem nömrən serverin giriş qaydaları ilə məhdudlaşdırılıb.\\n\\n&8Səbəb: &fMəhdudlaşdırılmış ISP və ya ASN\\n&8ISP: &f%ISP%\\n&8ASN: &f%ASN%\\n&7Bunun səhv olduğunu düşünürsənsə, dəstək komandası ilə əlaqə saxla.\\n\\n{kick_contact}"
   isp-notify: "{prefix} &e%NAME% &7(%IP%) ISP/ASN qaydalarına görə bloklandı. &8ISP: &f%ISP% &8ASN: &f%ASN% &8Uyğunluq: &f%MATCH%"
   isp-webhook: "%NAME% (%IP%) ISP/ASN qaydalarına görə bloklandı. ISP: %ISP%, ASN: %ASN%, uyğunluq: %MATCH%."
   help:

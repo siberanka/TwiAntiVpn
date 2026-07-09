@@ -1,5 +1,5 @@
 # Archivo de idioma de TwiAntiVpn.
-# {prefix} y %PREFIX% se resuelven desde messages.prefix.
+# {prefix}, {kick_prefix} y {kick_contact} se resuelven desde sus entradas en messages.
 command:
   no-permission: "{prefix} &cNo tienes permiso para usar este comando."
   unknown-subcommand: "{prefix} &7Subcomando desconocido. Usa &f/twiantivpn help&7 para ver los comandos disponibles."
@@ -11,16 +11,18 @@ command:
 
 messages:
   prefix: "<bold><gradient:#35d3ff:#6f7dff>TwiAntiVpn</gradient></bold> <dark_gray>|</dark_gray>"
-  username-block: "{prefix}\\n&cConexion bloqueada\\n&7Tu nombre de usuario contiene un termino no permitido en este servidor.\\n\\n&8Coincidencia: &f%MATCH%"
+  kick-prefix: "<bold><gradient:#35d3ff:#6f7dff>TwiAntiVpn</gradient></bold>"
+  kick-contact: "&#35D3FFstore.example.net    &#6F7DFFdiscord.gg/invite"
+  username-block: "{kick_prefix}\\n\\n&c&lAcceso denegado\\n&7Tu nombre de usuario contiene un término prohibido por la política de nombres del servidor.\\n\\n&8Motivo: &fTérmino de usuario prohibido\\n&8Término detectado: &f%MATCH%\\n\\n{kick_contact}"
   username-notify: "{prefix} &e%NAME% &7(%IP%) fue bloqueado por el filtro de nombres. &8Coincidencia: &f%MATCH%"
   username-webhook: "%NAME% (%IP%) fue bloqueado por el filtro de nombres. Coincidencia: %MATCH%."
-  vpn-block: "{prefix}\\n&cConexion bloqueada\\n&7Se detecto una VPN, proxy, nodo de salida Tor o anonimizador listado en tu conexion.\\n\\n&7Desactivalo e intentalo de nuevo. Si crees que es un error, contacta al staff."
+  vpn-block: "{kick_prefix}\\n\\n&c&lAcceso denegado\\n&7Tu conexión fue identificada como VPN, proxy, nodo de salida Tor o anonimizador conocido.\\n\\n&8Motivo: &fConexión de red no confiable\\n&7Desactiva la VPN o el proxy y vuelve a conectarte. Contacta con soporte si crees que la detección es incorrecta.\\n\\n{kick_contact}"
   vpn-notify: "{prefix} &e%NAME% &7(%IP%) fue bloqueado por deteccion de VPN/proxy."
   vpn-webhook: "%NAME% (%IP%) intento conectarse con VPN/proxy."
-  geo-block: "{prefix}\\n&cConexion bloqueada\\n&7No se permiten conexiones desde &f%COUNTRY%&7 en este servidor.\\n\\n&7Si crees que es un error, contacta al staff."
+  geo-block: "{kick_prefix}\\n\\n&c&lAcceso denegado\\n&7La ubicación detectada de tu conexión no cumple la política de acceso regional del servidor.\\n\\n&8Motivo: &fRegión restringida\\n&8País detectado: &f%COUNTRY%\\n&7Contacta con soporte si crees que la ubicación es incorrecta.\\n\\n{kick_contact}"
   geo-notify: "{prefix} &e%NAME% &7(%IP%) fue bloqueado por reglas geo. &8Ubicacion: &f%COUNTRY%&7, &f%CITY%"
   geo-webhook: "%NAME% (%IP%, %ISP%) intento conectarse desde %CITY%, %COUNTRY%."
-  isp-block: "{prefix}\\n&cConexion bloqueada\\n&7No se permiten conexiones desde tu proveedor de red en este servidor.\\n\\n&8ISP: &f%ISP% &8| ASN: &f%ASN%"
+  isp-block: "{kick_prefix}\\n\\n&c&lAcceso denegado\\n&7Tu proveedor de red o número de sistema autónomo está restringido por la política de acceso del servidor.\\n\\n&8Motivo: &fISP o ASN restringido\\n&8ISP: &f%ISP%\\n&8ASN: &f%ASN%\\n&7Contacta con soporte si crees que esta restricción es incorrecta.\\n\\n{kick_contact}"
   isp-notify: "{prefix} &e%NAME% &7(%IP%) fue bloqueado por reglas ISP/ASN. &8ISP: &f%ISP% &8ASN: &f%ASN% &8Coincidencia: &f%MATCH%"
   isp-webhook: "%NAME% (%IP%) fue bloqueado por reglas ISP/ASN. ISP: %ISP%, ASN: %ASN%, coincidencia: %MATCH%."
   help:

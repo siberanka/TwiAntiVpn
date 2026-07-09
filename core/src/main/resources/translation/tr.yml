@@ -1,5 +1,5 @@
 # TwiAntiVpn dil dosyası.
-# {prefix} ve %PREFIX%, messages.prefix alanından çözülür.
+# {prefix}, {kick_prefix} ve {kick_contact} ilgili messages alanlarından çözülür.
 command:
   no-permission: "{prefix} &cBu komutu kullanmak için yetkin yok."
   unknown-subcommand: "{prefix} &7Bilinmeyen alt komut. Komutları görmek için &f/twiantivpn help&7 yaz."
@@ -11,16 +11,18 @@ command:
 
 messages:
   prefix: "<bold><gradient:#35d3ff:#6f7dff>TwiAntiVpn</gradient></bold> <dark_gray>|</dark_gray>"
-  username-block: "{prefix}\\n&cBağlantı engellendi\\n&7Kullanıcı adın bu sunucuda izin verilmeyen bir ifade içeriyor.\\n\\n&8Eşleşme: &f%MATCH%"
+  kick-prefix: "<bold><gradient:#35d3ff:#6f7dff>TwiAntiVpn</gradient></bold>"
+  kick-contact: "&#35D3FFstore.example.net    &#6F7DFFdiscord.gg/invite"
+  username-block: "{kick_prefix}\\n\\n&c&lGiriş reddedildi\\n&7Kullanıcı adın sunucunun adlandırma politikasında yasaklanan bir ifade içeriyor.\\n\\n&8Neden: &fYasaklı kullanıcı adı ifadesi\\n&8Eşleşen ifade: &f%MATCH%\\n\\n{kick_contact}"
   username-notify: "{prefix} &e%NAME% &7(%IP%) kullanıcı adı filtresiyle engellendi. &8Eşleşme: &f%MATCH%"
   username-webhook: "%NAME% (%IP%) kullanıcı adı filtresiyle engellendi. Eşleşme: %MATCH%."
-  vpn-block: "{prefix}\\n&cBağlantı engellendi\\n&7Bağlantında VPN, proxy, Tor çıkış düğümü veya listelenmiş anonimleştirici tespit edildi.\\n\\n&7Kapatıp tekrar dene. Hata olduğunu düşünüyorsan yetkililerle iletişime geç."
+  vpn-block: "{kick_prefix}\\n\\n&c&lGiriş reddedildi\\n&7Bağlantın VPN, proxy, Tor çıkış düğümü veya bilinen bir anonimleştirici olarak tespit edildi.\\n\\n&8Neden: &fGüvenilmeyen ağ bağlantısı\\n&7VPN veya proxy hizmetini kapatıp yeniden bağlan. Tespitin hatalı olduğunu düşünüyorsan destek ekibine ulaş.\\n\\n{kick_contact}"
   vpn-notify: "{prefix} &e%NAME% &7(%IP%) VPN/proxy tespiti nedeniyle engellendi."
   vpn-webhook: "%NAME% (%IP%) VPN/proxy ile bağlanmayı denedi."
-  geo-block: "{prefix}\\n&cBağlantı engellendi\\n&f%COUNTRY% &7konumundan bağlantılara bu sunucuda izin verilmiyor.\\n\\n&7Hata olduğunu düşünüyorsan yetkililerle iletişime geç."
+  geo-block: "{kick_prefix}\\n\\n&c&lGiriş reddedildi\\n&7Bağlantının tespit edilen konumu sunucunun bölgesel erişim politikasına uygun değil.\\n\\n&8Neden: &fKısıtlanmış bölge\\n&8Tespit edilen ülke: &f%COUNTRY%\\n&7Konum bilgisinin hatalı olduğunu düşünüyorsan destek ekibine ulaş.\\n\\n{kick_contact}"
   geo-notify: "{prefix} &e%NAME% &7(%IP%) geo kuralları nedeniyle engellendi. &8Konum: &f%COUNTRY%&7, &f%CITY%"
   geo-webhook: "%NAME% (%IP%, %ISP%) %CITY%, %COUNTRY% konumundan bağlanmayı denedi."
-  isp-block: "{prefix}\\n&cBağlantı engellendi\\n&7Ağ sağlayıcın üzerinden bağlantılara bu sunucuda izin verilmiyor.\\n\\n&8ISP: &f%ISP% &8| ASN: &f%ASN%"
+  isp-block: "{kick_prefix}\\n\\n&c&lGiriş reddedildi\\n&7Ağ sağlayıcın veya otonom sistem numaran sunucunun erişim politikasında engellenmiş durumda.\\n\\n&8Neden: &fKısıtlanmış ISP veya ASN\\n&8ISP: &f%ISP%\\n&8ASN: &f%ASN%\\n&7Bunun bir hata olduğunu düşünüyorsan destek ekibine ulaş.\\n\\n{kick_contact}"
   isp-notify: "{prefix} &e%NAME% &7(%IP%) ISP/ASN kurallarıyla engellendi. &8ISP: &f%ISP% &8ASN: &f%ASN% &8Eşleşme: &f%MATCH%"
   isp-webhook: "%NAME% (%IP%) ISP/ASN kurallarıyla engellendi. ISP: %ISP%, ASN: %ASN%, eşleşme: %MATCH%."
   help:

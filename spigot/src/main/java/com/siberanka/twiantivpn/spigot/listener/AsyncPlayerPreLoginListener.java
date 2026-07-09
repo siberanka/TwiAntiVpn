@@ -229,19 +229,30 @@ public class AsyncPlayerPreLoginListener implements Listener {
     private String message(String path, String... placeholders) {
         return MessageFormatter.toLegacyText(
                 ConnectionGuardSpigotPlugin.getInstance().getLanguageConfig().getString(path),
-                MessageFormatter.placeholdersWithPrefix(prefix(), placeholders)
+                MessageFormatter.placeholdersWithKickLayout(prefix(), kickPrefix(), kickContact(), placeholders)
         );
     }
 
     private String plainMessage(String path, String... placeholders) {
         return MessageFormatter.toPlainText(
                 ConnectionGuardSpigotPlugin.getInstance().getLanguageConfig().getString(path),
-                MessageFormatter.placeholdersWithPrefix(prefix(), placeholders)
+                MessageFormatter.placeholdersWithKickLayout(prefix(), kickPrefix(), kickContact(), placeholders)
         );
     }
 
     private String prefix() {
         return ConnectionGuardSpigotPlugin.getInstance().getLanguageConfig().getString("messages.prefix", "&bTwiAntiVpn &7|");
+    }
+
+    private String kickPrefix() {
+        return ConnectionGuardSpigotPlugin.getInstance().getLanguageConfig().getString("messages.kick-prefix", "&b&lTwiAntiVpn");
+    }
+
+    private String kickContact() {
+        return ConnectionGuardSpigotPlugin.getInstance().getLanguageConfig().getString(
+                "messages.kick-contact",
+                "&#35D3FFstore.example.net &8| &#6F7DFFdiscord.gg/invite"
+        );
     }
 
     private void handleUsernameBlock(AsyncPlayerPreLoginEvent preLoginEvent, String ipAddress, String matchedPart) {

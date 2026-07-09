@@ -87,6 +87,8 @@ public class CGVelocityConfig {
                 && languageConfig.contains("messages.username-block")
                 && languageConfig.contains("messages.isp-block")
                 && languageConfig.contains("messages.prefix")
+                && languageConfig.contains("messages.kick-prefix")
+                && languageConfig.contains("messages.kick-contact")
                 && languageConfigUsesCurrentCommandName()) {
             return;
         }

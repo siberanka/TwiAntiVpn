@@ -257,8 +257,13 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
                     String path = result.getType().equals("username") ? "messages.username-block" : "messages.vpn-block";
                     return MessageFormatter.toPlainText(
                             getLanguageConfig().getString(path),
-                            MessageFormatter.placeholdersWithPrefix(
+                            MessageFormatter.placeholdersWithKickLayout(
                                     getLanguageConfig().getString("messages.prefix", "&bTwiAntiVpn &7|"),
+                                    getLanguageConfig().getString("messages.kick-prefix", "&b&lTwiAntiVpn"),
+                                    getLanguageConfig().getString(
+                                            "messages.kick-contact",
+                                            "store.example.net    discord.gg/invite"
+                                    ),
                                     "%IP%", result.getIpAddress(),
                                     "%NAME%", result.getUsername(),
                                     "%MATCH%", result.getMatch()
@@ -376,6 +381,8 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
         if (languageConfig.contains("messages.username-block")
                 && languageConfig.contains("messages.isp-block")
                 && languageConfig.contains("messages.prefix")
+                && languageConfig.contains("messages.kick-prefix")
+                && languageConfig.contains("messages.kick-contact")
                 && languageConfigUsesCurrentCommandName()) {
             return;
         }
