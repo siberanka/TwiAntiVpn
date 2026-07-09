@@ -1,59 +1,53 @@
 # TwiAntiVpn
 
-TwiAntiVpn is a VPN/proxy and geo-blocking plugin for Spigot/Paper, BungeeCord and Velocity.
-
-Version format: `YYYY.MM.DD.build`, for example `2026.07.09.7`.
+TwiAntiVpn is a production-focused anti-VPN, proxy, geo and connection-risk plugin for Minecraft networks. It supports Spigot/Paper, BungeeCord/Waterfall and Velocity from a single release jar.
 
 ## Features
 
-- Blocks VPN/proxy users through configurable detection providers.
-- Checks a local proxy/IP blocklist before cache lookups and before external VPN APIs.
-- Downloads `.txt` and `.ipset` blocklists on a refresh schedule, one source at a time.
-- Retries failed blocklist downloads up to 3 times and waits 1 second between sources/retries.
-- Uses immutable blocklist snapshots to avoid desync while players are joining.
-- Supports IP, `ip:port` and CIDR entries in downloaded blocklists.
-- Blocks configured ISP names and ASN numbers after checking supported geo/IP providers in order.
-- Blocks usernames containing configured terms before VPN/API checks.
-- Skips VPN/geo/ISP checks for Asteroid fake players when Asteroid is installed and its registry confirms the UUID.
-- Runs login checks before anti-bot plugins such as Sonar by default, with a config option to run after anti-bot checks instead.
-- Ships editable language files for English, Turkish, Azerbaijani and Spanish. English is the default.
-- Supports geo blacklist/whitelist checks, cache providers and Discord webhooks.
+- VPN and proxy detection through configurable provider checks.
+- Local proxy blocklist checks before cache lookups and external API calls.
+- Remote IP list refresh support for common formats such as `.txt`, `.ipset`, `.lst`, `.netset` and extensionless lists.
+- Plain IP, `ip:port`, comma-separated token and CIDR parsing.
+- Built-in safety caps for blocklist size, line length, source size, refresh interval and request timeout.
+- Duplicate protection for URLs, exact IPs, IPv4 networks and IPv6 CIDR networks.
+- ISP and ASN blocking by provider name or autonomous system number.
+- Username contains-filter for blocking obvious bot naming patterns before VPN/API work.
+- Configurable login check order for running before or after anti-bot plugins.
+- AsteroidProxy/AsteroidSpoofer support for verified fake-player bypasses.
+- Geo blacklist/whitelist support.
+- SQLite, Redis or disabled cache modes.
+- Discord webhook and console command actions.
+- Editable language files for English, Turkish, Azerbaijani and Spanish.
 
-## Default Proxy Blocklists
+## Download
 
-The default `config.yml` includes these blocklist sources:
+Download the latest jar from the GitHub Releases page:
 
-- `https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt`
-- `https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt`
-- `https://raw.githubusercontent.com/scriptzteam/ProtonVPN-VPN-IPs/main/exit_ips.txt`
-- `https://raw.githubusercontent.com/mmpx12/proxy-list/master/ips-list.txt`
-- `https://check.torproject.org/torbulkexitlist?ip=1.1.1.1`
-- `https://cinsscore.com/list/ci-badguys.txt`
-- `https://lists.blocklist.de/lists/all.txt`
-- `https://raw.githubusercontent.com/vakhov/fresh-proxy-list/refs/heads/master/socks4.txt`
-- `https://blocklist.greensnow.co/greensnow.txt`
-- `https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/stopforumspam_7d.ipset`
-- `https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies.txt`
-- `https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks4.txt`
+https://github.com/siberanka/TwiAntiVpn/releases
 
-## Build
+Use the `TwiAntiVpn-*-all.jar` artifact.
 
-```bash
-./gradlew clean shadowJar
-```
+## Installation
 
-On this Windows workspace, Gradle may need the Windows certificate store:
+1. Download the latest `TwiAntiVpn-*-all.jar` from Releases.
+2. Place it in the plugin folder of your Spigot/Paper, BungeeCord/Waterfall or Velocity server.
+3. Start the server once to generate the configuration files.
+4. Edit `config.yml` and the files under `translation/` as needed.
+5. Restart the server or run `/twiantivpn reload`.
 
-```powershell
-$env:GRADLE_OPTS='-Djavax.net.ssl.trustStoreType=WINDOWS-ROOT'
-F:\gradle-8.14.3\bin\gradle.bat clean shadowJar
-```
+## Configuration
 
-The main release jar is generated at:
+The default configuration is designed to work out of the box. Important sections include:
 
-```text
-build/libs/TwiAntiVpn-2026.07.09.7-all.jar
-```
+- `proxy-blocklist`: remote IP list URLs, refresh interval and safety limits.
+- `provider.vpn`: external VPN/proxy detection providers.
+- `provider.geo`: geo and ISP data providers.
+- `provider.isp-block`: blocked ASN numbers and ISP/provider names.
+- `username-filter`: blocked username fragments.
+- `login-check`: whether TwiAntiVpn checks run before or after anti-bot plugins.
+- `behavior`: kick, notify, command and webhook actions.
+
+Most scalar values can be written without quotes. Empty strings and JSON examples remain quoted in the default config because YAML would otherwise treat them differently.
 
 ## Commands
 
@@ -62,7 +56,11 @@ build/libs/TwiAntiVpn-2026.07.09.7-all.jar
 - `/twiantivpn clear (<Player/UUID/IP>)`
 - `/twiantivpn info <Player/UUID/IP>`
 
-Aliases: `/twiavpn`, `/tavpn`, `/antivpn`
+Aliases:
+
+- `/twiavpn`
+- `/tavpn`
+- `/antivpn`
 
 ## Permissions
 
@@ -78,11 +76,40 @@ Aliases: `/twiavpn`, `/tavpn`, `/antivpn`
 - `twiantivpn.exemption.vpn`
 - `twiantivpn.exemption.geo`
 
+## Building
+
+Requirements:
+
+- Java 21 for building
+- Gradle wrapper from this repository
+
+Build the release jar:
+
+```bash
+./gradlew clean shadowJar
+```
+
+The all-in-one jar is written to `build/libs/`.
+
+## Versioning
+
+TwiAntiVpn uses date-based versions:
+
+```text
+YYYY.MM.DD.build
+```
+
+Example:
+
+```text
+2026.07.09.7
+```
+
 ## Credits
 
 Original project by `gerolndnr`.
 
-Maintained for TwiAntiVpn by `siberanka`.
+Maintained by `siberanka`.
 
 ## License
 
