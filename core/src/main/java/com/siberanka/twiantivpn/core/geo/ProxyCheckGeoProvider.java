@@ -1,6 +1,8 @@
 package com.siberanka.twiantivpn.core.geo;
 
 import com.siberanka.twiantivpn.core.ConnectionGuard;
+import com.siberanka.twiantivpn.core.net.BoundedResponseBody;
+import com.siberanka.twiantivpn.core.net.SharedHttpClient;
 import com.siberanka.twiantivpn.core.vpn.ProxyCheckVpnProvider;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -15,12 +17,6 @@ import java.util.concurrent.TimeUnit;
 
 public class ProxyCheckGeoProvider implements GeoProvider {
     private String apiKey;
-    private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(10, TimeUnit.SECONDS)
-            .callTimeout(15, TimeUnit.SECONDS)
-            .build();
-
     public ProxyCheckGeoProvider(String apiKey) {
         this.apiKey = apiKey;
     }
@@ -37,11 +33,13 @@ public class ProxyCheckGeoProvider implements GeoProvider {
                     ).build();
 
             JsonObject jsonObject;
-            try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-                if (response.body() == null) {
+            try (Response response = SharedHttpClient.get().newCall(request).execute()) {
+                if (!response.isSuccessful()) {
                     return Optional.empty();
                 }
-                jsonObject = JsonParser.parseString(response.body().string()).getAsJsonObject();
+                jsonObject = JsonParser.parseString(
+                        BoundedResponseBody.read(response.body())
+                ).getAsJsonObject();
             } catch (IOException e) {
                 ConnectionGuard.getLogger().info("ProxyCheck Geo | " + e.getMessage());
                 return Optional.empty();

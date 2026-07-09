@@ -116,17 +116,30 @@ public class CGVelocityConfig {
 
     private void ensureAdaptiveLoginConfig() throws IOException {
         boolean changed = false;
-        if (config.get("login-check.adaptive-sonar.enabled") == null) {
-            config.set("login-check.adaptive-sonar.enabled", true);
-            changed = true;
-        }
-        if (config.get("login-check.adaptive-sonar.recovery-delay-seconds") == null) {
-            config.set("login-check.adaptive-sonar.recovery-delay-seconds", 30);
-            changed = true;
-        }
+        changed |= setConfigDefault("login-check.adaptive-sonar.enabled", true);
+        changed |= setConfigDefault("login-check.adaptive-sonar.recovery-delay-seconds", 30);
+        changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.username-filter", false);
+        changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.proxy-blocklist", true);
+        changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.vpn-providers.proxycheck", false);
+        changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.vpn-providers.ip-api", false);
+        changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.vpn-providers.iphub", false);
+        changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.vpn-providers.vpnapi", false);
+        changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.vpn-providers.custom", false);
+        changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.geo-block", false);
+        changed |= setConfigDefault("login-check.adaptive-sonar.before-sonar.isp-block", false);
+        changed |= setConfigDefault("proxy-blocklist.source-delay-millis", 250);
+        changed |= setConfigDefault("security.action-cooldown-seconds", 5);
         if (changed) {
             config.save();
         }
+    }
+
+    private boolean setConfigDefault(String path, Object value) {
+        if (config.get(path) != null) {
+            return false;
+        }
+        config.set(path, value);
+        return true;
     }
 
     private boolean languageConfigUsesCurrentCommandName() {

@@ -1,6 +1,8 @@
 package com.siberanka.twiantivpn.core.vpn;
 
 import com.siberanka.twiantivpn.core.ConnectionGuard;
+import com.siberanka.twiantivpn.core.net.BoundedResponseBody;
+import com.siberanka.twiantivpn.core.net.SharedHttpClient;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import okhttp3.OkHttpClient;
@@ -21,17 +23,19 @@ public class VpnApiVpnProvider implements VpnProvider {
     @Override
     public CompletableFuture<Optional<VpnResult>> getVpnResult(String ipAddress) {
         return CompletableFuture.supplyAsync(() -> {
-            OkHttpClient httpClient = new OkHttpClient();
             Request request = new Request.Builder()
                     .url("https://vpnapi.io/api/" + ipAddress + "?key=" + apiKey)
                     .build();
-            Response response;
-
             JsonObject jsonObject;
-            try {
-                response = httpClient.newCall(request).execute();
-                jsonObject = JsonParser.parseString(response.body().string()).getAsJsonObject();
-            } catch (IOException e) {
+            try (Response response = SharedHttpClient.get().newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    ConnectionGuard.getLogger().info("VPNAPI | HTTP " + response.code());
+                    return Optional.empty();
+                }
+                jsonObject = JsonParser.parseString(
+                        BoundedResponseBody.read(response.body())
+                ).getAsJsonObject();
+            } catch (Exception e) {
                 ConnectionGuard.getLogger().info("VPNAPI | " + e.getMessage());
                 return Optional.empty();
             }

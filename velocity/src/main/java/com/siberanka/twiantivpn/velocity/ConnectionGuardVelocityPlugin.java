@@ -11,6 +11,7 @@ import com.siberanka.twiantivpn.core.geo.IpApiGeoProvider;
 import com.siberanka.twiantivpn.core.geo.ProxyCheckGeoProvider;
 import com.siberanka.twiantivpn.core.integration.SonarApiEarlyCheckHook;
 import com.siberanka.twiantivpn.core.integration.AdaptiveLoginOrderService;
+import com.siberanka.twiantivpn.core.integration.CheckModule;
 import com.siberanka.twiantivpn.core.message.MessageFormatter;
 import com.siberanka.twiantivpn.core.vpn.*;
 import com.siberanka.twiantivpn.core.vpn.custom.CustomVpnProvider;
@@ -31,12 +32,14 @@ import org.slf4j.Logger;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.Set;
 
 @Plugin(
         id="twiantivpn",
         name="TwiAntiVpn",
-        version="2026.07.09.17",
+        version="2026.07.09.18",
         url="https://github.com/siberanka",
         authors = {"gerolndnr", "siberanka"},
         dependencies = {
@@ -53,7 +56,7 @@ public class ConnectionGuardVelocityPlugin {
     private static final String JEDIS_VERSION = "5.0.0";
     private static final String SLF4J_VERSION = "1.7.36";
     private static final String COMMONS_POOL_VERSION = "2.11.1";
-    private static final String JSON_VERSION = "20230618";
+    private static final String JSON_VERSION = "20260522";
 
     private final ProxyServer proxyServer;
     private final Logger logger;
@@ -157,7 +160,11 @@ public class ConnectionGuardVelocityPlugin {
                 return;
         }
 
-        ConnectionGuard.getCacheProvider().setup();
+        if (!ConnectionGuard.initializeCacheProvider()) {
+            logger.warn("TwiAntiVpn | Cache initialization failed; using the no-cache fallback.");
+            ConnectionGuard.shutdownCacheProvider();
+            ConnectionGuard.setCacheProvider(new NoCacheProvider());
+        }
 
         // 5. Add every enabled vpn provider and geo provider
         vpnProviderMap.put("proxycheck", new ProxyCheckVpnProvider(getCgVelocityConfig().getConfig().getString("provider.vpn.proxycheck.api-key")));
@@ -165,15 +172,16 @@ public class ConnectionGuardVelocityPlugin {
         vpnProviderMap.put("iphub", new IpHubVpnProvider(getCgVelocityConfig().getConfig().getString("provider.vpn.iphub.api-key")));
         vpnProviderMap.put("vpnapi", new VpnApiVpnProvider(getCgVelocityConfig().getConfig().getString("provider.vpn.vpnapi.api-key")));
 
-        ArrayList<VpnProvider> vpnProviders = new ArrayList<>();
+        HashMap<String, VpnProvider> vpnProviders = new HashMap<>();
 
         for (Object keyObject : getCgVelocityConfig().getConfig().getSection("provider.vpn").getKeys()) {
             String key = keyObject.toString();
             if (getCgVelocityConfig().getConfig().getBoolean("provider.vpn." + key + ".enabled")) {
                 if (vpnProviderMap.get(key) != null) {
-                    vpnProviders.add(vpnProviderMap.get(key));
+                    vpnProviders.put(key, vpnProviderMap.get(key));
                 } else {
-                    vpnProviders.add(
+                    vpnProviders.put(
+                            key,
                             new CustomVpnProvider(
                                     getCgVelocityConfig().getConfig().getString("provider.vpn." + key + ".request-type"),
                                     getCgVelocityConfig().getConfig().getString("provider.vpn." + key + ".request-url"),
@@ -219,9 +227,7 @@ public class ConnectionGuardVelocityPlugin {
     public void onProxyShutdown(ProxyShutdownEvent shutdownEvent) {
         SonarApiEarlyCheckHook.uninstall(ConnectionGuard.getLogger());
         ConnectionGuard.shutdownProxyBlocklist();
-        if (ConnectionGuard.getCacheProvider() != null) {
-            ConnectionGuard.getCacheProvider().disband();
-        }
+        ConnectionGuard.shutdownCacheProvider();
     }
 
     public void configureProxyBlocklist() {
@@ -231,7 +237,8 @@ public class ConnectionGuardVelocityPlugin {
                 cgVelocityConfig.getConfig().getInt("proxy-blocklist.refresh-interval"),
                 cgVelocityConfig.getConfig().getInt("proxy-blocklist.max-entries"),
                 cgVelocityConfig.getConfig().getInt("proxy-blocklist.max-line-length"),
-                cgVelocityConfig.getConfig().getInt("proxy-blocklist.request-timeout-seconds")
+                cgVelocityConfig.getConfig().getInt("proxy-blocklist.request-timeout-seconds"),
+                cgVelocityConfig.getConfig().getInt("proxy-blocklist.source-delay-millis", 250)
         );
     }
 
@@ -243,7 +250,8 @@ public class ConnectionGuardVelocityPlugin {
                 ConnectionGuard.getLogger(),
                 cgVelocityConfig.getLanguageConfig().getString("messages.adaptive-sonar-attack-log", ""),
                 cgVelocityConfig.getLanguageConfig().getString("messages.adaptive-sonar-recovery-log", ""),
-                cgVelocityConfig.getLanguageConfig().getString("messages.adaptive-sonar-normal-log", "")
+                cgVelocityConfig.getLanguageConfig().getString("messages.adaptive-sonar-normal-log", ""),
+                configuredBeforeSonarModules()
         );
         if (!shouldRunBeforeAntiBot() || !proxyServer.getPluginManager().getPlugin("sonar").isPresent()) {
             SonarApiEarlyCheckHook.uninstall(ConnectionGuard.getLogger());
@@ -253,8 +261,11 @@ public class ConnectionGuardVelocityPlugin {
                 ConnectionGuard.getLogger(),
                 (ipAddress, username) -> cgVelocityConfig.getConfig().getStringList("behavior.vpn.exemptions").contains(ipAddress)
                         || cgVelocityConfig.getConfig().getStringList("behavior.vpn.exemptions").contains(username),
+                (ipAddress, username) -> cgVelocityConfig.getConfig().getStringList("behavior.geo.exemptions").contains(ipAddress)
+                        || cgVelocityConfig.getConfig().getStringList("behavior.geo.exemptions").contains(username),
+                this::isGeoBlocked,
                 result -> {
-                    String path = result.getType().equals("username") ? "messages.username-block" : "messages.vpn-block";
+                    String path = messagePathForResult(result.getType());
                     return MessageFormatter.toPlainText(
                             cgVelocityConfig.getLanguageConfig().getString(path),
                             MessageFormatter.placeholdersWithKickLayout(
@@ -266,7 +277,11 @@ public class ConnectionGuardVelocityPlugin {
                                     ),
                                     "%IP%", result.getIpAddress(),
                                     "%NAME%", result.getUsername(),
-                                    "%MATCH%", result.getMatch()
+                                    "%MATCH%", result.getMatch(),
+                                    "%COUNTRY%", result.getCountry(),
+                                    "%CITY%", result.getCity(),
+                                    "%ISP%", result.getIsp(),
+                                    "%ASN%", result.getAsn()
                             )
                     );
                 }
@@ -278,7 +293,69 @@ public class ConnectionGuardVelocityPlugin {
         return !order.equalsIgnoreCase("AFTER_ANTIBOT");
     }
 
+    private boolean isGeoBlocked(com.siberanka.twiantivpn.core.geo.GeoResult geoResult) {
+        String type = cgVelocityConfig.getConfig().getString("behavior.geo.type", "BLACKLIST");
+        boolean listed = cgVelocityConfig.getConfig().getStringList("behavior.geo.list")
+                .contains(geoResult.getCountryName());
+        return type.equalsIgnoreCase("WHITELIST") ? !listed : listed;
+    }
+
+    private String messagePathForResult(String type) {
+        if ("username".equals(type)) {
+            return "messages.username-block";
+        }
+        if ("geo".equals(type)) {
+            return "messages.geo-block";
+        }
+        if ("isp".equals(type)) {
+            return "messages.isp-block";
+        }
+        return "messages.vpn-block";
+    }
+
+    private Set<CheckModule> configuredBeforeSonarModules() {
+        String base = "login-check.adaptive-sonar.before-sonar.";
+        EnumSet<CheckModule> modules = EnumSet.noneOf(CheckModule.class);
+        addModule(modules, CheckModule.USERNAME_FILTER, cgVelocityConfig.getConfig().getBoolean(base + "username-filter", false));
+        addModule(modules, CheckModule.PROXY_BLOCKLIST, cgVelocityConfig.getConfig().getBoolean(base + "proxy-blocklist", true));
+        addModule(modules, CheckModule.VPN_PROXYCHECK, cgVelocityConfig.getConfig().getBoolean(base + "vpn-providers.proxycheck", false));
+        addModule(modules, CheckModule.VPN_IP_API, cgVelocityConfig.getConfig().getBoolean(base + "vpn-providers.ip-api", false));
+        addModule(modules, CheckModule.VPN_IPHUB, cgVelocityConfig.getConfig().getBoolean(base + "vpn-providers.iphub", false));
+        addModule(modules, CheckModule.VPN_VPNAPI, cgVelocityConfig.getConfig().getBoolean(base + "vpn-providers.vpnapi", false));
+        addModule(modules, CheckModule.VPN_CUSTOM, cgVelocityConfig.getConfig().getBoolean(base + "vpn-providers.custom", false));
+        addModule(modules, CheckModule.GEO_BLOCK, cgVelocityConfig.getConfig().getBoolean(base + "geo-block", false));
+        addModule(modules, CheckModule.ISP_BLOCK, cgVelocityConfig.getConfig().getBoolean(base + "isp-block", false));
+        keepVpnProviderThresholdAtomic(modules);
+        return modules;
+    }
+
+    private void keepVpnProviderThresholdAtomic(EnumSet<CheckModule> modules) {
+        if (ConnectionGuard.getRequiredPositiveFlags() <= 1) {
+            return;
+        }
+        EnumSet<CheckModule> enabled = EnumSet.noneOf(CheckModule.class);
+        addModule(enabled, CheckModule.VPN_PROXYCHECK, cgVelocityConfig.getConfig().getBoolean("provider.vpn.proxycheck.enabled"));
+        addModule(enabled, CheckModule.VPN_IP_API, cgVelocityConfig.getConfig().getBoolean("provider.vpn.ip-api.enabled"));
+        addModule(enabled, CheckModule.VPN_IPHUB, cgVelocityConfig.getConfig().getBoolean("provider.vpn.iphub.enabled"));
+        addModule(enabled, CheckModule.VPN_VPNAPI, cgVelocityConfig.getConfig().getBoolean("provider.vpn.vpnapi.enabled"));
+        addModule(enabled, CheckModule.VPN_CUSTOM, cgVelocityConfig.getConfig().getBoolean("provider.vpn.custom.enabled"));
+        EnumSet<CheckModule> selected = EnumSet.copyOf(modules);
+        selected.retainAll(enabled);
+        if (!selected.isEmpty() && !selected.containsAll(enabled)) {
+            modules.removeAll(enabled);
+        }
+    }
+
+    private void addModule(Set<CheckModule> modules, CheckModule module, boolean enabled) {
+        if (enabled) {
+            modules.add(module);
+        }
+    }
+
     public void configureSecurityFilters() {
+        ConnectionGuard.configureActionRateLimit(
+                cgVelocityConfig.getConfig().getInt("security.action-cooldown-seconds", 5)
+        );
         ConnectionGuard.configureUsernameFilter(
                 cgVelocityConfig.getConfig().getBoolean("username-filter.enabled"),
                 getScalarStringList("username-filter.blocked-contains")

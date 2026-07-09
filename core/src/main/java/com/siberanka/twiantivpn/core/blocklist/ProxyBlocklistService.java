@@ -28,13 +28,15 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class ProxyBlocklistService {
     private static final int DEFAULT_INTERVAL_MINUTES = 60;
-    private static final int DEFAULT_MAX_ENTRIES = 750000;
+    private static final int DEFAULT_MAX_ENTRIES = 3000000;
     private static final int DEFAULT_MAX_LINE_LENGTH = 512;
     private static final int DEFAULT_TIMEOUT_SECONDS = 15;
+    private static final int DEFAULT_SOURCE_DELAY_MILLIS = 250;
     private static final int MIN_INTERVAL_MINUTES = 5;
     private static final int MAX_INTERVAL_MINUTES = 1440;
     private static final int MAX_ENTRIES_LIMIT = 15000000;
@@ -42,12 +44,16 @@ public class ProxyBlocklistService {
     private static final int MAX_LINE_LENGTH_LIMIT = 2048;
     private static final int MIN_TIMEOUT_SECONDS = 3;
     private static final int MAX_TIMEOUT_SECONDS = 30;
+    private static final int MIN_SOURCE_DELAY_MILLIS = 100;
+    private static final int MAX_SOURCE_DELAY_MILLIS = 5000;
     private static final int MAX_URLS = 64;
     private static final int MAX_RETRIES = 3;
+    private static final int MIN_IPV4_PREFIX_LENGTH = 8;
+    private static final int MIN_IPV6_PREFIX_LENGTH = 16;
     private static final long MAX_SOURCE_BYTES = 64L * 1024L * 1024L;
-    private static final long SOURCE_DELAY_MILLIS = 1000L;
 
     private final AtomicReference<Snapshot> snapshot = new AtomicReference<>(Snapshot.empty());
+    private final AtomicLong generation = new AtomicLong();
     private final Object lifecycleLock = new Object();
     private volatile ScheduledExecutorService executorService;
     private volatile ScheduledFuture<?> refreshTask;
@@ -57,6 +63,7 @@ public class ProxyBlocklistService {
     private volatile int maxEntries = DEFAULT_MAX_ENTRIES;
     private volatile int maxLineLength = DEFAULT_MAX_LINE_LENGTH;
     private volatile int timeoutSeconds = DEFAULT_TIMEOUT_SECONDS;
+    private volatile int sourceDelayMillis = DEFAULT_SOURCE_DELAY_MILLIS;
 
     public void configure(
             boolean enabled,
@@ -64,7 +71,8 @@ public class ProxyBlocklistService {
             int refreshIntervalMinutes,
             int maxEntries,
             int maxLineLength,
-            int timeoutSeconds
+            int timeoutSeconds,
+            int sourceDelayMillis
     ) {
         this.enabled = enabled;
         this.urls = sanitizeUrls(urls);
@@ -76,6 +84,8 @@ public class ProxyBlocklistService {
                 DEFAULT_MAX_LINE_LENGTH, MIN_LINE_LENGTH, MAX_LINE_LENGTH_LIMIT);
         this.timeoutSeconds = boundedOrDefault("request-timeout-seconds", timeoutSeconds,
                 DEFAULT_TIMEOUT_SECONDS, MIN_TIMEOUT_SECONDS, MAX_TIMEOUT_SECONDS);
+        this.sourceDelayMillis = boundedOrDefault("source-delay-millis", sourceDelayMillis,
+                DEFAULT_SOURCE_DELAY_MILLIS, MIN_SOURCE_DELAY_MILLIS, MAX_SOURCE_DELAY_MILLIS);
     }
 
     public void start() {
@@ -94,11 +104,12 @@ public class ProxyBlocklistService {
                     return thread;
                 }
             });
+            long refreshGeneration = generation.get();
             refreshTask = executorService.scheduleWithFixedDelay(
                     new Runnable() {
                         @Override
                         public void run() {
-                            refreshSafely();
+                            refreshSafely(refreshGeneration);
                         }
                     },
                     0L,
@@ -128,6 +139,7 @@ public class ProxyBlocklistService {
     }
 
     private void stopLocked(boolean clearSnapshot) {
+        generation.incrementAndGet();
         if (refreshTask != null) {
             refreshTask.cancel(true);
             refreshTask = null;
@@ -141,15 +153,15 @@ public class ProxyBlocklistService {
         }
     }
 
-    private void refreshSafely() {
+    private void refreshSafely(long refreshGeneration) {
         try {
-            refresh();
+            refresh(refreshGeneration);
         } catch (Throwable throwable) {
             log("Unexpected refresh failure: " + throwable.getMessage());
         }
     }
 
-    private void refresh() {
+    private void refresh(long refreshGeneration) {
         List<String> currentUrls = urls;
         if (!enabled || currentUrls.isEmpty()) {
             snapshot.set(Snapshot.empty());
@@ -199,13 +211,17 @@ public class ProxyBlocklistService {
             }
         }
 
-        if (successfulSources > 0) {
+        if (successfulSources > 0 && builder.size() > 0) {
             Snapshot newSnapshot = builder.build();
+            if (refreshGeneration != generation.get() || !enabled) {
+                log("Discarded a stale proxy blocklist refresh.");
+                return;
+            }
             snapshot.set(newSnapshot);
             log("Proxy blocklist refreshed with " + newSnapshot.size + " unique entries from "
                     + successfulSources + " source(s).");
         } else {
-            log("Proxy blocklist refresh failed for every source; keeping the previous snapshot.");
+            log("Proxy blocklist refresh produced no usable entries; keeping the previous snapshot.");
         }
     }
 
@@ -281,6 +297,12 @@ public class ProxyBlocklistService {
         if (cleaned.contains("/")) {
             Optional<IpAddressUtil.Cidr> cidr = IpAddressUtil.parseCidr(cleaned);
             if (cidr.isPresent()) {
+                int minimumPrefix = cidr.get().getAddress().isIpv4()
+                        ? MIN_IPV4_PREFIX_LENGTH
+                        : MIN_IPV6_PREFIX_LENGTH;
+                if (cidr.get().getPrefixLength() < minimumPrefix) {
+                    return Optional.empty();
+                }
                 return Optional.of(Entry.cidr(cidr.get()));
             }
         }
@@ -400,7 +422,7 @@ public class ProxyBlocklistService {
 
     private void sleepBetweenSources() {
         try {
-            Thread.sleep(SOURCE_DELAY_MILLIS);
+            Thread.sleep(sourceDelayMillis);
         } catch (InterruptedException interruptedException) {
             Thread.currentThread().interrupt();
         }

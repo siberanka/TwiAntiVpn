@@ -1,6 +1,8 @@
 package com.siberanka.twiantivpn.core.vpn;
 
 import com.siberanka.twiantivpn.core.ConnectionGuard;
+import com.siberanka.twiantivpn.core.net.BoundedResponseBody;
+import com.siberanka.twiantivpn.core.net.SharedHttpClient;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import okhttp3.OkHttpClient;
@@ -21,25 +23,22 @@ public class IpHubVpnProvider implements VpnProvider {
     @Override
     public CompletableFuture<Optional<VpnResult>> getVpnResult(String ipAddress) {
         return CompletableFuture.supplyAsync(() -> {
-            OkHttpClient httpClient = new OkHttpClient();
             Request request = new Request.Builder()
-                    .url("http://v2.api.iphub.info/ip/" + ipAddress)
+                    .url("https://v2.api.iphub.info/ip/" + ipAddress)
                     .header("X-Key", apiKey)
                     .build();
-            Response response;
-
             int blockLevel;
             JsonObject jsonObject;
-            try {
-                response = httpClient.newCall(request).execute();
-                jsonObject = JsonParser.parseString(response.body().string()).getAsJsonObject();
-            } catch (IOException e) {
-                ConnectionGuard.getLogger().info("IP-API | " + e.getMessage());
-                return Optional.empty();
-            }
-
-            if (response.code() != 200) {
-                ConnectionGuard.getLogger().info("IP-Hub | API returned with status code " + response.code());
+            try (Response response = SharedHttpClient.get().newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    ConnectionGuard.getLogger().info("IP-Hub | API returned with status code " + response.code());
+                    return Optional.empty();
+                }
+                jsonObject = JsonParser.parseString(
+                        BoundedResponseBody.read(response.body())
+                ).getAsJsonObject();
+            } catch (Exception e) {
+                ConnectionGuard.getLogger().info("IP-Hub | " + e.getMessage());
                 return Optional.empty();
             }
 

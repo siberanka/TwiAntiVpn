@@ -1,6 +1,8 @@
 package com.siberanka.twiantivpn.core.integration;
 
 import com.siberanka.twiantivpn.core.ConnectionGuard;
+import com.siberanka.twiantivpn.core.geo.GeoResult;
+import com.siberanka.twiantivpn.core.isp.IspBlockResult;
 import com.siberanka.twiantivpn.core.vpn.VpnResult;
 
 import java.lang.reflect.Array;
@@ -8,10 +10,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.InetAddress;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 public final class SonarApiEarlyCheckHook {
@@ -22,6 +26,8 @@ public final class SonarApiEarlyCheckHook {
 
     public static void install(Logger logger,
                                BiPredicate<String, String> vpnExemption,
+                               BiPredicate<String, String> geoExemption,
+                               Predicate<GeoResult> geoBlocked,
                                Function<Result, String> disconnectMessage) {
         uninstall(logger);
         try {
@@ -50,7 +56,14 @@ public final class SonarApiEarlyCheckHook {
                             }
                         }
                         if ("handle".equals(method.getName()) && args != null && args.length == 1) {
-                            handleEvent(args[0], vpnExemption, disconnectMessage, logger);
+                            handleEvent(
+                                    args[0],
+                                    vpnExemption,
+                                    geoExemption,
+                                    geoBlocked,
+                                    disconnectMessage,
+                                    logger
+                            );
                         }
                         return null;
                     }
@@ -93,6 +106,8 @@ public final class SonarApiEarlyCheckHook {
 
     private static void handleEvent(Object event,
                                     BiPredicate<String, String> vpnExemption,
+                                    BiPredicate<String, String> geoExemption,
+                                    Predicate<GeoResult> geoBlocked,
                                     Function<Result, String> disconnectMessage,
                                     Logger logger) {
         if (event == null || !"UserVerifyJoinEvent".equals(event.getClass().getSimpleName())) {
@@ -104,7 +119,9 @@ public final class SonarApiEarlyCheckHook {
             return;
         }
         try {
-            if (!AdaptiveLoginOrderService.getInstance().shouldRunBeforeAntiBot()) {
+            Set<CheckModule> modules =
+                    AdaptiveLoginOrderService.getInstance().sonarEarlyModules();
+            if (modules.isEmpty()) {
                 return;
             }
             Object user = event.getClass().getMethod("getUser").invoke(event);
@@ -112,26 +129,71 @@ public final class SonarApiEarlyCheckHook {
             InetAddress inetAddress = (InetAddress) user.getClass().getMethod("getInetAddress").invoke(user);
             String ipAddress = inetAddress.getHostAddress();
 
-            Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(username);
-            if (blockedUsernamePart.isPresent()) {
-                disconnect(user, Result.username(ipAddress, username, blockedUsernamePart.get()), disconnectMessage);
+            if (modules.contains(CheckModule.USERNAME_FILTER)) {
+                Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(username);
+                if (blockedUsernamePart.isPresent()) {
+                    disconnect(user, Result.username(ipAddress, username, blockedUsernamePart.get()), disconnectMessage);
+                    return;
+                }
+            }
+
+            Set<String> providerNames = CheckModule.providerNames(modules);
+            boolean checkVpn = modules.contains(CheckModule.PROXY_BLOCKLIST)
+                    || !providerNames.isEmpty();
+            boolean vpnExempt = vpnExemption != null && vpnExemption.test(ipAddress, username);
+            CompletableFuture<VpnResult> vpnFuture = checkVpn && !vpnExempt
+                    ? ConnectionGuard.getVpnResult(
+                            ipAddress,
+                            modules.contains(CheckModule.PROXY_BLOCKLIST),
+                            providerNames
+                    )
+                    : CompletableFuture.completedFuture(new VpnResult(ipAddress, false));
+
+            boolean checkGeo = modules.contains(CheckModule.GEO_BLOCK)
+                    || modules.contains(CheckModule.ISP_BLOCK);
+            boolean geoExempt = geoExemption != null && geoExemption.test(ipAddress, username);
+            CompletableFuture<Optional<GeoResult>> geoFuture = checkGeo && !geoExempt
+                    ? ConnectionGuard.getGeoResult(ipAddress)
+                    : CompletableFuture.completedFuture(Optional.empty());
+
+            if (!checkVpn && !checkGeo) {
                 return;
             }
 
-            if (vpnExemption != null && vpnExemption.test(ipAddress, username)) {
-                return;
-            }
-
-            CompletableFuture<VpnResult> vpnFuture = ConnectionGuard.getVpnResult(ipAddress);
-            vpnFuture.whenComplete((vpnResult, throwable) -> {
+            CompletableFuture.allOf(vpnFuture, geoFuture).whenComplete((ignored, throwable) -> {
                 if (throwable != null) {
                     if (logger != null) {
-                        logger.info("TwiAntiVpn | Sonar early VPN check failed: " + throwable.getMessage());
+                        logger.info("TwiAntiVpn | Sonar early check failed: " + throwable.getMessage());
                     }
                     return;
                 }
+                VpnResult vpnResult = vpnFuture.join();
                 if (vpnResult != null && vpnResult.isVpn()) {
                     disconnect(user, Result.vpn(ipAddress, username), disconnectMessage);
+                    return;
+                }
+
+                Optional<GeoResult> geoResultOptional = geoFuture.join();
+                if (!geoResultOptional.isPresent()) {
+                    return;
+                }
+                GeoResult geoResult = geoResultOptional.get();
+                if (modules.contains(CheckModule.ISP_BLOCK)) {
+                    Optional<IspBlockResult> ispBlockResult =
+                            ConnectionGuard.getIspBlockResult(geoResult);
+                    if (ispBlockResult.isPresent()) {
+                        disconnect(
+                                user,
+                                Result.isp(ipAddress, username, ispBlockResult.get()),
+                                disconnectMessage
+                        );
+                        return;
+                    }
+                }
+                if (modules.contains(CheckModule.GEO_BLOCK)
+                        && geoBlocked != null
+                        && geoBlocked.test(geoResult)) {
+                    disconnect(user, Result.geo(ipAddress, username, geoResult), disconnectMessage);
                 }
             });
         } catch (Throwable throwable) {
@@ -170,20 +232,40 @@ public final class SonarApiEarlyCheckHook {
         private final String ipAddress;
         private final String username;
         private final String match;
+        private final GeoResult geoResult;
 
-        private Result(String type, String ipAddress, String username, String match) {
+        private Result(String type,
+                       String ipAddress,
+                       String username,
+                       String match,
+                       GeoResult geoResult) {
             this.type = type;
             this.ipAddress = ipAddress;
             this.username = username;
             this.match = match;
+            this.geoResult = geoResult;
         }
 
         public static Result vpn(String ipAddress, String username) {
-            return new Result("vpn", ipAddress, username, "");
+            return new Result("vpn", ipAddress, username, "", null);
         }
 
         public static Result username(String ipAddress, String username, String match) {
-            return new Result("username", ipAddress, username, match);
+            return new Result("username", ipAddress, username, match, null);
+        }
+
+        public static Result geo(String ipAddress, String username, GeoResult geoResult) {
+            return new Result("geo", ipAddress, username, "", geoResult);
+        }
+
+        public static Result isp(String ipAddress, String username, IspBlockResult ispBlockResult) {
+            return new Result(
+                    "isp",
+                    ipAddress,
+                    username,
+                    ispBlockResult.getMatchedValue(),
+                    ispBlockResult.getGeoResult()
+            );
         }
 
         public String getType() {
@@ -200,6 +282,22 @@ public final class SonarApiEarlyCheckHook {
 
         public String getMatch() {
             return match;
+        }
+
+        public String getCountry() {
+            return geoResult == null ? "" : geoResult.getCountryName();
+        }
+
+        public String getCity() {
+            return geoResult == null ? "" : geoResult.getCityName();
+        }
+
+        public String getIsp() {
+            return geoResult == null ? "" : geoResult.getIspName();
+        }
+
+        public String getAsn() {
+            return geoResult == null ? "" : geoResult.getAsn();
         }
     }
 

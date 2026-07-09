@@ -9,6 +9,11 @@
 # entry below to the file name without the .yml extension.
 message-language: en
 
+security:
+  # Repeated blocks from the same IP are still denied, but staff notifications,
+  # webhooks and console commands are emitted at most once per action type in this window.
+  action-cooldown-seconds: 5
+
 # Settings about how to behave when finding a vpn or geo-blocked user.
 behavior:
   username:
@@ -112,6 +117,20 @@ login-check:
     enabled: true
     # Clamped between 5 and 600 seconds. Default: 30.
     recovery-delay-seconds: 30
+    # During normal traffic, enabled entries run from Sonar's verification hook.
+    # Remaining enabled modules run after Sonar. During an attack and recovery,
+    # every module is moved after Sonar regardless of these values.
+    before-sonar:
+      username-filter: false
+      proxy-blocklist: true
+      vpn-providers:
+        proxycheck: false
+        ip-api: false
+        iphub: false
+        vpnapi: false
+        custom: false
+      geo-block: false
+      isp-block: false
 
 # Username filter is checked before VPN/cache/API lookups. Matching is case-insensitive and uses "contains".
 username-filter:
@@ -139,16 +158,17 @@ proxy-blocklist:
   # How often remote proxy/IP lists are refreshed. Unit: minutes.
   refresh-interval: 60
   # Safety limits to avoid excessive memory use when a remote list is malformed or unexpectedly huge.
-  # Default is 750000. You may raise it for very large lists, but it is capped at 15000000 internally.
+  # Default is 3000000. You may raise it for very large lists, but it is capped at 15000000 internally.
   # refresh-interval is clamped between 5 and 1440 minutes to prevent accidental or malicious refresh storms.
-  max-entries: 750000
+  max-entries: 3000000
   max-line-length: 512
   request-timeout-seconds: 15
+  # Delay between sources keeps refresh traffic controlled. Clamped to 100-5000 ms.
+  source-delay-millis: 250
   urls:
     - https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt
     - https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt
     - https://raw.githubusercontent.com/scriptzteam/ProtonVPN-VPN-IPs/main/exit_ips.txt
-    - https://raw.githubusercontent.com/mmpx12/proxy-list/master/ips-list.txt
     - https://check.torproject.org/torbulkexitlist?ip=1.1.1.1
     - https://cinsscore.com/list/ci-badguys.txt
     - https://lists.blocklist.de/lists/all.txt
@@ -157,6 +177,41 @@ proxy-blocklist:
     - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/stopforumspam_7d.ipset
     - https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies.txt
     - https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks4.txt
+    - https://github.com/FifzzSENZE/Master-Proxy/raw/refs/heads/master/proxies/all.txt
+    - https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/http.txt
+    - https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks5.txt
+    - https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt
+    - https://raw.githubusercontent.com/roosterkid/openproxylist/main/HTTPS_RAW.txt
+    - https://raw.githubusercontent.com/roosterkid/openproxylist/main/SOCKS4_RAW.txt
+    - https://raw.githubusercontent.com/roosterkid/openproxylist/main/SOCKS5_RAW.txt
+    - https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/http.txt
+    - https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/https.txt
+    - https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/socks4.txt
+    - https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/socks5.txt
+    - https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks4.txt
+    - https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt
+    - https://raw.githubusercontent.com/vakhov/fresh-proxy-list/master/http.txt
+    - https://raw.githubusercontent.com/vakhov/fresh-proxy-list/master/https.txt
+    - https://raw.githubusercontent.com/vakhov/fresh-proxy-list/master/socks5.txt
+    - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/tor_exits.ipset
+    - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level1.netset
+    - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level2.netset
+    - https://raw.githubusercontent.com/SecOps-Institute/Tor-IP-Addresses/master/tor-exit-nodes.lst
+    - https://www.spamhaus.org/drop/drop.txt
+    - https://www.spamhaus.org/drop/edrop.txt
+    - https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt
+    - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_anonymous.netset
+    - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/stopforumspam_toxic.ipset
+    - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/blocklist_de.ipset
+    - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/greensnow.ipset
+    - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/binarydefense.ipset
+    - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/ciarmy.ipset
+    - https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt
+    - https://raw.githubusercontent.com/stamparm/ipsum/master/levels/5.txt
+    - https://raw.githubusercontent.com/rezmoss/cloud-provider-ip-addresses/main/aws/txt/all.txt
+    - https://raw.githubusercontent.com/rezmoss/cloud-provider-ip-addresses/main/azure/txt/all.txt
+    - https://raw.githubusercontent.com/rezmoss/cloud-provider-ip-addresses/main/googlecloud/txt/all.txt
+    - https://raw.githubusercontent.com/rezmoss/cloud-provider-ip-addresses/main/cloudflare/txt/all.txt
 
 # There are a lot of different services which help the plugin identify which
 # IP is a vpn and which is not. Some work better than others and some have daily/monthly limits.
@@ -233,13 +288,242 @@ provider:
       - ProxyCheck
     service: IP-API
   isp-block:
-    enabled: false
+    enabled: true
     # ASN entries may be written as AS12345 or 12345.
     asns:
-      - AS12345
+      - AS22611
+      - AS3842
+      - AS5577
+      - AS60068
+      - AS212238
+      - AS9009
+      - AS19194
+      - AS20093
+      - AS46562
+      - AS264850
+      - AS265645
+      - AS60781
+      - AS16265
+      - AS18779
+      - AS54500
+      - AS31400
+      - AS48314
+      - AS13335
+      - AS394536
+      - AS209242
+      - AS14789
+      - AS15169
+      - AS16276
+      - AS14061
+      - AS63949
+      - AS24940
+      - AS212317
+      - AS20473
+      - AS46407
+      - AS51167
+      - AS40021
+      - AS141995
+      - AS12876
+      - AS16509
+      - AS14618
+      - AS8075
+      - AS8068
+      - AS8069
+      - AS45102
+      - AS37963
+      - AS24429
+      - AS38369
+      - AS45096
+      - AS45103
+      - AS12189
+      - AS11572
+      - AS59210
+      - AS40676
+      - AS29802
+      - AS5048
+      - AS15003
+      - AS19148
+      - AS20135
+      - AS25973
+      - AS30633
+      - AS393559
+      - AS395954
+      - AS396190
+      - AS396362
+      - AS63018
+      - AS7203
+      - AS54104
+      - AS33438
+      - AS203184
+      - AS21859
+      - AS4229
+      - AS8100
+      - AS174
+      - AS6939
+      - AS36351
+      - AS50049
+      - AS18381
+      - AS20860
+      - AS29131
+      - AS20773
+      - AS34011
+      - AS8972
+      - AS40244
+      - AS10815
+      - AS11042
+      - AS27413
+      - AS3595
+      - AS16626
+      - AS31034
+      - AS202613
+      - AS200185
+      - AS58065
+      - AS41564
+      - AS18450
+      - AS19318
+      - AS26666
+      - AS199524
+      - AS12381
+      - AS2859
+      - AS11878
+      - AS54489
+      - AS33070
+      - AS12200
+      - AS54113
+      - AS20940
+      - AS32787
+      - AS16625
+      - AS35994
+      - AS21342
+      - AS30148
+      - AS28753
+      - AS51852
+      - AS211192
+      - AS53314
+      - AS209103
+      - AS208172
+      - AS62371
+      - AS209854
+      - AS64080
+      - AS50077
+      - AS58305
+      - AS57138
+      - AS216025
+      - AS397540
+      - AS834
+      - AS206092
+      - AS262287
+      - AS396356
+      - AS137409
+      - AS7578
+      - AS62240
+      - AS61272
+      - AS42708
+      - AS49282
+      - AS205119
+      - AS47810
+      - AS42831
+      - AS46475
+      - AS206804
+      - AS43289
+      - AS51430
+      - AS397373
+      - AS13213
+      - AS13737
+      - AS63023
+      - AS25369
+      - AS37684
+      - AS45671
+      - AS9280
+      - AS18345
+      - AS16210
+      - AS24961
+      - AS32489
+      - AS197706
+      - AS268581
+      - AS36236
+      - AS917
+      - AS969
+      - AS23961
+      - AS35487
+      - AS47553
+      - AS48386
+      - AS50069
+      - AS57695
+      - AS57578
+      - AS58313
+      - AS58342
+      - AS36352
+      - AS40092
+      - AS23273
+      - AS11989
+      - AS203020
+      - AS55286
     # Case-insensitive "contains" matching against ISP/provider/organization names.
     isp-names:
-      - Example Hosting
+      - "Example Hosting"
+      - "InMotion Hosting, Inc."
+      - root SA
+      - Datacamp Limited
+      - M247 Europe SRL
+      - Sentris Network LLC
+      - "Total Server Solutions L.L.C."
+      - Performive LLC
+      - Todas LAS Redes SA
+      - "Hostingforex S.A"
+      - "LeaseWeb Netherlands B.V."
+      - EGIHosting
+      - "IP - Accelerated IT Services GmbH"
+      - "Cloudflare, Inc."
+      - Google LLC
+      - OVH SAS
+      - "DigitalOcean, LLC"
+      - "Linode, LLC"
+      - Hetzner Online GmbH
+      - "Vultr Holdings, LLC"
+      - "Contabo GmbH"
+      - "Choopa, LLC"
+      - Scaleway SAS
+      - "Amazon.com, Inc. (AWS)"
+      - Microsoft Corporation (Azure)
+      - "Alibaba (US) Technology Co., Ltd."
+      - PhoenixNAP LLC
+      - Psychz Networks
+      - Hivelocity Inc.
+      - Fibernet Corp.
+      - Ubiquity Server Solutions
+      - Leaseweb USA Inc.
+      - StackPath LLC
+      - ZENLAYER Inc.
+      - QuadraNet Enterprises LLC
+      - Cogent Communications
+      - Hurricane Electric LLC
+      - SoftLayer Technologies (IBM Cloud)
+      - RedSwitches BV
+      - RapidSwitch Limited
+      - HostEurope GmbH
+      - "Turnkey Internet Inc."
+      - NetDepot
+      - "Aruba S.p.A."
+      - Packet Exchange Limited
+      - "WebNX Inc."
+      - "Interserver Inc."
+      - "G-Core Labs S.A."
+      - CDN77 (DataCamp)
+      - Resilans AB
+      - Tzulo Inc.
+      - "CoreSpace, Inc."
+      - Rackspace Hosting
+      - "Fastly, Inc."
+      - "Akamai Technologies, Inc."
+      - Sucuri Security
+      - Leaseweb Deutschland GmbH
+      - Private Layer INC
+      - NordVPN / NordLayer (Datacenter)
+      - ExpressVPN Datacenter Ranges
+      - Proton AG (VPN/Server ranges)
+      - Surfshark LTD
+      - SYN LTD
   cache:
     # The cache is very important to effectively use the requests you have and avoid running into the request limit.
     # Once a request to a service is made, its data is stored for the specified duration (see below) and used instead of

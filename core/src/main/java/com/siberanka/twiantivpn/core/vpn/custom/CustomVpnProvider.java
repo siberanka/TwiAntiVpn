@@ -1,6 +1,8 @@
 package com.siberanka.twiantivpn.core.vpn.custom;
 
 import com.siberanka.twiantivpn.core.ConnectionGuard;
+import com.siberanka.twiantivpn.core.net.BoundedResponseBody;
+import com.siberanka.twiantivpn.core.net.SharedHttpClient;
 import com.siberanka.twiantivpn.core.vpn.VpnProvider;
 import com.siberanka.twiantivpn.core.vpn.VpnResult;
 import com.google.gson.JsonElement;
@@ -53,12 +55,6 @@ public class CustomVpnProvider implements VpnProvider {
     @Override
     public CompletableFuture<Optional<VpnResult>> getVpnResult(String ipAddress) {
         return CompletableFuture.supplyAsync(() -> {
-            OkHttpClient httpClient = new OkHttpClient.Builder()
-                    .connectTimeout(10, TimeUnit.SECONDS)
-                    .readTimeout(10, TimeUnit.SECONDS)
-                    .callTimeout(20, TimeUnit.SECONDS)
-                    .build();
-
             // Set URL
             if (requestUrl == null || requestUrl.length() > 2048) {
                 ConnectionGuard.getLogger().info("Custom Detection Provider | Invalid request URL.");
@@ -103,7 +99,7 @@ public class CustomVpnProvider implements VpnProvider {
 
             Response response;
             try {
-                response = httpClient.newCall(requestBuilder.build()).execute();
+                response = SharedHttpClient.get().newCall(requestBuilder.build()).execute();
             } catch (IOException e) {
                 ConnectionGuard.getLogger().info(
                         "Could not execute GET request on custom vpn detection provider."
@@ -121,7 +117,10 @@ public class CustomVpnProvider implements VpnProvider {
                             if (response.body() == null) {
                                 return Optional.empty();
                             }
-                            return readJsonResponse(ipAddress, response.body().string());
+                            return readJsonResponse(
+                                    ipAddress,
+                                    BoundedResponseBody.read(response.body())
+                            );
                         } catch (Exception e) {
                             ConnectionGuard.getLogger().info("Custom Detection Provider | Could not parse response.");
                             return Optional.empty();

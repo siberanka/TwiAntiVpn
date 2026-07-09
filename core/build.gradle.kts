@@ -21,6 +21,7 @@ dependencies {
     shadow("com.google.code.gson:gson:2.11.0")
     shadow("org.xerial:sqlite-jdbc:3.46.0.0")
     shadow("redis.clients:jedis:5.0.0")
+    shadow("org.json:json:20260522")
     shadow("net.luckperms:api:5.4")
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

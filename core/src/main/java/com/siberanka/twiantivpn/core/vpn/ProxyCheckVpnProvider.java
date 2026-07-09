@@ -1,6 +1,8 @@
 package com.siberanka.twiantivpn.core.vpn;
 
 import com.siberanka.twiantivpn.core.ConnectionGuard;
+import com.siberanka.twiantivpn.core.net.BoundedResponseBody;
+import com.siberanka.twiantivpn.core.net.SharedHttpClient;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import okhttp3.OkHttpClient;
@@ -21,33 +23,25 @@ public class ProxyCheckVpnProvider implements VpnProvider {
     @Override
     public CompletableFuture<Optional<VpnResult>> getVpnResult(String ipAddress) {
         return CompletableFuture.supplyAsync(() -> {
-            OkHttpClient httpClient = new OkHttpClient();
-
             Request request = new Request.Builder()
                     .url(
-                            "http://proxycheck.io/v2/"
+                            "https://proxycheck.io/v2/"
                             + ipAddress
                             + "?key=" + apiKey
                             + "&vpn=1"
                     ).build();
 
-            Response response;
-            try {
-                response = httpClient.newCall(request).execute();
-            } catch (IOException e) {
-                ConnectionGuard.getLogger().info(
-                        "Could not execute GET request on proxycheck vpn provider."
-                );
-                return Optional.empty();
-            }
-
             JsonObject jsonObject;
-            try {
-                jsonObject = JsonParser.parseString(response.body().string()).getAsJsonObject();
-            } catch (IOException e) {
-                ConnectionGuard.getLogger().info(
-                        "Could not turn response body of proxycheck vpn provider into a string."
-                );
+            try (Response response = SharedHttpClient.get().newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    ConnectionGuard.getLogger().info("ProxyCheck | HTTP " + response.code());
+                    return Optional.empty();
+                }
+                jsonObject = JsonParser.parseString(
+                        BoundedResponseBody.read(response.body())
+                ).getAsJsonObject();
+            } catch (Exception e) {
+                ConnectionGuard.getLogger().info("ProxyCheck | " + e.getMessage());
                 return Optional.empty();
             }
             String requestStatus = jsonObject.get("status").getAsString();

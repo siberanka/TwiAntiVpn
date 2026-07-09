@@ -4,9 +4,11 @@ import com.siberanka.twiantivpn.core.asteroid.AsteroidRegistryHook;
 import com.siberanka.twiantivpn.core.ConnectionGuard;
 import com.siberanka.twiantivpn.core.geo.GeoResult;
 import com.siberanka.twiantivpn.core.integration.AdaptiveLoginOrderService;
+import com.siberanka.twiantivpn.core.integration.CheckModule;
 import com.siberanka.twiantivpn.core.isp.IspBlockResult;
 import com.siberanka.twiantivpn.core.luckperms.CGLuckPermsHelper;
 import com.siberanka.twiantivpn.core.message.MessageFormatter;
+import com.siberanka.twiantivpn.core.security.CommandValueSanitizer;
 import com.siberanka.twiantivpn.core.vpn.VpnResult;
 import com.siberanka.twiantivpn.core.webhook.CGWebHookHelper;
 import com.siberanka.twiantivpn.spigot.ConnectionGuardSpigotPlugin;
@@ -17,38 +19,45 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 
 public class AsyncPlayerPreLoginListener implements Listener {
-    private final Set<AsyncPlayerPreLoginEvent> deferredEvents =
-            Collections.newSetFromMap(Collections.synchronizedMap(new WeakHashMap<>()));
+    private final Map<AsyncPlayerPreLoginEvent, Set<CheckModule>> deferredEvents =
+            Collections.synchronizedMap(new WeakHashMap<>());
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
     public void onAsyncPreLoginBeforeAntiBot(AsyncPlayerPreLoginEvent preLoginEvent) {
-        if (shouldRunBeforeAntiBot()) {
-            handlePreLogin(preLoginEvent);
+        AdaptiveLoginOrderService.ModulePlan plan =
+                AdaptiveLoginOrderService.getInstance().snapshotModulePlan();
+        if (plan.isRunBeforePlatform()) {
+            handlePreLogin(preLoginEvent, plan.getBeforePlatformModules());
         } else {
-            deferredEvents.add(preLoginEvent);
+            deferredEvents.put(preLoginEvent, plan.getAfterPlatformModules());
         }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onAsyncPreLoginAfterAntiBot(AsyncPlayerPreLoginEvent preLoginEvent) {
-        boolean deferred = deferredEvents.remove(preLoginEvent);
-        if (deferred && preLoginEvent.getLoginResult() == AsyncPlayerPreLoginEvent.Result.ALLOWED) {
-            handlePreLogin(preLoginEvent);
+        Set<CheckModule> modules = deferredEvents.remove(preLoginEvent);
+        if (modules != null
+                && !modules.isEmpty()
+                && preLoginEvent.getLoginResult() == AsyncPlayerPreLoginEvent.Result.ALLOWED) {
+            handlePreLogin(preLoginEvent, modules);
         }
     }
 
-    private void handlePreLogin(AsyncPlayerPreLoginEvent preLoginEvent) {
+    private void handlePreLogin(AsyncPlayerPreLoginEvent preLoginEvent, Set<CheckModule> modules) {
         String ipAddress = preLoginEvent.getAddress().getHostAddress();
-        Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(preLoginEvent.getName());
-        if (blockedUsernamePart.isPresent()) {
-            handleUsernameBlock(preLoginEvent, ipAddress, blockedUsernamePart.get());
-            return;
+        if (modules.contains(CheckModule.USERNAME_FILTER)) {
+            Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(preLoginEvent.getName());
+            if (blockedUsernamePart.isPresent()) {
+                handleUsernameBlock(preLoginEvent, ipAddress, blockedUsernamePart.get());
+                return;
+            }
         }
 
         if (shouldBypassAsteroid(preLoginEvent)) {
@@ -61,15 +70,25 @@ public class AsyncPlayerPreLoginListener implements Listener {
         CompletableFuture<Boolean> hasGeoExemptionPermissionFuture;
 
         // Check if ip address is in exemption lists
-        if (
+        Set<String> selectedVpnProviders = CheckModule.providerNames(modules);
+        boolean checkVpn = modules.contains(CheckModule.PROXY_BLOCKLIST)
+                || !selectedVpnProviders.isEmpty();
+        boolean checkGeo = modules.contains(CheckModule.GEO_BLOCK)
+                || modules.contains(CheckModule.ISP_BLOCK);
+
+        if (!checkVpn || (
                 ConnectionGuardSpigotPlugin.getInstance().getConfig().getStringList("behavior.vpn.exemptions").contains(ipAddress)
                 || ConnectionGuardSpigotPlugin.getInstance().getConfig().getStringList("behavior.vpn.exemptions").contains(preLoginEvent.getUniqueId().toString())
                 || ConnectionGuardSpigotPlugin.getInstance().getConfig().getStringList("behavior.vpn.exemptions").contains(preLoginEvent.getName())
-        ) {
+        )) {
             vpnResultFuture = CompletableFuture.completedFuture(new VpnResult(ipAddress, false));
             hasVpnExemptionPermissionFuture = CompletableFuture.completedFuture(false);
         } else {
-            vpnResultFuture = ConnectionGuard.getVpnResult(ipAddress);
+            vpnResultFuture = ConnectionGuard.getVpnResult(
+                    ipAddress,
+                    modules.contains(CheckModule.PROXY_BLOCKLIST),
+                    selectedVpnProviders
+            );
 
             if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.vpn.use-permission-exemption")) {
                 hasVpnExemptionPermissionFuture = CGLuckPermsHelper.hasPermission(preLoginEvent.getUniqueId(), "twiantivpn.exemption.vpn");
@@ -78,11 +97,11 @@ public class AsyncPlayerPreLoginListener implements Listener {
             }
         }
 
-        if (
+        if (!checkGeo || (
                 ConnectionGuardSpigotPlugin.getInstance().getConfig().getStringList("behavior.geo.exemptions").contains(ipAddress)
                 || ConnectionGuardSpigotPlugin.getInstance().getConfig().getStringList("behavior.geo.exemptions").contains(preLoginEvent.getUniqueId().toString())
                 || ConnectionGuardSpigotPlugin.getInstance().getConfig().getStringList("behavior.geo.exemptions").contains(preLoginEvent.getName())
-        ) {
+        )) {
             geoResultOptionalFuture = CompletableFuture.completedFuture(Optional.empty());
             hasGeoExemptionPermissionFuture = CompletableFuture.completedFuture(false);
         } else {
@@ -107,8 +126,9 @@ public class AsyncPlayerPreLoginListener implements Listener {
         Boolean hasGeoExemptionPermission = hasGeoExemptionPermissionFuture.join();
 
         if (vpnResult.isVpn() && !hasVpnExemptionPermission) {
+            boolean emitActions = ConnectionGuard.shouldEmitActions("vpn", ipAddress);
             // Check if staff should be notified
-            if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.vpn.notify-staff")) {
+            if (emitActions && ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.vpn.notify-staff")) {
                 String notifyMessage = message("messages.vpn-notify",
                         "%IP%", vpnResult.getIpAddress(),
                         "%NAME%", preLoginEvent.getName());
@@ -116,22 +136,22 @@ public class AsyncPlayerPreLoginListener implements Listener {
             }
 
             // Check if command should be executed on flag
-            if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.vpn.execute-command.enabled")) {
+            if (emitActions && ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.vpn.execute-command.enabled")) {
                 Bukkit.getScheduler().runTask(ConnectionGuardSpigotPlugin.getInstance(), new Runnable() {
                     @Override
                     public void run() {
                         Bukkit.dispatchCommand(
                                 Bukkit.getConsoleSender(),
                                 ConnectionGuardSpigotPlugin.getInstance().getConfig().getString("behavior.vpn.execute-command.command")
-                                        .replace("%NAME%", preLoginEvent.getName())
-                                        .replace("%IP%", ipAddress)
+                                        .replace("%NAME%", CommandValueSanitizer.sanitize(preLoginEvent.getName()))
+                                        .replace("%IP%", CommandValueSanitizer.sanitize(ipAddress))
                         );
                     }
                 });
             }
 
             // Check if WebHook should be executed
-            if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.vpn.send-webhook.enabled")) {
+            if (emitActions && ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.vpn.send-webhook.enabled")) {
                 String webhookMessage = plainMessage("messages.vpn-webhook",
                         "%NAME%", preLoginEvent.getName(),
                         "%IP%", ipAddress);
@@ -154,15 +174,18 @@ public class AsyncPlayerPreLoginListener implements Listener {
         Optional<GeoResult> geoResultOptional = geoResultOptionalFuture.join();
         if (geoResultOptional.isPresent() && !hasGeoExemptionPermission) {
             GeoResult geoResult = geoResultOptional.get();
-            Optional<IspBlockResult> ispBlockResult = ConnectionGuard.getIspBlockResult(geoResult);
-            if (ispBlockResult.isPresent()) {
-                handleIspBlock(preLoginEvent, ipAddress, ispBlockResult.get());
-                return;
+            if (modules.contains(CheckModule.ISP_BLOCK)) {
+                Optional<IspBlockResult> ispBlockResult = ConnectionGuard.getIspBlockResult(geoResult);
+                if (ispBlockResult.isPresent()) {
+                    handleIspBlock(preLoginEvent, ipAddress, ispBlockResult.get());
+                    return;
+                }
             }
 
             boolean isGeoFlagged = false;
 
-            switch (ConnectionGuardSpigotPlugin.getInstance().getConfig().getString("behavior.geo.type").toLowerCase()) {
+            if (modules.contains(CheckModule.GEO_BLOCK)) {
+                switch (ConnectionGuardSpigotPlugin.getInstance().getConfig().getString("behavior.geo.type").toLowerCase()) {
                 case "blacklist":
                     if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getStringList("behavior.geo.list").contains(geoResult.getCountryName()))
                         isGeoFlagged = true;
@@ -174,11 +197,13 @@ public class AsyncPlayerPreLoginListener implements Listener {
                 default:
                     ConnectionGuard.getLogger().info("Invalid geo behavior type. Please use BLACKLIST or WHITELIST.");
                     break;
+                }
             }
 
             if (isGeoFlagged) {
+                boolean emitActions = ConnectionGuard.shouldEmitActions("geo", ipAddress);
                 // Check if staff should be notified
-                if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.geo.notify-staff")) {
+                if (emitActions && ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.geo.notify-staff")) {
                     String notifyMessage = message("messages.geo-notify",
                             "%IP%", geoResult.getIpAddress(),
                             "%COUNTRY%", geoResult.getCountryName(),
@@ -189,22 +214,22 @@ public class AsyncPlayerPreLoginListener implements Listener {
                 }
 
                 // Check if command should be executed on flag
-                if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.geo.execute-command.enabled")) {
+                if (emitActions && ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.geo.execute-command.enabled")) {
                     Bukkit.getScheduler().runTask(ConnectionGuardSpigotPlugin.getInstance(), new Runnable() {
                         @Override
                         public void run() {
                             Bukkit.dispatchCommand(
                                     Bukkit.getConsoleSender(),
                                     ConnectionGuardSpigotPlugin.getInstance().getConfig().getString("behavior.geo.execute-command.command")
-                                            .replace("%NAME%", preLoginEvent.getName())
-                                            .replace("%IP%", ipAddress)
+                                            .replace("%NAME%", CommandValueSanitizer.sanitize(preLoginEvent.getName()))
+                                            .replace("%IP%", CommandValueSanitizer.sanitize(ipAddress))
                             );
                         }
                     });
                 }
 
                 // Check if WebHook should be executed
-                if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.geo.send-webhook.enabled")) {
+                if (emitActions && ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.geo.send-webhook.enabled")) {
                     String webhookMessage = plainMessage("messages.geo-webhook",
                             "%NAME%", preLoginEvent.getName(),
                             "%IP%", ipAddress,
@@ -229,10 +254,6 @@ public class AsyncPlayerPreLoginListener implements Listener {
                 }
             }
         }
-    }
-
-    private boolean shouldRunBeforeAntiBot() {
-        return AdaptiveLoginOrderService.getInstance().shouldRunBeforeAntiBot();
     }
 
     private String message(String path, String... placeholders) {
@@ -265,23 +286,24 @@ public class AsyncPlayerPreLoginListener implements Listener {
     }
 
     private void handleUsernameBlock(AsyncPlayerPreLoginEvent preLoginEvent, String ipAddress, String matchedPart) {
-        if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.username.notify-staff")) {
+        boolean emitActions = ConnectionGuard.shouldEmitActions("username", ipAddress);
+        if (emitActions && ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.username.notify-staff")) {
             String notifyMessage = message("messages.username-notify",
                     "%IP%", ipAddress,
                     "%NAME%", preLoginEvent.getName(),
                     "%MATCH%", matchedPart);
             Bukkit.broadcast(notifyMessage, "twiantivpn.notify.username");
         }
-        if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.username.execute-command.enabled")) {
+        if (emitActions && ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.username.execute-command.enabled")) {
             Bukkit.getScheduler().runTask(ConnectionGuardSpigotPlugin.getInstance(), () -> Bukkit.dispatchCommand(
                     Bukkit.getConsoleSender(),
                     ConnectionGuardSpigotPlugin.getInstance().getConfig().getString("behavior.username.execute-command.command")
-                            .replace("%NAME%", preLoginEvent.getName())
-                            .replace("%IP%", ipAddress)
-                            .replace("%MATCH%", matchedPart)
+                            .replace("%NAME%", CommandValueSanitizer.sanitize(preLoginEvent.getName()))
+                            .replace("%IP%", CommandValueSanitizer.sanitize(ipAddress))
+                            .replace("%MATCH%", CommandValueSanitizer.sanitize(matchedPart))
             ));
         }
-        if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.username.send-webhook.enabled")) {
+        if (emitActions && ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.username.send-webhook.enabled")) {
             String webhookMessage = plainMessage("messages.username-webhook",
                     "%NAME%", preLoginEvent.getName(),
                     "%IP%", ipAddress,
@@ -299,7 +321,8 @@ public class AsyncPlayerPreLoginListener implements Listener {
 
     private void handleIspBlock(AsyncPlayerPreLoginEvent preLoginEvent, String ipAddress, IspBlockResult ispBlockResult) {
         GeoResult geoResult = ispBlockResult.getGeoResult();
-        if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.isp.notify-staff")) {
+        boolean emitActions = ConnectionGuard.shouldEmitActions("isp", ipAddress);
+        if (emitActions && ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.isp.notify-staff")) {
             String notifyMessage = message("messages.isp-notify",
                     "%IP%", ipAddress,
                     "%NAME%", preLoginEvent.getName(),
@@ -308,18 +331,18 @@ public class AsyncPlayerPreLoginListener implements Listener {
                     "%MATCH%", ispBlockResult.getMatchedValue());
             Bukkit.broadcast(notifyMessage, "twiantivpn.notify.isp");
         }
-        if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.isp.execute-command.enabled")) {
+        if (emitActions && ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.isp.execute-command.enabled")) {
             Bukkit.getScheduler().runTask(ConnectionGuardSpigotPlugin.getInstance(), () -> Bukkit.dispatchCommand(
                     Bukkit.getConsoleSender(),
                     ConnectionGuardSpigotPlugin.getInstance().getConfig().getString("behavior.isp.execute-command.command")
-                            .replace("%NAME%", preLoginEvent.getName())
-                            .replace("%IP%", ipAddress)
-                            .replace("%ISP%", geoResult.getIspName())
-                            .replace("%ASN%", geoResult.getAsn())
-                            .replace("%MATCH%", ispBlockResult.getMatchedValue())
+                            .replace("%NAME%", CommandValueSanitizer.sanitize(preLoginEvent.getName()))
+                            .replace("%IP%", CommandValueSanitizer.sanitize(ipAddress))
+                            .replace("%ISP%", CommandValueSanitizer.sanitize(geoResult.getIspName()))
+                            .replace("%ASN%", CommandValueSanitizer.sanitize(geoResult.getAsn()))
+                            .replace("%MATCH%", CommandValueSanitizer.sanitize(ispBlockResult.getMatchedValue()))
             ));
         }
-        if (ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.isp.send-webhook.enabled")) {
+        if (emitActions && ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.isp.send-webhook.enabled")) {
             String webhookMessage = plainMessage("messages.isp-webhook",
                     "%NAME%", preLoginEvent.getName(),
                     "%IP%", ipAddress,

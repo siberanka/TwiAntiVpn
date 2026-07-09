@@ -1,6 +1,9 @@
 package com.siberanka.twiantivpn.core.integration;
 
 import java.util.concurrent.TimeUnit;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.function.LongSupplier;
 import java.util.logging.Logger;
 
@@ -25,6 +28,8 @@ public final class AdaptiveLoginOrderService {
     private volatile String attackLogMessage;
     private volatile String recoveryLogMessage;
     private volatile String normalLogMessage;
+    private volatile Set<CheckModule> configuredBeforeModules =
+            Collections.singleton(CheckModule.PROXY_BLOCKLIST);
 
     AdaptiveLoginOrderService(LongSupplier nanoTime) {
         this.nanoTime = nanoTime;
@@ -40,7 +45,8 @@ public final class AdaptiveLoginOrderService {
                           Logger logger,
                           String attackLogMessage,
                           String recoveryLogMessage,
-                          String normalLogMessage) {
+                          String normalLogMessage,
+                          Set<CheckModule> beforeModules) {
         int boundedRecoveryDelay = boundRecoveryDelay(recoveryDelaySeconds);
         synchronized (stateLock) {
             this.configuredBeforeAntiBot = beforeAntiBot;
@@ -50,6 +56,7 @@ public final class AdaptiveLoginOrderService {
             this.attackLogMessage = attackLogMessage;
             this.recoveryLogMessage = recoveryLogMessage;
             this.normalLogMessage = normalLogMessage;
+            this.configuredBeforeModules = CheckModule.immutableCopy(beforeModules);
             if (!beforeAntiBot || !adaptiveEnabled) {
                 state = State.NORMAL;
                 recoveryDeadlineNanos = 0L;
@@ -120,6 +127,40 @@ public final class AdaptiveLoginOrderService {
                 && !shouldRunBeforeAntiBot();
     }
 
+    public ModulePlan snapshotModulePlan() {
+        if (!configuredBeforeAntiBot) {
+            return ModulePlan.afterAll();
+        }
+        if (!adaptiveEnabled || !sonarAvailable) {
+            return ModulePlan.beforeAll();
+        }
+        if (!shouldRunBeforeAntiBot()) {
+            return ModulePlan.afterAll();
+        }
+
+        // Sonar's API event is asynchronous. Re-evaluate every policy after Sonar
+        // using provider-level single-flight results so a delayed early hook cannot
+        // create a fail-open window or duplicate outbound requests.
+        return new ModulePlan(
+                configuredBeforeModules,
+                EnumSet.allOf(CheckModule.class),
+                false
+        );
+    }
+
+    public Set<CheckModule> sonarEarlyModules() {
+        if (!configuredBeforeAntiBot) {
+            return Collections.emptySet();
+        }
+        if (!adaptiveEnabled) {
+            return CheckModule.immutableCopy(EnumSet.allOf(CheckModule.class));
+        }
+        if (!sonarAvailable || !shouldRunBeforeAntiBot()) {
+            return Collections.emptySet();
+        }
+        return configuredBeforeModules;
+    }
+
     private boolean isAdaptiveActive() {
         return configuredBeforeAntiBot && adaptiveEnabled;
     }
@@ -165,5 +206,47 @@ public final class AdaptiveLoginOrderService {
         NORMAL,
         ATTACK,
         RECOVERY
+    }
+
+    public static final class ModulePlan {
+        private final Set<CheckModule> beforePlatformModules;
+        private final Set<CheckModule> afterPlatformModules;
+        private final boolean runBeforePlatform;
+
+        private ModulePlan(Set<CheckModule> beforePlatformModules,
+                           Set<CheckModule> afterPlatformModules,
+                           boolean runBeforePlatform) {
+            this.beforePlatformModules = CheckModule.immutableCopy(beforePlatformModules);
+            this.afterPlatformModules = CheckModule.immutableCopy(afterPlatformModules);
+            this.runBeforePlatform = runBeforePlatform;
+        }
+
+        private static ModulePlan beforeAll() {
+            return new ModulePlan(
+                    EnumSet.allOf(CheckModule.class),
+                    Collections.emptySet(),
+                    true
+            );
+        }
+
+        private static ModulePlan afterAll() {
+            return new ModulePlan(
+                    Collections.emptySet(),
+                    EnumSet.allOf(CheckModule.class),
+                    false
+            );
+        }
+
+        public Set<CheckModule> getBeforePlatformModules() {
+            return beforePlatformModules;
+        }
+
+        public Set<CheckModule> getAfterPlatformModules() {
+            return afterPlatformModules;
+        }
+
+        public boolean isRunBeforePlatform() {
+            return runBeforePlatform;
+        }
     }
 }

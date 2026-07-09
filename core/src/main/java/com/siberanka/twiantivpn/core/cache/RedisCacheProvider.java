@@ -59,7 +59,7 @@ public class RedisCacheProvider implements CacheProvider {
             Gson gson = new Gson();
             VpnResult vpnResult = gson.fromJson(vpnResultRaw, VpnResult.class);
 
-            if ((vpnResult.getCachedOn() + ConnectionGuard.getVpnCacheExpirationTime() * 60 * 1000) > new Date().getTime()) {
+            if ((vpnResult.getCachedOn() + ConnectionGuard.getVpnCacheExpirationTime() * 60_000L) > new Date().getTime()) {
                 return Optional.of(vpnResult);
             } else {
                 jedisPooled.hdel("connectionguard.vpn", ipAddress);
@@ -78,7 +78,7 @@ public class RedisCacheProvider implements CacheProvider {
             Gson gson = new Gson();
             GeoResult geoResult = gson.fromJson(geoResultRaw, GeoResult.class);
 
-            if ((geoResult.getCachedOn() + ConnectionGuard.getGeoCacheExpirationTime() * 60 * 1000) > new Date().getTime()) {
+            if ((geoResult.getCachedOn() + ConnectionGuard.getGeoCacheExpirationTime() * 60_000L) > new Date().getTime()) {
                 return Optional.of(geoResult);
             } else {
                 jedisPooled.hdel("connectionguard.geo", ipAddress);

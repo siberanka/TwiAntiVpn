@@ -1,6 +1,8 @@
 package com.siberanka.twiantivpn.core.vpn;
 
 import com.siberanka.twiantivpn.core.ConnectionGuard;
+import com.siberanka.twiantivpn.core.net.BoundedResponseBody;
+import com.siberanka.twiantivpn.core.net.SharedHttpClient;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -16,27 +18,25 @@ public class IpApiVpnProvider implements VpnProvider {
     @Override
     public CompletableFuture<Optional<VpnResult>> getVpnResult(String ipAddress) {
         return CompletableFuture.supplyAsync(() -> {
-            OkHttpClient httpClient = new OkHttpClient();
             Request request = new Request.Builder()
                     .url("http://ip-api.com/json/" + ipAddress + "?fields=proxy")
                     .build();
-            Response response;
-
-            String status;
             String message;
             boolean isProxy = false;
             JsonObject jsonObject;
-            try {
-                response = httpClient.newCall(request).execute();
-                jsonObject = JsonParser.parseString(response.body().string()).getAsJsonObject();
-            } catch (IOException e) {
+            try (Response response = SharedHttpClient.get().newCall(request).execute()) {
+                jsonObject = JsonParser.parseString(
+                        BoundedResponseBody.read(response.body())
+                ).getAsJsonObject();
+                if (response.code() != 200) {
+                    message = jsonObject.has("message")
+                            ? jsonObject.get("message").getAsString()
+                            : "HTTP " + response.code();
+                    ConnectionGuard.getLogger().info("IP-API | " + message);
+                    return Optional.empty();
+                }
+            } catch (Exception e) {
                 ConnectionGuard.getLogger().info("IP-API | " + e.getMessage());
-                return Optional.empty();
-            }
-
-            if (response.code() != 200) {
-                message = jsonObject.get("message").getAsString();
-                ConnectionGuard.getLogger().info("IP-API | " + message);
                 return Optional.empty();
             }
 

@@ -4,9 +4,11 @@ import com.siberanka.twiantivpn.core.asteroid.AsteroidRegistryHook;
 import com.siberanka.twiantivpn.core.ConnectionGuard;
 import com.siberanka.twiantivpn.core.geo.GeoResult;
 import com.siberanka.twiantivpn.core.integration.AdaptiveLoginOrderService;
+import com.siberanka.twiantivpn.core.integration.CheckModule;
 import com.siberanka.twiantivpn.core.isp.IspBlockResult;
 import com.siberanka.twiantivpn.core.luckperms.CGLuckPermsHelper;
 import com.siberanka.twiantivpn.core.message.MessageFormatter;
+import com.siberanka.twiantivpn.core.security.CommandValueSanitizer;
 import com.siberanka.twiantivpn.core.vpn.VpnResult;
 import com.siberanka.twiantivpn.core.webhook.CGWebHookHelper;
 import com.siberanka.twiantivpn.velocity.ConnectionGuardVelocityPlugin;
@@ -20,41 +22,46 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 import java.net.InetAddress;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 
 public class ConnectionGuardVelocityListener {
-    private final Set<PreLoginEvent> deferredEvents =
-            Collections.newSetFromMap(Collections.synchronizedMap(new WeakHashMap<>()));
+    private final Map<PreLoginEvent, Set<CheckModule>> deferredEvents =
+            Collections.synchronizedMap(new WeakHashMap<>());
 
     @Subscribe(order = PostOrder.FIRST, priority = Short.MAX_VALUE)
     public EventTask onPreLoginBeforeAntiBot(PreLoginEvent loginEvent) {
-        if (shouldRunBeforeAntiBot()) {
-            return handlePreLogin(loginEvent);
+        AdaptiveLoginOrderService.ModulePlan plan =
+                AdaptiveLoginOrderService.getInstance().snapshotModulePlan();
+        if (plan.isRunBeforePlatform()) {
+            return handlePreLogin(loginEvent, plan.getBeforePlatformModules());
         }
-        deferredEvents.add(loginEvent);
+        deferredEvents.put(loginEvent, plan.getAfterPlatformModules());
         return EventTask.resumeWhenComplete(CompletableFuture.completedFuture(null));
     }
 
     @Subscribe(order = PostOrder.LAST, priority = Short.MIN_VALUE)
     public EventTask onPreLoginAfterAntiBot(PreLoginEvent loginEvent) {
-        boolean deferred = deferredEvents.remove(loginEvent);
-        if (deferred && loginEvent.getResult().isAllowed()) {
-            return handlePreLogin(loginEvent);
+        Set<CheckModule> modules = deferredEvents.remove(loginEvent);
+        if (modules != null && !modules.isEmpty() && loginEvent.getResult().isAllowed()) {
+            return handlePreLogin(loginEvent, modules);
         }
         return EventTask.resumeWhenComplete(CompletableFuture.completedFuture(null));
     }
 
-    private EventTask handlePreLogin(PreLoginEvent loginEvent) {
+    private EventTask handlePreLogin(PreLoginEvent loginEvent, Set<CheckModule> modules) {
         String ipAddress = getIpAddress(loginEvent);
         String playerUuid = (loginEvent.getUniqueId() != null) ? loginEvent.getUniqueId().toString() : "";
         String playerUsername = loginEvent.getUsername();
 
-        Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(playerUsername);
-        if (blockedUsernamePart.isPresent()) {
-            return EventTask.async(() -> handleUsernameBlock(loginEvent, ipAddress, playerUsername, blockedUsernamePart.get()));
+        if (modules.contains(CheckModule.USERNAME_FILTER)) {
+            Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(playerUsername);
+            if (blockedUsernamePart.isPresent()) {
+                return EventTask.async(() -> handleUsernameBlock(loginEvent, ipAddress, playerUsername, blockedUsernamePart.get()));
+            }
         }
 
         if (shouldBypassAsteroid(loginEvent)) {
@@ -65,22 +72,32 @@ public class ConnectionGuardVelocityListener {
         CompletableFuture<VpnResult> vpnResultFuture;
         CompletableFuture<Optional<GeoResult>> geoResultOptionalFuture;
 
+        Set<String> selectedVpnProviders = CheckModule.providerNames(modules);
+        boolean checkVpn = modules.contains(CheckModule.PROXY_BLOCKLIST)
+                || !selectedVpnProviders.isEmpty();
+        boolean checkGeo = modules.contains(CheckModule.GEO_BLOCK)
+                || modules.contains(CheckModule.ISP_BLOCK);
+
         // Check if ip address is in exemption lists
-        if (
+        if (!checkVpn || (
                 ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getStringList("behavior.vpn.exemptions").contains(ipAddress)
                         || ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getStringList("behavior.vpn.exemptions").contains(playerUuid)
                         || ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getStringList("behavior.vpn.exemptions").contains(playerUsername)
-        ) {
+        )) {
             vpnResultFuture = CompletableFuture.completedFuture(new VpnResult(ipAddress, false));
         } else {
-            vpnResultFuture = ConnectionGuard.getVpnResult(ipAddress);
+            vpnResultFuture = ConnectionGuard.getVpnResult(
+                    ipAddress,
+                    modules.contains(CheckModule.PROXY_BLOCKLIST),
+                    selectedVpnProviders
+            );
         }
 
-        if (
+        if (!checkGeo || (
                 ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getStringList("behavior.geo.exemptions").contains(ipAddress)
                         || ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getStringList("behavior.geo.exemptions").contains(playerUuid)
                         || ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getStringList("behavior.geo.exemptions").contains(playerUsername)
-        ) {
+        )) {
             geoResultOptionalFuture = CompletableFuture.completedFuture(Optional.empty());
         } else {
             geoResultOptionalFuture = ConnectionGuard.getGeoResult(ipAddress);
@@ -107,8 +124,9 @@ public class ConnectionGuardVelocityListener {
 
 
             if (vpnResult.isVpn()) {
+                boolean emitActions = ConnectionGuard.shouldEmitActions("vpn", ipAddress);
                 // Check if staff should be notified
-                if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.vpn.notify-staff")) {
+                if (emitActions && ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.vpn.notify-staff")) {
                     Component notifyMessage = component("messages.vpn-notify",
                             "%IP%", vpnResult.getIpAddress(),
                             "%NAME%", playerUsername);
@@ -116,17 +134,17 @@ public class ConnectionGuardVelocityListener {
                 }
 
                 // Check if command should be executed on flag
-                if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.vpn.execute-command.enabled")) {
+                if (emitActions && ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.vpn.execute-command.enabled")) {
                     ConnectionGuardVelocityPlugin.getInstance().getProxyServer().getCommandManager().executeAsync(
                             ConnectionGuardVelocityPlugin.getInstance().getProxyServer().getConsoleCommandSource(),
                             ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getString("behavior.vpn.execute-command.command")
-                                    .replace("%NAME%", playerUsername)
-                                    .replace("%IP%", ipAddress)
+                                    .replace("%NAME%", CommandValueSanitizer.sanitize(playerUsername))
+                                    .replace("%IP%", CommandValueSanitizer.sanitize(ipAddress))
                     );
                 }
 
                 // Check if WebHook should be executed
-                if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.vpn.send-webhook.enabled")) {
+                if (emitActions && ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.vpn.send-webhook.enabled")) {
                     String webhookMessage = plainMessage("messages.vpn-webhook",
                             "%NAME%", playerUsername,
                             "%IP%", ipAddress);
@@ -149,15 +167,18 @@ public class ConnectionGuardVelocityListener {
 
             if (geoResultOptional.isPresent()) {
                 GeoResult geoResult = geoResultOptional.get();
-                Optional<IspBlockResult> ispBlockResult = ConnectionGuard.getIspBlockResult(geoResult);
-                if (ispBlockResult.isPresent()) {
-                    handleIspBlock(loginEvent, ipAddress, playerUsername, ispBlockResult.get());
-                    return;
+                if (modules.contains(CheckModule.ISP_BLOCK)) {
+                    Optional<IspBlockResult> ispBlockResult = ConnectionGuard.getIspBlockResult(geoResult);
+                    if (ispBlockResult.isPresent()) {
+                        handleIspBlock(loginEvent, ipAddress, playerUsername, ispBlockResult.get());
+                        return;
+                    }
                 }
 
                 boolean isGeoFlagged = false;
 
-                switch (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getString("behavior.geo.type").toLowerCase()) {
+                if (modules.contains(CheckModule.GEO_BLOCK)) {
+                    switch (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getString("behavior.geo.type").toLowerCase()) {
                     case "blacklist":
                         if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getStringList("behavior.geo.list").contains(geoResult.getCountryName()))
                             isGeoFlagged = true;
@@ -169,11 +190,13 @@ public class ConnectionGuardVelocityListener {
                     default:
                         ConnectionGuard.getLogger().info("Invalid geo behavior type. Please use BLACKLIST or WHITELIST.");
                         break;
+                    }
                 }
 
                 if (isGeoFlagged) {
+                    boolean emitActions = ConnectionGuard.shouldEmitActions("geo", ipAddress);
                     // Check if staff should be notified
-                    if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.geo.notify-staff")) {
+                    if (emitActions && ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.geo.notify-staff")) {
                         Component notifyMessage = component("messages.geo-notify",
                                 "%IP%", geoResult.getIpAddress(),
                                 "%COUNTRY%", geoResult.getCountryName(),
@@ -184,18 +207,18 @@ public class ConnectionGuardVelocityListener {
                     }
 
                     // Check if command should be executed on flag
-                    if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.geo.execute-command.enabled")) {
+                    if (emitActions && ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.geo.execute-command.enabled")) {
                         ConnectionGuardVelocityPlugin.getInstance().getProxyServer().getCommandManager().executeAsync(
                                 ConnectionGuardVelocityPlugin.getInstance().getProxyServer().getConsoleCommandSource(),
                                 ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getString("behavior.geo.execute-command.command")
-                                        .replace("%NAME%", playerUsername)
-                                        .replace("%IP%", ipAddress)
-                                        .replace("%COUNTRY%", geoResult.getCountryName())
+                                        .replace("%NAME%", CommandValueSanitizer.sanitize(playerUsername))
+                                        .replace("%IP%", CommandValueSanitizer.sanitize(ipAddress))
+                                        .replace("%COUNTRY%", CommandValueSanitizer.sanitize(geoResult.getCountryName()))
                         );
                     }
 
                     // Check if WebHook should be executed
-                    if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.geo.send-webhook.enabled")) {
+                    if (emitActions && ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.geo.send-webhook.enabled")) {
                         String webhookMessage = plainMessage("messages.geo-webhook",
                                 "%NAME%", playerUsername,
                                 "%IP%", ipAddress,
@@ -229,10 +252,6 @@ public class ConnectionGuardVelocityListener {
                 ConnectionGuard.getLogger().info("Login check failed: " + exception.getMessage());
             }
         });
-    }
-
-    private boolean shouldRunBeforeAntiBot() {
-        return AdaptiveLoginOrderService.getInstance().shouldRunBeforeAntiBot();
     }
 
     private String getIpAddress(PreLoginEvent loginEvent) {
@@ -287,23 +306,24 @@ public class ConnectionGuardVelocityListener {
     }
 
     private void handleUsernameBlock(PreLoginEvent loginEvent, String ipAddress, String playerUsername, String matchedPart) {
-        if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.username.notify-staff")) {
+        boolean emitActions = ConnectionGuard.shouldEmitActions("username", ipAddress);
+        if (emitActions && ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.username.notify-staff")) {
             Component notifyMessage = component("messages.username-notify",
                     "%IP%", ipAddress,
                     "%NAME%", playerUsername,
                     "%MATCH%", matchedPart);
             broadcastMessage(notifyMessage, "twiantivpn.notify.username");
         }
-        if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.username.execute-command.enabled")) {
+        if (emitActions && ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.username.execute-command.enabled")) {
             ConnectionGuardVelocityPlugin.getInstance().getProxyServer().getCommandManager().executeAsync(
                     ConnectionGuardVelocityPlugin.getInstance().getProxyServer().getConsoleCommandSource(),
                     ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getString("behavior.username.execute-command.command")
-                            .replace("%NAME%", playerUsername)
-                            .replace("%IP%", ipAddress)
-                            .replace("%MATCH%", matchedPart)
+                            .replace("%NAME%", CommandValueSanitizer.sanitize(playerUsername))
+                            .replace("%IP%", CommandValueSanitizer.sanitize(ipAddress))
+                            .replace("%MATCH%", CommandValueSanitizer.sanitize(matchedPart))
             );
         }
-        if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.username.send-webhook.enabled")) {
+        if (emitActions && ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.username.send-webhook.enabled")) {
             String webhookMessage = plainMessage("messages.username-webhook",
                     "%NAME%", playerUsername,
                     "%IP%", ipAddress,
@@ -321,7 +341,8 @@ public class ConnectionGuardVelocityListener {
 
     private void handleIspBlock(PreLoginEvent loginEvent, String ipAddress, String playerUsername, IspBlockResult ispBlockResult) {
         GeoResult geoResult = ispBlockResult.getGeoResult();
-        if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.isp.notify-staff")) {
+        boolean emitActions = ConnectionGuard.shouldEmitActions("isp", ipAddress);
+        if (emitActions && ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.isp.notify-staff")) {
             Component notifyMessage = component("messages.isp-notify",
                     "%IP%", ipAddress,
                     "%NAME%", playerUsername,
@@ -330,18 +351,18 @@ public class ConnectionGuardVelocityListener {
                     "%MATCH%", ispBlockResult.getMatchedValue());
             broadcastMessage(notifyMessage, "twiantivpn.notify.isp");
         }
-        if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.isp.execute-command.enabled")) {
+        if (emitActions && ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.isp.execute-command.enabled")) {
             ConnectionGuardVelocityPlugin.getInstance().getProxyServer().getCommandManager().executeAsync(
                     ConnectionGuardVelocityPlugin.getInstance().getProxyServer().getConsoleCommandSource(),
                     ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getString("behavior.isp.execute-command.command")
-                            .replace("%NAME%", playerUsername)
-                            .replace("%IP%", ipAddress)
-                            .replace("%ISP%", geoResult.getIspName())
-                            .replace("%ASN%", geoResult.getAsn())
-                            .replace("%MATCH%", ispBlockResult.getMatchedValue())
+                            .replace("%NAME%", CommandValueSanitizer.sanitize(playerUsername))
+                            .replace("%IP%", CommandValueSanitizer.sanitize(ipAddress))
+                            .replace("%ISP%", CommandValueSanitizer.sanitize(geoResult.getIspName()))
+                            .replace("%ASN%", CommandValueSanitizer.sanitize(geoResult.getAsn()))
+                            .replace("%MATCH%", CommandValueSanitizer.sanitize(ispBlockResult.getMatchedValue()))
             );
         }
-        if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.isp.send-webhook.enabled")) {
+        if (emitActions && ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.isp.send-webhook.enabled")) {
             String webhookMessage = plainMessage("messages.isp-webhook",
                     "%NAME%", playerUsername,
                     "%IP%", ipAddress,
