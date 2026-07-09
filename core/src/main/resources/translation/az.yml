@@ -1,7 +1,7 @@
-# TwiAntiVpn dil fayli.
-# {prefix} ve %PREFIX% messages.prefix sahesinden goturulur.
+# TwiAntiVpn dil faylı.
+# {prefix} və %PREFIX% messages.prefix sahəsindən götürülür.
 command:
-  no-permission: "{prefix} &cBu emri istifade etmek ucun icazen yoxdur."
+  no-permission: "{prefix} &cBu əmrdən istifadə etmək üçün icazən yoxdur."
   unknown-subcommand: "{prefix} &7Naməlum alt əmr. Əmrləri görmək üçün &f/twiantivpn help&7 yaz."
   config-reload: "{prefix} &aKonfiqurasiya və dil faylları yenidən yükləndi."
   clear:

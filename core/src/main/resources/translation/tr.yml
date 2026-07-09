@@ -1,37 +1,37 @@
-# TwiAntiVpn dil dosyasi.
-# {prefix} ve %PREFIX%, messages.prefix alanindan cozulur.
+# TwiAntiVpn dil dosyası.
+# {prefix} ve %PREFIX%, messages.prefix alanından çözülür.
 command:
-  no-permission: "{prefix} &cBu komutu kullanmak icin yetkin yok."
-  unknown-subcommand: "{prefix} &7Bilinmeyen alt komut. Komutlari gormek icin &f/twiantivpn help&7 yaz."
-  config-reload: "{prefix} &aYapilandirma ve dil dosyalari yeniden yuklendi."
+  no-permission: "{prefix} &cBu komutu kullanmak için yetkin yok."
+  unknown-subcommand: "{prefix} &7Bilinmeyen alt komut. Komutları görmek için &f/twiantivpn help&7 yaz."
+  config-reload: "{prefix} &aYapılandırma ve dil dosyaları yeniden yüklendi."
   clear:
-    clear-all: "{prefix} &7Tum VPN ve geo onbellek kayitlari temizlendi."
-    clear-specific: "{prefix} &f%ENTRY% &7icin onbellek kayitlari temizlendi."
-  invalid-argument: "{prefix} &7Cevrimici oyuncu, UUID veya gecerli bir IP adresi gir."
+    clear-all: "{prefix} &7Tüm VPN ve geo önbellek kayıtları temizlendi."
+    clear-specific: "{prefix} &f%ENTRY% &7için önbellek kayıtları temizlendi."
+  invalid-argument: "{prefix} &7Çevrimiçi oyuncu, UUID veya geçerli bir IP adresi gir."
 
 messages:
   prefix: "<bold><gradient:#35d3ff:#6f7dff>TwiAntiVpn</gradient></bold> <dark_gray>|</dark_gray>"
-  username-block: "{prefix}\\n&cBaglanti engellendi\\n&7Kullanici adin bu sunucuda izin verilmeyen bir ifade iceriyor.\\n\\n&8Eslesme: &f%MATCH%"
-  username-notify: "{prefix} &e%NAME% &7(%IP%) kullanici adi filtresiyle engellendi. &8Eslesme: &f%MATCH%"
-  username-webhook: "%NAME% (%IP%) kullanici adi filtresiyle engellendi. Eslesme: %MATCH%."
-  vpn-block: "{prefix}\\n&cBaglanti engellendi\\n&7Baglantinda VPN, proxy, Tor cikis dugumu veya listelenmis anonimlestirici tespit edildi.\\n\\n&7Kapatip tekrar dene. Hata oldugunu dusunuyorsan yetkililerle iletisime gec."
+  username-block: "{prefix}\\n&cBağlantı engellendi\\n&7Kullanıcı adın bu sunucuda izin verilmeyen bir ifade içeriyor.\\n\\n&8Eşleşme: &f%MATCH%"
+  username-notify: "{prefix} &e%NAME% &7(%IP%) kullanıcı adı filtresiyle engellendi. &8Eşleşme: &f%MATCH%"
+  username-webhook: "%NAME% (%IP%) kullanıcı adı filtresiyle engellendi. Eşleşme: %MATCH%."
+  vpn-block: "{prefix}\\n&cBağlantı engellendi\\n&7Bağlantında VPN, proxy, Tor çıkış düğümü veya listelenmiş anonimleştirici tespit edildi.\\n\\n&7Kapatıp tekrar dene. Hata olduğunu düşünüyorsan yetkililerle iletişime geç."
   vpn-notify: "{prefix} &e%NAME% &7(%IP%) VPN/proxy tespiti nedeniyle engellendi."
-  vpn-webhook: "%NAME% (%IP%) VPN/proxy ile baglanmayi denedi."
-  geo-block: "{prefix}\\n&cBaglanti engellendi\\n&f%COUNTRY% &7konumundan baglantilara bu sunucuda izin verilmiyor.\\n\\n&7Hata oldugunu dusunuyorsan yetkililerle iletisime gec."
-  geo-notify: "{prefix} &e%NAME% &7(%IP%) geo kurallari nedeniyle engellendi. &8Konum: &f%COUNTRY%&7, &f%CITY%"
-  geo-webhook: "%NAME% (%IP%, %ISP%) %CITY%, %COUNTRY% konumundan baglanmayi denedi."
-  isp-block: "{prefix}\\n&cBaglanti engellendi\\n&7Ag saglayicin uzerinden baglantilara bu sunucuda izin verilmiyor.\\n\\n&8ISP: &f%ISP% &8| ASN: &f%ASN%"
-  isp-notify: "{prefix} &e%NAME% &7(%IP%) ISP/ASN kurallariyla engellendi. &8ISP: &f%ISP% &8ASN: &f%ASN% &8Eslesme: &f%MATCH%"
-  isp-webhook: "%NAME% (%IP%) ISP/ASN kurallariyla engellendi. ISP: %ISP%, ASN: %ASN%, eslesme: %MATCH%."
+  vpn-webhook: "%NAME% (%IP%) VPN/proxy ile bağlanmayı denedi."
+  geo-block: "{prefix}\\n&cBağlantı engellendi\\n&f%COUNTRY% &7konumundan bağlantılara bu sunucuda izin verilmiyor.\\n\\n&7Hata olduğunu düşünüyorsan yetkililerle iletişime geç."
+  geo-notify: "{prefix} &e%NAME% &7(%IP%) geo kuralları nedeniyle engellendi. &8Konum: &f%COUNTRY%&7, &f%CITY%"
+  geo-webhook: "%NAME% (%IP%, %ISP%) %CITY%, %COUNTRY% konumundan bağlanmayı denedi."
+  isp-block: "{prefix}\\n&cBağlantı engellendi\\n&7Ağ sağlayıcın üzerinden bağlantılara bu sunucuda izin verilmiyor.\\n\\n&8ISP: &f%ISP% &8| ASN: &f%ASN%"
+  isp-notify: "{prefix} &e%NAME% &7(%IP%) ISP/ASN kurallarıyla engellendi. &8ISP: &f%ISP% &8ASN: &f%ASN% &8Eşleşme: &f%MATCH%"
+  isp-webhook: "%NAME% (%IP%) ISP/ASN kurallarıyla engellendi. ISP: %ISP%, ASN: %ASN%, eşleşme: %MATCH%."
   help:
     - "{prefix} &7Komutlar"
-    - " &8- &f/twiantivpn help &7Bu listeyi gosterir."
-    - " &8- &f/twiantivpn reload &7Yapilandirma ve dil dosyalarini yeniler."
-    - " &8- &f/twiantivpn clear &7[Oyuncu/UUID/IP] Onbellek kayitlarini temizler."
-    - " &8- &f/twiantivpn info &7<Oyuncu/UUID/IP> VPN ve geo bilgilerini gosterir."
+    - " &8- &f/twiantivpn help &7Bu listeyi gösterir."
+    - " &8- &f/twiantivpn reload &7Yapılandırma ve dil dosyalarını yeniler."
+    - " &8- &f/twiantivpn clear &7[Oyuncu/UUID/IP] Önbellek kayıtlarını temizler."
+    - " &8- &f/twiantivpn info &7<Oyuncu/UUID/IP> VPN ve geo bilgilerini gösterir."
   info:
     text:
-      - "{prefix} &f%INPUT% &7icin sorgu sonucu"
+      - "{prefix} &f%INPUT% &7için sorgu sonucu"
       - "&7IP: &f%IP% &8| &7VPN: %IS_VPN%"
       - "&7Konum: &f%CITY%&7, &f%COUNTRY%"
       - "&7ISP: &f%ISP%"
