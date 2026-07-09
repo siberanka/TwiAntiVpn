@@ -7,6 +7,7 @@ import com.siberanka.twiantivpn.core.vpn.VpnResult;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.net.InetAddress;
 import java.util.Collections;
@@ -268,22 +269,80 @@ public final class SonarApiEarlyCheckHook {
         }
     }
 
-    private static boolean disconnect(Object user,
-                                      Result result,
-                                      Function<Result, String> disconnectMessage) {
+    static boolean disconnect(Object user,
+                              Result result,
+                              Function<Result, String> disconnectMessage) {
         try {
-            ClassLoader classLoader = user.getClass().getClassLoader();
-            Class<?> componentClass = Class.forName("net.kyori.adventure.text.Component", true, classLoader);
-            Method text = componentClass.getMethod("text", String.class);
             String message = disconnectMessage == null ? "" : disconnectMessage.apply(result);
-            Object component = text.invoke(null, message == null ? "" : message);
-            Method disconnect = user.getClass().getMethod("disconnect", componentClass);
-            disconnect.invoke(user, component);
+            Method disconnectMethod = findDisconnectMethod(user.getClass());
+            Class<?> reasonType = disconnectMethod.getParameterTypes()[0];
+            Object reason = createDisconnectReason(reasonType, message == null ? "" : message);
+            disconnectMethod.invoke(user, reason);
             return true;
         } catch (Throwable throwable) {
             ConnectionGuard.reportError("Sonar pre-verification disconnect", throwable);
             return false;
         }
+    }
+
+    private static Method findDisconnectMethod(Class<?> userClass) throws NoSuchMethodException {
+        Method fallback = null;
+        for (Method method : userClass.getMethods()) {
+            if (!"disconnect".equals(method.getName()) || method.getParameterTypes().length != 1) {
+                continue;
+            }
+            Class<?> reasonType = method.getParameterTypes()[0];
+            if (reasonType == String.class
+                    || CharSequence.class.isAssignableFrom(reasonType)
+                    || reasonType.getName().endsWith(".Component")) {
+                return method;
+            }
+            fallback = method;
+        }
+        if (fallback != null) {
+            return fallback;
+        }
+        throw new NoSuchMethodException(userClass.getName() + ".disconnect(<reason>)");
+    }
+
+    private static Object createDisconnectReason(Class<?> reasonType, String message)
+            throws ReflectiveOperationException {
+        if (reasonType == String.class || reasonType == CharSequence.class) {
+            return message;
+        }
+
+        Object directComponent = invokeTextFactory(reasonType, message);
+        if (directComponent != null && reasonType.isInstance(directComponent)) {
+            return directComponent;
+        }
+
+        String packageName = reasonType.getPackage().getName();
+        Class<?> componentType = Class.forName(
+                packageName + ".Component",
+                true,
+                reasonType.getClassLoader()
+        );
+        Object component = invokeTextFactory(componentType, message);
+        if (component != null && reasonType.isInstance(component)) {
+            return component;
+        }
+        throw new IllegalArgumentException(
+                "Unsupported Sonar disconnect reason type: " + reasonType.getName()
+        );
+    }
+
+    private static Object invokeTextFactory(Class<?> componentType, String message)
+            throws ReflectiveOperationException {
+        Method text;
+        try {
+            text = componentType.getMethod("text", String.class);
+        } catch (NoSuchMethodException ignored) {
+            return null;
+        }
+        if (!Modifier.isStatic(text.getModifiers())) {
+            return null;
+        }
+        return text.invoke(null, message);
     }
 
     private static void closeChannel(Object user) {
