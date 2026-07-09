@@ -32,7 +32,7 @@ import java.util.HashMap;
 @Plugin(
         id="twiantivpn",
         name="TwiAntiVpn",
-        version="2026.07.09.2",
+        version="2026.07.09.3",
         url="https://github.com/siberanka",
         authors = {"gerolndnr", "siberanka"}
 )

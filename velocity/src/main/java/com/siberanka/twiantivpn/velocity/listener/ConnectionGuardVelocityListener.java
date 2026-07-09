@@ -9,9 +9,8 @@ import com.siberanka.twiantivpn.core.vpn.VpnResult;
 import com.siberanka.twiantivpn.core.webhook.CGWebHookHelper;
 import com.siberanka.twiantivpn.velocity.ConnectionGuardVelocityPlugin;
 import com.velocitypowered.api.event.EventTask;
-import com.velocitypowered.api.event.ResultedEvent;
+import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
-import com.velocitypowered.api.event.connection.LoginEvent;
 import com.velocitypowered.api.event.connection.PreLoginEvent;
 import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
@@ -21,7 +20,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public class ConnectionGuardVelocityListener {
-    @Subscribe
+    @Subscribe(order = PostOrder.FIRST)
     public EventTask onPreLogin(PreLoginEvent loginEvent) {
         String ipAddress = loginEvent.getConnection().getRemoteAddress().getHostString();
         String playerUuid = (loginEvent.getUniqueId() != null) ? loginEvent.getUniqueId().toString() : "";

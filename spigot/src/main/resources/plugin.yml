@@ -13,6 +13,9 @@ softdepend:
   - AsteroidProxy
   - AsteroidSpoofer
   - AsteroidLibs
+loadbefore:
+  - Sonar
+  - SonarBukkit
 commands:
   connectionguard:
     name: connectionguard

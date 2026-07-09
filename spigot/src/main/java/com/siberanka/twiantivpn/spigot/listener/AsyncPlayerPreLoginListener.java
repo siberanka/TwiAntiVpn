@@ -11,6 +11,7 @@ import com.siberanka.twiantivpn.spigot.ConnectionGuardSpigotPlugin;
 import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 
@@ -18,7 +19,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public class AsyncPlayerPreLoginListener implements Listener {
-    @EventHandler
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
     public void onAsyncPreLogin(AsyncPlayerPreLoginEvent preLoginEvent) {
         String ipAddress = preLoginEvent.getAddress().getHostAddress();
         Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(preLoginEvent.getName());
