@@ -10,6 +10,7 @@ TwiAntiVpn is a production-focused anti-VPN, proxy, geo and connection-risk plug
 - Plain IP, `ip:port`, comma-separated token and CIDR parsing.
 - Built-in safety caps for blocklist size, line length, source size, refresh interval and request timeout.
 - Duplicate protection for URLs, exact IPs, IPv4 networks and IPv6 CIDR networks.
+- Memory-optimized primitive storage for large IPv4 blocklists.
 - ISP and ASN blocking by provider name or autonomous system number.
 - Username contains-filter for blocking obvious bot naming patterns before VPN/API work.
 - Configurable login check order for running before or after anti-bot plugins.
@@ -102,7 +103,7 @@ YYYY.MM.DD.build
 Example:
 
 ```text
-2026.07.09.9
+2026.07.09.10
 ```
 
 ## Credits

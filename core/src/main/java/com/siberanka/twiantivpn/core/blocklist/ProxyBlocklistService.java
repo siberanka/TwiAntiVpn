@@ -15,7 +15,6 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -433,8 +432,9 @@ public class ProxyBlocklistService {
 
     private static final class SnapshotBuilder {
         private final int maxEntries;
-        private final Set<String> exactAddresses = new HashSet<>();
-        private final Map<Integer, Set<Long>> ipv4Networks = new HashMap<>();
+        private final PrimitiveIntSet exactIpv4Addresses = new PrimitiveIntSet();
+        private final Set<Ipv6Network> exactIpv6Addresses = new HashSet<>();
+        private final Map<Integer, PrimitiveIntSet> ipv4Networks = new HashMap<>();
         private final Map<Integer, Set<Ipv6Network>> ipv6Networks = new HashMap<>();
 
         private SnapshotBuilder(int maxEntries) {
@@ -447,7 +447,7 @@ public class ProxyBlocklistService {
             }
 
             if (entry.address != null) {
-                exactAddresses.add(entry.address.getNormalized());
+                addAddress(entry.address);
                 return;
             }
 
@@ -455,16 +455,23 @@ public class ProxyBlocklistService {
             IpAddressUtil.Address address = cidr.getAddress();
             if ((address.isIpv4() && cidr.getPrefixLength() == 32)
                     || (!address.isIpv4() && cidr.getPrefixLength() == 128)) {
-                exactAddresses.add(address.getNormalized());
+                addAddress(address);
                 return;
             }
             if (address.isIpv4()) {
-                long mask = ipv4Mask(cidr.getPrefixLength());
-                long network = address.getIpv4Value() & mask;
-                ipv4Networks.computeIfAbsent(cidr.getPrefixLength(), ignored -> new HashSet<>()).add(network);
+                int network = ((int) address.getIpv4Value()) & ipv4Mask(cidr.getPrefixLength());
+                ipv4Networks.computeIfAbsent(cidr.getPrefixLength(), ignored -> new PrimitiveIntSet()).add(network);
             } else {
                 ipv6Networks.computeIfAbsent(cidr.getPrefixLength(), ignored -> new HashSet<>())
                         .add(new Ipv6Network(address.getBytes(), cidr.getPrefixLength()));
+            }
+        }
+
+        private void addAddress(IpAddressUtil.Address address) {
+            if (address.isIpv4()) {
+                exactIpv4Addresses.add((int) address.getIpv4Value());
+            } else {
+                exactIpv6Addresses.add(new Ipv6Network(address.getBytes(), 128));
             }
         }
 
@@ -474,26 +481,29 @@ public class ProxyBlocklistService {
 
         private int size() {
             int networks = 0;
-            for (Set<Long> values : ipv4Networks.values()) {
+            for (PrimitiveIntSet values : ipv4Networks.values()) {
                 networks += values.size();
             }
             for (Set<Ipv6Network> values : ipv6Networks.values()) {
                 networks += values.size();
             }
-            return exactAddresses.size() + networks;
+            return exactIpv4Addresses.size() + exactIpv6Addresses.size() + networks;
         }
 
         private Snapshot build() {
-            Map<Integer, Set<Long>> immutableIpv4Networks = new HashMap<>();
-            for (Map.Entry<Integer, Set<Long>> entry : ipv4Networks.entrySet()) {
-                immutableIpv4Networks.put(entry.getKey(), Collections.unmodifiableSet(new HashSet<>(entry.getValue())));
+            exactIpv4Addresses.freeze();
+            Map<Integer, PrimitiveIntSet> immutableIpv4Networks = new HashMap<>();
+            for (Map.Entry<Integer, PrimitiveIntSet> entry : ipv4Networks.entrySet()) {
+                entry.getValue().freeze();
+                immutableIpv4Networks.put(entry.getKey(), entry.getValue());
             }
             Map<Integer, Set<Ipv6Network>> immutableIpv6Networks = new HashMap<>();
             for (Map.Entry<Integer, Set<Ipv6Network>> entry : ipv6Networks.entrySet()) {
                 immutableIpv6Networks.put(entry.getKey(), Collections.unmodifiableSet(new HashSet<>(entry.getValue())));
             }
             return new Snapshot(
-                    Collections.unmodifiableSet(new HashSet<>(exactAddresses)),
+                    exactIpv4Addresses,
+                    Collections.unmodifiableSet(new HashSet<>(exactIpv6Addresses)),
                     Collections.unmodifiableMap(immutableIpv4Networks),
                     Collections.unmodifiableMap(immutableIpv6Networks),
                     size(),
@@ -503,20 +513,23 @@ public class ProxyBlocklistService {
     }
 
     private static final class Snapshot {
-        private final Set<String> exactAddresses;
-        private final Map<Integer, Set<Long>> ipv4Networks;
+        private final PrimitiveIntSet exactIpv4Addresses;
+        private final Set<Ipv6Network> exactIpv6Addresses;
+        private final Map<Integer, PrimitiveIntSet> ipv4Networks;
         private final Map<Integer, Set<Ipv6Network>> ipv6Networks;
         private final long size;
         private final long createdAtMillis;
 
         private Snapshot(
-                Set<String> exactAddresses,
-                Map<Integer, Set<Long>> ipv4Networks,
+                PrimitiveIntSet exactIpv4Addresses,
+                Set<Ipv6Network> exactIpv6Addresses,
+                Map<Integer, PrimitiveIntSet> ipv4Networks,
                 Map<Integer, Set<Ipv6Network>> ipv6Networks,
                 long size,
                 long createdAtMillis
         ) {
-            this.exactAddresses = exactAddresses;
+            this.exactIpv4Addresses = exactIpv4Addresses;
+            this.exactIpv6Addresses = exactIpv6Addresses;
             this.ipv4Networks = ipv4Networks;
             this.ipv6Networks = ipv6Networks;
             this.size = size;
@@ -525,6 +538,7 @@ public class ProxyBlocklistService {
 
         private static Snapshot empty() {
             return new Snapshot(
+                    PrimitiveIntSet.empty(),
                     Collections.emptySet(),
                     Collections.emptyMap(),
                     Collections.emptyMap(),
@@ -534,12 +548,13 @@ public class ProxyBlocklistService {
         }
 
         private boolean contains(IpAddressUtil.Address address) {
-            if (exactAddresses.contains(address.getNormalized())) {
-                return true;
-            }
             if (address.isIpv4()) {
-                for (Map.Entry<Integer, Set<Long>> entry : ipv4Networks.entrySet()) {
-                    long network = address.getIpv4Value() & ipv4Mask(entry.getKey());
+                int ipv4 = (int) address.getIpv4Value();
+                if (exactIpv4Addresses.contains(ipv4)) {
+                    return true;
+                }
+                for (Map.Entry<Integer, PrimitiveIntSet> entry : ipv4Networks.entrySet()) {
+                    int network = ipv4 & ipv4Mask(entry.getKey());
                     if (entry.getValue().contains(network)) {
                         return true;
                     }
@@ -547,6 +562,9 @@ public class ProxyBlocklistService {
                 return false;
             }
             byte[] bytes = address.getBytes();
+            if (exactIpv6Addresses.contains(new Ipv6Network(bytes, 128))) {
+                return true;
+            }
             for (Map.Entry<Integer, Set<Ipv6Network>> entry : ipv6Networks.entrySet()) {
                 if (entry.getValue().contains(new Ipv6Network(bytes, entry.getKey()))) {
                     return true;
@@ -557,12 +575,27 @@ public class ProxyBlocklistService {
     }
 
     private static final class Ipv6Network {
-        private final byte[] networkBytes;
+        private final long highBits;
+        private final long lowBits;
         private final int prefixLength;
 
         private Ipv6Network(byte[] addressBytes, int prefixLength) {
             this.prefixLength = prefixLength;
-            this.networkBytes = maskIpv6(addressBytes, prefixLength);
+            long high = bytesToLong(addressBytes, 0);
+            long low = bytesToLong(addressBytes, 8);
+            if (prefixLength <= 0) {
+                high = 0L;
+                low = 0L;
+            } else if (prefixLength < 64) {
+                high &= ipv6Mask(prefixLength);
+                low = 0L;
+            } else if (prefixLength == 64) {
+                low = 0L;
+            } else if (prefixLength < 128) {
+                low &= ipv6Mask(prefixLength - 64);
+            }
+            this.highBits = high;
+            this.lowBits = low;
         }
 
         @Override
@@ -574,14 +607,126 @@ public class ProxyBlocklistService {
                 return false;
             }
             Ipv6Network that = (Ipv6Network) other;
-            return prefixLength == that.prefixLength && Arrays.equals(networkBytes, that.networkBytes);
+            return prefixLength == that.prefixLength && highBits == that.highBits && lowBits == that.lowBits;
         }
 
         @Override
         public int hashCode() {
-            int result = Arrays.hashCode(networkBytes);
+            int result = (int) (highBits ^ (highBits >>> 32));
+            result = 31 * result + (int) (lowBits ^ (lowBits >>> 32));
             result = 31 * result + prefixLength;
             return result;
+        }
+    }
+
+    private static final class PrimitiveIntSet {
+        private static final int DEFAULT_CAPACITY = 16;
+        private static final int LOAD_FACTOR_PERCENT = 70;
+
+        private int[] keys;
+        private byte[] used;
+        private int size;
+        private boolean frozen;
+
+        private PrimitiveIntSet() {
+            this(new int[DEFAULT_CAPACITY], new byte[DEFAULT_CAPACITY], 0, false);
+        }
+
+        private PrimitiveIntSet(int[] keys, byte[] used, int size, boolean frozen) {
+            this.keys = keys;
+            this.used = used;
+            this.size = size;
+            this.frozen = frozen;
+        }
+
+        private static PrimitiveIntSet empty() {
+            return new PrimitiveIntSet(new int[0], new byte[0], 0, true);
+        }
+
+        private boolean add(int value) {
+            if (frozen) {
+                throw new IllegalStateException("set is frozen");
+            }
+            ensureCapacity(size + 1);
+            int mask = keys.length - 1;
+            int index = spread(value) & mask;
+            while (used[index] != 0) {
+                if (keys[index] == value) {
+                    return false;
+                }
+                index = (index + 1) & mask;
+            }
+            used[index] = 1;
+            keys[index] = value;
+            size++;
+            return true;
+        }
+
+        private boolean contains(int value) {
+            if (size == 0 || keys.length == 0) {
+                return false;
+            }
+            int mask = keys.length - 1;
+            int index = spread(value) & mask;
+            while (used[index] != 0) {
+                if (keys[index] == value) {
+                    return true;
+                }
+                index = (index + 1) & mask;
+            }
+            return false;
+        }
+
+        private int size() {
+            return size;
+        }
+
+        private void freeze() {
+            frozen = true;
+        }
+
+        private void ensureCapacity(int targetSize) {
+            if (keys.length == 0) {
+                rehash(DEFAULT_CAPACITY);
+                return;
+            }
+            if ((long) targetSize * 100L <= (long) keys.length * LOAD_FACTOR_PERCENT) {
+                return;
+            }
+            rehash(keys.length << 1);
+        }
+
+        private void rehash(int requestedCapacity) {
+            int capacity = tableSizeFor(requestedCapacity);
+            int[] oldKeys = keys;
+            byte[] oldUsed = used;
+            keys = new int[capacity];
+            used = new byte[capacity];
+            int oldSize = size;
+            size = 0;
+            for (int i = 0; i < oldKeys.length; i++) {
+                if (oldUsed[i] != 0) {
+                    add(oldKeys[i]);
+                }
+            }
+            size = oldSize;
+        }
+
+        private static int tableSizeFor(int requestedCapacity) {
+            int capacity = DEFAULT_CAPACITY;
+            while (capacity < requestedCapacity) {
+                capacity <<= 1;
+            }
+            return capacity;
+        }
+
+        private static int spread(int value) {
+            value ^= value >>> 16;
+            value *= 0x7feb352d;
+            value ^= value >>> 15;
+            value *= 0x846ca68b;
+            value ^= value >>> 16;
+            return value;
         }
     }
 
@@ -620,24 +765,28 @@ public class ProxyBlocklistService {
         }
     }
 
-    private static long ipv4Mask(int prefixLength) {
+    private static int ipv4Mask(int prefixLength) {
         if (prefixLength == 0) {
-            return 0L;
+            return 0;
         }
-        return (0xFFFFFFFFL << (32 - prefixLength)) & 0xFFFFFFFFL;
+        return (int) (0xFFFFFFFFL << (32 - prefixLength));
     }
 
-    private static byte[] maskIpv6(byte[] bytes, int prefixLength) {
-        byte[] masked = bytes.clone();
-        int fullBytes = prefixLength / 8;
-        int remainingBits = prefixLength % 8;
-        for (int i = fullBytes + (remainingBits > 0 ? 1 : 0); i < masked.length; i++) {
-            masked[i] = 0;
+    private static long bytesToLong(byte[] bytes, int offset) {
+        long value = 0L;
+        for (int i = offset; i < offset + 8; i++) {
+            value = (value << 8) | (bytes[i] & 0xFFL);
         }
-        if (remainingBits > 0 && fullBytes < masked.length) {
-            int mask = (0xFF << (8 - remainingBits)) & 0xFF;
-            masked[fullBytes] = (byte) (masked[fullBytes] & mask);
+        return value;
+    }
+
+    private static long ipv6Mask(int prefixLength) {
+        if (prefixLength <= 0) {
+            return 0L;
         }
-        return masked;
+        if (prefixLength >= 64) {
+            return -1L;
+        }
+        return -1L << (64 - prefixLength);
     }
 }
