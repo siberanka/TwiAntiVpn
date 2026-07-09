@@ -14,20 +14,19 @@ import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.LoginEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.event.EventHandler;
-import net.md_5.bungee.event.EventPriority;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public class ConnectionGuardBungeeListener implements Listener {
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = Byte.MIN_VALUE)
     public void onLoginBeforeAntiBot(LoginEvent loginEvent) {
         if (shouldRunBeforeAntiBot()) {
             handleLogin(loginEvent);
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
+    @EventHandler(priority = Byte.MAX_VALUE)
     public void onLoginAfterAntiBot(LoginEvent loginEvent) {
         if (!shouldRunBeforeAntiBot() && !loginEvent.isCancelled()) {
             handleLogin(loginEvent);

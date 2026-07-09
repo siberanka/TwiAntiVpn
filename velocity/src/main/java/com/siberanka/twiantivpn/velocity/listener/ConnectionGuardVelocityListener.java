@@ -22,7 +22,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public class ConnectionGuardVelocityListener {
-    @Subscribe(order = PostOrder.FIRST)
+    @Subscribe(order = PostOrder.FIRST, priority = Short.MAX_VALUE)
     public EventTask onPreLoginBeforeAntiBot(PreLoginEvent loginEvent) {
         if (shouldRunBeforeAntiBot()) {
             return handlePreLogin(loginEvent);
@@ -30,7 +30,7 @@ public class ConnectionGuardVelocityListener {
         return EventTask.resumeWhenComplete(CompletableFuture.completedFuture(null));
     }
 
-    @Subscribe(order = PostOrder.LAST)
+    @Subscribe(order = PostOrder.LAST, priority = Short.MIN_VALUE)
     public EventTask onPreLoginAfterAntiBot(PreLoginEvent loginEvent) {
         if (!shouldRunBeforeAntiBot() && loginEvent.getResult().isAllowed()) {
             return handlePreLogin(loginEvent);
