@@ -13,7 +13,7 @@ TwiAntiVpn is a production-focused anti-VPN, proxy, geo and connection-risk plug
 - Memory-optimized primitive storage for large IPv4 blocklists.
 - ISP and ASN blocking by provider name or autonomous system number.
 - Username contains-filter for blocking obvious bot naming patterns before VPN/API work.
-- Configurable login check order for running before or after anti-bot plugins.
+- Configurable login check order for running before or after anti-bot plugins, with an optional Sonar early-check hook.
 - AsteroidProxy/AsteroidSpoofer support for verified fake-player bypasses.
 - Geo blacklist/whitelist support.
 - SQLite, Redis or disabled cache modes.
@@ -105,7 +105,7 @@ YYYY.MM.DD.build
 Example:
 
 ```text
-2026.07.09.13
+2026.07.09.14
 ```
 
 ## Credits

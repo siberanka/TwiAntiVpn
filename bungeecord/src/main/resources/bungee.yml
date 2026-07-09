@@ -5,6 +5,7 @@ website: https://github.com/siberanka
 main: com.siberanka.twiantivpn.bungee.ConnectionGuardBungeePlugin
 softdepends:
   - LuckPerms
+  - Sonar
   - Asteroid
   - AsteroidProxy
   - AsteroidSpoofer

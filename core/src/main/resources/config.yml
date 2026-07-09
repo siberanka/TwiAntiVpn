@@ -100,6 +100,7 @@ required-positive-flags: 1
 # Controls whether TwiAntiVpn checks run before or after anti-bot plugins that listen to login events.
 # Available options:
 # - BEFORE_ANTIBOT: default; run at the earliest supported event priority.
+#   If Sonar is installed, TwiAntiVpn also hooks Sonar's verification join event and disconnects VPN/proxy hits early.
 # - AFTER_ANTIBOT: run late and skip VPN/API work if another plugin already denied the login.
 login-check:
   order: BEFORE_ANTIBOT

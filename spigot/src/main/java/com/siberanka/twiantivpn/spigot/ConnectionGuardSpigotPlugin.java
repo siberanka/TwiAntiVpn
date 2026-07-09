@@ -9,6 +9,8 @@ import com.siberanka.twiantivpn.core.cache.SQLiteCacheProvider;
 import com.siberanka.twiantivpn.core.geo.GeoProvider;
 import com.siberanka.twiantivpn.core.geo.IpApiGeoProvider;
 import com.siberanka.twiantivpn.core.geo.ProxyCheckGeoProvider;
+import com.siberanka.twiantivpn.core.integration.SonarApiEarlyCheckHook;
+import com.siberanka.twiantivpn.core.message.MessageFormatter;
 import com.siberanka.twiantivpn.core.vpn.*;
 import com.siberanka.twiantivpn.core.vpn.custom.CustomVpnProvider;
 import com.siberanka.twiantivpn.spigot.commands.ConnectionGuardSpigotCommand;
@@ -188,6 +190,7 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
         ConnectionGuard.setGeoCacheExpirationTime(getConfig().getInt("provider.cache.expiration.geo"));
         configureSecurityFilters();
         configureProxyBlocklist();
+        configureSonarEarlyHook();
 
         // 6. Register bukkit listener
         getServer().getPluginManager().registerEvents(new AsyncPlayerPreLoginListener(), this);
@@ -202,6 +205,7 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        SonarApiEarlyCheckHook.uninstall(getLogger());
         ConnectionGuard.shutdownProxyBlocklist();
         if (ConnectionGuard.getCacheProvider() != null) {
             ConnectionGuard.getCacheProvider().disband();
@@ -226,6 +230,7 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
         configureGeoProviders();
         configureSecurityFilters();
         configureProxyBlocklist();
+        configureSonarEarlyHook();
     }
 
     private void configureProxyBlocklist() {
@@ -237,6 +242,35 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
                 getConfig().getInt("proxy-blocklist.max-line-length"),
                 getConfig().getInt("proxy-blocklist.request-timeout-seconds")
         );
+    }
+
+    private void configureSonarEarlyHook() {
+        if (!shouldRunBeforeAntiBot() || getServer().getPluginManager().getPlugin("Sonar") == null) {
+            SonarApiEarlyCheckHook.uninstall(getLogger());
+            return;
+        }
+        SonarApiEarlyCheckHook.install(
+                getLogger(),
+                (ipAddress, username) -> getConfig().getStringList("behavior.vpn.exemptions").contains(ipAddress)
+                        || getConfig().getStringList("behavior.vpn.exemptions").contains(username),
+                result -> {
+                    String path = result.getType().equals("username") ? "messages.username-block" : "messages.vpn-block";
+                    return MessageFormatter.toPlainText(
+                            getLanguageConfig().getString(path),
+                            MessageFormatter.placeholdersWithPrefix(
+                                    getLanguageConfig().getString("messages.prefix", "&bTwiAntiVpn &7|"),
+                                    "%IP%", result.getIpAddress(),
+                                    "%NAME%", result.getUsername(),
+                                    "%MATCH%", result.getMatch()
+                            )
+                    );
+                }
+        );
+    }
+
+    private boolean shouldRunBeforeAntiBot() {
+        String order = getConfig().getString("login-check.order", "BEFORE_ANTIBOT");
+        return !order.equalsIgnoreCase("AFTER_ANTIBOT");
     }
 
     private void configureSecurityFilters() {

@@ -224,6 +224,7 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
         ConnectionGuardVelocityPlugin.getInstance().configureGeoProviders();
         ConnectionGuardVelocityPlugin.getInstance().configureSecurityFilters();
         ConnectionGuardVelocityPlugin.getInstance().configureProxyBlocklist();
+        ConnectionGuardVelocityPlugin.getInstance().configureSonarEarlyHook();
 
         commandSender.sendMessage(component("command.config-reload"));
         return true;

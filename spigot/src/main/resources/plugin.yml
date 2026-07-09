@@ -9,16 +9,15 @@ api-version: 1.13
 folia-supported: true
 softdepend:
   - LuckPerms
-  - Asteroid
-  - AsteroidProxy
-  - AsteroidSpoofer
-  - AsteroidLibs
-loadbefore:
   - Sonar
   - SonarBukkit
   - SonarSpigot
   - SonarPaper
   - SonarBukkitPlugin
+  - Asteroid
+  - AsteroidProxy
+  - AsteroidSpoofer
+  - AsteroidLibs
 commands:
   twiantivpn:
     name: twiantivpn

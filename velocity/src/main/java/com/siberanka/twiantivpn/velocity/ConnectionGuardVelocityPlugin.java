@@ -9,6 +9,8 @@ import com.siberanka.twiantivpn.core.cache.SQLiteCacheProvider;
 import com.siberanka.twiantivpn.core.geo.GeoProvider;
 import com.siberanka.twiantivpn.core.geo.IpApiGeoProvider;
 import com.siberanka.twiantivpn.core.geo.ProxyCheckGeoProvider;
+import com.siberanka.twiantivpn.core.integration.SonarApiEarlyCheckHook;
+import com.siberanka.twiantivpn.core.message.MessageFormatter;
 import com.siberanka.twiantivpn.core.vpn.*;
 import com.siberanka.twiantivpn.core.vpn.custom.CustomVpnProvider;
 import com.siberanka.twiantivpn.velocity.commands.ConnectionGuardVelocityCommand;
@@ -19,6 +21,7 @@ import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
+import com.velocitypowered.api.plugin.Dependency;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
@@ -32,9 +35,12 @@ import java.util.HashMap;
 @Plugin(
         id="twiantivpn",
         name="TwiAntiVpn",
-        version="2026.07.09.13",
+        version="2026.07.09.14",
         url="https://github.com/siberanka",
-        authors = {"gerolndnr", "siberanka"}
+        authors = {"gerolndnr", "siberanka"},
+        dependencies = {
+                @Dependency(id = "sonar", optional = true)
+        }
 )
 public class ConnectionGuardVelocityPlugin {
     private static final String OKHTTP_VERSION = "4.12.0";
@@ -195,6 +201,7 @@ public class ConnectionGuardVelocityPlugin {
         ConnectionGuard.setGeoCacheExpirationTime(cgVelocityConfig.getConfig().getInt("provider.cache.expiration.geo"));
         configureSecurityFilters();
         configureProxyBlocklist();
+        configureSonarEarlyHook();
 
         // 7. Register velocity listener and commands
         proxyServer.getEventManager().register(this, new ConnectionGuardVelocityListener());
@@ -209,6 +216,7 @@ public class ConnectionGuardVelocityPlugin {
 
     @Subscribe
     public void onProxyShutdown(ProxyShutdownEvent shutdownEvent) {
+        SonarApiEarlyCheckHook.uninstall(ConnectionGuard.getLogger());
         ConnectionGuard.shutdownProxyBlocklist();
         if (ConnectionGuard.getCacheProvider() != null) {
             ConnectionGuard.getCacheProvider().disband();
@@ -224,6 +232,35 @@ public class ConnectionGuardVelocityPlugin {
                 cgVelocityConfig.getConfig().getInt("proxy-blocklist.max-line-length"),
                 cgVelocityConfig.getConfig().getInt("proxy-blocklist.request-timeout-seconds")
         );
+    }
+
+    public void configureSonarEarlyHook() {
+        if (!shouldRunBeforeAntiBot() || !proxyServer.getPluginManager().getPlugin("sonar").isPresent()) {
+            SonarApiEarlyCheckHook.uninstall(ConnectionGuard.getLogger());
+            return;
+        }
+        SonarApiEarlyCheckHook.install(
+                ConnectionGuard.getLogger(),
+                (ipAddress, username) -> cgVelocityConfig.getConfig().getStringList("behavior.vpn.exemptions").contains(ipAddress)
+                        || cgVelocityConfig.getConfig().getStringList("behavior.vpn.exemptions").contains(username),
+                result -> {
+                    String path = result.getType().equals("username") ? "messages.username-block" : "messages.vpn-block";
+                    return MessageFormatter.toPlainText(
+                            cgVelocityConfig.getLanguageConfig().getString(path),
+                            MessageFormatter.placeholdersWithPrefix(
+                                    cgVelocityConfig.getLanguageConfig().getString("messages.prefix", "&bTwiAntiVpn &7|"),
+                                    "%IP%", result.getIpAddress(),
+                                    "%NAME%", result.getUsername(),
+                                    "%MATCH%", result.getMatch()
+                            )
+                    );
+                }
+        );
+    }
+
+    private boolean shouldRunBeforeAntiBot() {
+        String order = cgVelocityConfig.getConfig().getString("login-check.order", "BEFORE_ANTIBOT");
+        return !order.equalsIgnoreCase("AFTER_ANTIBOT");
     }
 
     public void configureSecurityFilters() {
