@@ -39,7 +39,7 @@ import java.util.Set;
 @Plugin(
         id="twiantivpn",
         name="TwiAntiVpn",
-        version="2026.07.09.22",
+        version="2026.07.09.23",
         url="https://github.com/siberanka",
         authors = {"gerolndnr", "siberanka"},
         dependencies = {
@@ -287,6 +287,10 @@ public class ConnectionGuardVelocityPlugin {
         }
         SonarApiEarlyCheckHook.install(
                 ConnectionGuard.getLogger(),
+                cgVelocityConfig.getConfig().getInt(
+                        "login-check.adaptive-sonar.pre-sonar-check-timeout-seconds",
+                        6
+                ),
                 (ipAddress, username) -> cgVelocityConfig.getConfig().getStringList("behavior.vpn.exemptions").contains(ipAddress)
                         || cgVelocityConfig.getConfig().getStringList("behavior.vpn.exemptions").contains(username),
                 (ipAddress, username) -> cgVelocityConfig.getConfig().getStringList("behavior.geo.exemptions").contains(ipAddress)
@@ -360,6 +364,9 @@ public class ConnectionGuardVelocityPlugin {
     }
 
     private String messagePathForResult(String type) {
+        if ("check-failed".equals(type)) {
+            return "messages.pre-sonar-check-failed";
+        }
         if ("username".equals(type)) {
             return "messages.username-block";
         }

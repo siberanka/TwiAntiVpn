@@ -295,6 +295,10 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
         }
         SonarApiEarlyCheckHook.install(
                 getLogger(),
+                getConfig().getInt(
+                        "login-check.adaptive-sonar.pre-sonar-check-timeout-seconds",
+                        6
+                ),
                 (ipAddress, username) -> getConfig().getStringList("behavior.vpn.exemptions").contains(ipAddress)
                         || getConfig().getStringList("behavior.vpn.exemptions").contains(username),
                 (ipAddress, username) -> getConfig().getStringList("behavior.geo.exemptions").contains(ipAddress)
@@ -368,6 +372,9 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
     }
 
     private String messagePathForResult(String type) {
+        if ("check-failed".equals(type)) {
+            return "messages.pre-sonar-check-failed";
+        }
         if ("username".equals(type)) {
             return "messages.username-block";
         }
@@ -530,6 +537,7 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
                 && languageConfig.contains("messages.adaptive-sonar-attack-log")
                 && languageConfig.contains("messages.adaptive-sonar-recovery-log")
                 && languageConfig.contains("messages.adaptive-sonar-normal-log")
+                && languageConfig.contains("messages.pre-sonar-check-failed")
                 && languageConfigUsesCurrentCommandName()) {
             return;
         }

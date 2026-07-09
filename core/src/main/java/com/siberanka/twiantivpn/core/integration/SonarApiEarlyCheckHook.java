@@ -9,9 +9,16 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.InetAddress;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
@@ -19,22 +26,31 @@ import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 public final class SonarApiEarlyCheckHook {
+    private static final int DEFAULT_CHECK_TIMEOUT_SECONDS = 6;
+    private static final int MIN_CHECK_TIMEOUT_SECONDS = 1;
+    private static final int MAX_CHECK_TIMEOUT_SECONDS = 7;
     private static final AtomicReference<Registration> REGISTRATION = new AtomicReference<>();
 
     private SonarApiEarlyCheckHook() {
     }
 
     public static void install(Logger logger,
+                               int checkTimeoutSeconds,
                                BiPredicate<String, String> vpnExemption,
                                BiPredicate<String, String> geoExemption,
                                Predicate<GeoResult> geoBlocked,
                                Function<Result, String> disconnectMessage) {
         uninstall(logger);
+        ScheduledThreadPoolExecutor installationExecutor = null;
         try {
             Class<?> sonarClass = Class.forName("xyz.jonesdev.sonar.api.Sonar");
             Class<?> listenerClass = Class.forName("xyz.jonesdev.sonar.api.event.SonarEventListener");
             Object sonar = sonarClass.getMethod("get").invoke(null);
             Object eventManager = sonar.getClass().getMethod("getEventManager").invoke(sonar);
+            installationExecutor = createTimeoutExecutor();
+            final ScheduledThreadPoolExecutor timeoutExecutor = installationExecutor;
+            final Set<PendingCheck> pendingChecks =
+                    Collections.newSetFromMap(new ConcurrentHashMap<PendingCheck, Boolean>());
             AdaptiveLoginOrderService.getInstance().setSonarStatus(
                     true,
                     isSonarUnderAttack(sonar)
@@ -62,6 +78,9 @@ public final class SonarApiEarlyCheckHook {
                                     geoExemption,
                                     geoBlocked,
                                     disconnectMessage,
+                                    boundedTimeout(checkTimeoutSeconds),
+                                    timeoutExecutor,
+                                    pendingChecks,
                                     logger
                             );
                         }
@@ -73,13 +92,22 @@ public final class SonarApiEarlyCheckHook {
             Array.set(listenerArray, 0, listener);
             Method register = eventManager.getClass().getMethod("registerListener", listenerArray.getClass());
             register.invoke(eventManager, listenerArray);
-            REGISTRATION.set(new Registration(eventManager, listener, listenerArray.getClass()));
+            REGISTRATION.set(new Registration(
+                    eventManager,
+                    listener,
+                    listenerArray.getClass(),
+                    timeoutExecutor,
+                    pendingChecks
+            ));
             if (logger != null) {
                 logger.info("TwiAntiVpn | Sonar early VPN hook enabled.");
             }
         } catch (ClassNotFoundException ignored) {
             // Sonar is not installed on this platform.
         } catch (Throwable throwable) {
+            if (installationExecutor != null) {
+                installationExecutor.shutdownNow();
+            }
             ConnectionGuard.reportError("Sonar early hook install", throwable);
         }
     }
@@ -97,6 +125,11 @@ public final class SonarApiEarlyCheckHook {
             unregister.invoke(registration.eventManager, listenerArray);
         } catch (Throwable throwable) {
             ConnectionGuard.reportError("Sonar early hook uninstall", throwable);
+        } finally {
+            for (PendingCheck pendingCheck : registration.pendingChecks) {
+                pendingCheck.abortForShutdown();
+            }
+            registration.timeoutExecutor.shutdownNow();
         }
     }
 
@@ -105,6 +138,9 @@ public final class SonarApiEarlyCheckHook {
                                     BiPredicate<String, String> geoExemption,
                                     Predicate<GeoResult> geoBlocked,
                                     Function<Result, String> disconnectMessage,
+                                    int checkTimeoutSeconds,
+                                    ScheduledThreadPoolExecutor timeoutExecutor,
+                                    Set<PendingCheck> pendingChecks,
                                     Logger logger) {
         if (event == null || !"UserVerifyJoinEvent".equals(event.getClass().getSimpleName())) {
             if (event != null && "AttackDetectedEvent".equals(event.getClass().getSimpleName())) {
@@ -124,11 +160,31 @@ public final class SonarApiEarlyCheckHook {
             String username = String.valueOf(user.getClass().getMethod("getUsername").invoke(user));
             InetAddress inetAddress = (InetAddress) user.getClass().getMethod("getInetAddress").invoke(user);
             String ipAddress = inetAddress.getHostAddress();
+            ConnectionGate gate = ConnectionGate.pause(user);
+            if (gate == null) {
+                ConnectionGuard.reportError(
+                        "Sonar pre-verification gate",
+                        new IllegalStateException("Could not pause the Sonar connection before verification")
+                );
+                closeChannel(user);
+                return;
+            }
+            PendingCheck pendingCheck = new PendingCheck(
+                    user,
+                    gate,
+                    disconnectMessage,
+                    checkTimeoutSeconds,
+                    timeoutExecutor,
+                    pendingChecks
+            );
 
             if (modules.contains(CheckModule.USERNAME_FILTER)) {
                 Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(username);
                 if (blockedUsernamePart.isPresent()) {
-                    disconnectAndRecord(user, Result.username(ipAddress, username, blockedUsernamePart.get()), disconnectMessage);
+                    pendingCheck.block(
+                            Result.username(ipAddress, username, blockedUsernamePart.get()),
+                            true
+                    );
                     return;
                 }
             }
@@ -153,41 +209,48 @@ public final class SonarApiEarlyCheckHook {
                     : CompletableFuture.completedFuture(Optional.empty());
 
             if (!checkVpn && !checkGeo) {
+                pendingCheck.allow();
                 return;
             }
 
             CompletableFuture.allOf(vpnFuture, geoFuture).whenComplete((ignored, throwable) -> {
                 if (throwable != null) {
                     ConnectionGuard.reportError("Sonar early check", throwable);
+                    pendingCheck.block(Result.checkFailed(ipAddress, username), false);
                     return;
                 }
-                VpnResult vpnResult = vpnFuture.join();
-                if (vpnResult != null && vpnResult.isVpn()) {
-                    disconnectAndRecord(user, Result.vpn(ipAddress, username), disconnectMessage);
-                    return;
-                }
-
-                Optional<GeoResult> geoResultOptional = geoFuture.join();
-                if (!geoResultOptional.isPresent()) {
-                    return;
-                }
-                GeoResult geoResult = geoResultOptional.get();
-                if (modules.contains(CheckModule.ISP_BLOCK)) {
-                    Optional<IspBlockResult> ispBlockResult =
-                            ConnectionGuard.getIspBlockResult(geoResult);
-                    if (ispBlockResult.isPresent()) {
-                        disconnectAndRecord(
-                                user,
-                                Result.isp(ipAddress, username, ispBlockResult.get()),
-                                disconnectMessage
-                        );
+                try {
+                    VpnResult vpnResult = vpnFuture.join();
+                    if (vpnResult != null && vpnResult.isVpn()) {
+                        pendingCheck.block(Result.vpn(ipAddress, username), true);
                         return;
                     }
-                }
-                if (modules.contains(CheckModule.GEO_BLOCK)
-                        && geoBlocked != null
-                        && geoBlocked.test(geoResult)) {
-                    disconnectAndRecord(user, Result.geo(ipAddress, username, geoResult), disconnectMessage);
+
+                    Optional<GeoResult> geoResultOptional = geoFuture.join();
+                    if (geoResultOptional.isPresent()) {
+                        GeoResult geoResult = geoResultOptional.get();
+                        if (modules.contains(CheckModule.ISP_BLOCK)) {
+                            Optional<IspBlockResult> ispBlockResult =
+                                    ConnectionGuard.getIspBlockResult(geoResult);
+                            if (ispBlockResult.isPresent()) {
+                                pendingCheck.block(
+                                        Result.isp(ipAddress, username, ispBlockResult.get()),
+                                        true
+                                );
+                                return;
+                            }
+                        }
+                        if (modules.contains(CheckModule.GEO_BLOCK)
+                                && geoBlocked != null
+                                && geoBlocked.test(geoResult)) {
+                            pendingCheck.block(Result.geo(ipAddress, username, geoResult), true);
+                            return;
+                        }
+                    }
+                    pendingCheck.allow();
+                } catch (Throwable completionFailure) {
+                    ConnectionGuard.reportError("Sonar early check completion", completionFailure);
+                    pendingCheck.block(Result.checkFailed(ipAddress, username), false);
                 }
             });
         } catch (Throwable throwable) {
@@ -205,23 +268,74 @@ public final class SonarApiEarlyCheckHook {
         }
     }
 
-    private static void disconnect(Object user, Result result, Function<Result, String> disconnectMessage) {
+    private static boolean disconnect(Object user,
+                                      Result result,
+                                      Function<Result, String> disconnectMessage) {
         try {
             ClassLoader classLoader = user.getClass().getClassLoader();
             Class<?> componentClass = Class.forName("net.kyori.adventure.text.Component", true, classLoader);
             Method text = componentClass.getMethod("text", String.class);
-            String message = disconnectMessage == null ? "Connection blocked by TwiAntiVpn." : disconnectMessage.apply(result);
-            Object component = text.invoke(null, message == null ? "Connection blocked by TwiAntiVpn." : message);
+            String message = disconnectMessage == null ? "" : disconnectMessage.apply(result);
+            Object component = text.invoke(null, message == null ? "" : message);
             Method disconnect = user.getClass().getMethod("disconnect", componentClass);
             disconnect.invoke(user, component);
-        } catch (Throwable ignored) {
-            // If Sonar changed its API, fail closed for this hook only and leave Sonar's own flow intact.
+            return true;
+        } catch (Throwable throwable) {
+            ConnectionGuard.reportError("Sonar pre-verification disconnect", throwable);
+            return false;
         }
     }
 
-    private static void disconnectAndRecord(Object user, Result result, Function<Result, String> disconnectMessage) {
-        AdaptiveLoginOrderService.getInstance().recordPreSonarBlock();
-        disconnect(user, result, disconnectMessage);
+    private static void closeChannel(Object user) {
+        try {
+            Object channel = user.getClass().getMethod("channel").invoke(user);
+            channel.getClass().getMethod("close").invoke(channel);
+        } catch (Throwable throwable) {
+            ConnectionGuard.reportError("Sonar pre-verification channel close", throwable);
+        }
+    }
+
+    private static void executeOnEventLoop(Object user, Runnable action) {
+        try {
+            Object channel = user.getClass().getMethod("channel").invoke(user);
+            Object eventLoop = channel.getClass().getMethod("eventLoop").invoke(channel);
+            Object pipeline = channel.getClass().getMethod("pipeline").invoke(channel);
+            Object sonarEncoder = pipeline.getClass()
+                    .getMethod("get", String.class)
+                    .invoke(pipeline, "sonar-packet-encoder");
+            if (sonarEncoder != null) {
+                eventLoop.getClass().getMethod("execute", Runnable.class).invoke(eventLoop, action);
+            } else {
+                eventLoop.getClass()
+                        .getMethod("schedule", Runnable.class, long.class, TimeUnit.class)
+                        .invoke(eventLoop, action, 10L, TimeUnit.MILLISECONDS);
+            }
+        } catch (Throwable throwable) {
+            ConnectionGuard.reportError("Sonar pre-verification event loop", throwable);
+            action.run();
+        }
+    }
+
+    static int boundedTimeout(int configuredSeconds) {
+        if (configuredSeconds <= 0) {
+            return DEFAULT_CHECK_TIMEOUT_SECONDS;
+        }
+        return Math.max(MIN_CHECK_TIMEOUT_SECONDS,
+                Math.min(MAX_CHECK_TIMEOUT_SECONDS, configuredSeconds));
+    }
+
+    private static ScheduledThreadPoolExecutor createTimeoutExecutor() {
+        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1, new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable runnable) {
+                Thread thread = new Thread(runnable, "TwiAntiVpn-SonarGate");
+                thread.setDaemon(true);
+                return thread;
+            }
+        });
+        executor.setRemoveOnCancelPolicy(true);
+        executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+        return executor;
     }
 
     public static final class Result {
@@ -265,6 +379,10 @@ public final class SonarApiEarlyCheckHook {
             );
         }
 
+        public static Result checkFailed(String ipAddress, String username) {
+            return new Result("check-failed", ipAddress, username, "", null);
+        }
+
         public String getType() {
             return type;
         }
@@ -298,15 +416,141 @@ public final class SonarApiEarlyCheckHook {
         }
     }
 
+    private static final class PendingCheck {
+        private final Object user;
+        private final ConnectionGate gate;
+        private final Function<Result, String> disconnectMessage;
+        private final Set<PendingCheck> owner;
+        private final AtomicBoolean completed = new AtomicBoolean();
+        private final ScheduledFuture<?> timeoutTask;
+
+        private PendingCheck(Object user,
+                             ConnectionGate gate,
+                             Function<Result, String> disconnectMessage,
+                             int timeoutSeconds,
+                             ScheduledThreadPoolExecutor timeoutExecutor,
+                             Set<PendingCheck> owner) {
+            this.user = user;
+            this.gate = gate;
+            this.disconnectMessage = disconnectMessage;
+            this.owner = owner;
+            owner.add(this);
+            ScheduledFuture<?> scheduledTimeout;
+            try {
+                scheduledTimeout = timeoutExecutor.schedule(
+                        () -> block(Result.checkFailed(gate.ipAddress, gate.username), false),
+                        timeoutSeconds,
+                        TimeUnit.SECONDS
+                );
+            } catch (Throwable throwable) {
+                ConnectionGuard.reportError("Sonar pre-verification timeout schedule", throwable);
+                scheduledTimeout = null;
+            }
+            this.timeoutTask = scheduledTimeout;
+            if (scheduledTimeout == null) {
+                block(Result.checkFailed(gate.ipAddress, gate.username), false);
+            }
+        }
+
+        private void allow() {
+            finish(null, false);
+        }
+
+        private void block(Result result, boolean recordBlock) {
+            finish(result, recordBlock);
+        }
+
+        private void abortForShutdown() {
+            block(Result.checkFailed(gate.ipAddress, gate.username), false);
+        }
+
+        private void finish(Result result, boolean recordBlock) {
+            if (!completed.compareAndSet(false, true)) {
+                return;
+            }
+            if (timeoutTask != null) {
+                timeoutTask.cancel(false);
+            }
+            owner.remove(this);
+            if (result != null && recordBlock) {
+                AdaptiveLoginOrderService.getInstance().recordPreSonarBlock();
+            }
+            executeOnEventLoop(user, () -> {
+                if (result == null) {
+                    gate.resume();
+                    return;
+                }
+                if (!disconnect(user, result, disconnectMessage)) {
+                    closeChannel(user);
+                }
+            });
+        }
+    }
+
+    private static final class ConnectionGate {
+        private final Object config;
+        private final boolean restoreAutoRead;
+        private final String ipAddress;
+        private final String username;
+
+        private ConnectionGate(Object config,
+                               boolean restoreAutoRead,
+                               String ipAddress,
+                               String username) {
+            this.config = config;
+            this.restoreAutoRead = restoreAutoRead;
+            this.ipAddress = ipAddress;
+            this.username = username;
+        }
+
+        private static ConnectionGate pause(Object user) {
+            try {
+                Object channel = user.getClass().getMethod("channel").invoke(user);
+                Object config = channel.getClass().getMethod("config").invoke(channel);
+                boolean autoRead = (Boolean) config.getClass().getMethod("isAutoRead").invoke(config);
+                if (autoRead) {
+                    config.getClass().getMethod("setAutoRead", boolean.class).invoke(config, false);
+                }
+                InetAddress address =
+                        (InetAddress) user.getClass().getMethod("getInetAddress").invoke(user);
+                String username =
+                        String.valueOf(user.getClass().getMethod("getUsername").invoke(user));
+                return new ConnectionGate(config, autoRead, address.getHostAddress(), username);
+            } catch (Throwable throwable) {
+                ConnectionGuard.reportError("Sonar pre-verification pause", throwable);
+                return null;
+            }
+        }
+
+        private void resume() {
+            if (!restoreAutoRead) {
+                return;
+            }
+            try {
+                config.getClass().getMethod("setAutoRead", boolean.class).invoke(config, true);
+            } catch (Throwable throwable) {
+                ConnectionGuard.reportError("Sonar pre-verification resume", throwable);
+            }
+        }
+    }
+
     private static final class Registration {
         private final Object eventManager;
         private final Object listener;
         private final Class<?> arrayType;
+        private final ScheduledThreadPoolExecutor timeoutExecutor;
+        private final Set<PendingCheck> pendingChecks;
 
-        private Registration(Object eventManager, Object listener, Class<?> arrayType) {
+        private Registration(Object eventManager,
+                             Object listener,
+                             Class<?> arrayType,
+                             ScheduledThreadPoolExecutor timeoutExecutor,
+                             Set<PendingCheck> pendingChecks) {
             this.eventManager = eventManager;
             this.listener = listener;
             this.arrayType = arrayType;
+            this.timeoutExecutor = timeoutExecutor;
+            this.pendingChecks = pendingChecks;
         }
     }
 }

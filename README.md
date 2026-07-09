@@ -61,7 +61,9 @@ TwiAntiVpn can cooperate with Sonar on Spigot/Paper, BungeeCord/Waterfall and Ve
 
 - `login-check.order: BEFORE_ANTIBOT` makes TwiAntiVpn run as early as the platform allows. This is the default.
 - `login-check.order: AFTER_ANTIBOT` lets anti-bot plugins process the connection first, then TwiAntiVpn checks the connection if it is still allowed.
-- When Sonar is installed and `BEFORE_ANTIBOT` is active, TwiAntiVpn runs selected early modules at the first platform login phase and also hooks Sonar's verification join flow as an additional safety path. This lets selected checks run before Sonar completes its bot verification without relying on a single integration point.
+- When Sonar is installed and `BEFORE_ANTIBOT` is active, TwiAntiVpn opens a pre-verification gate at Sonar's `UserVerifyJoinEvent`. Incoming packet reads are paused while the selected modules run, so Sonar cannot inspect client settings, brand, keep-alive, gravity or vehicle packets first.
+- The gate resumes the connection only after every selected check allows it. A policy match disconnects through Sonar's packet pipeline; an exception or timeout is denied fail-closed with the localized `pre-sonar-check-failed` message.
+- `login-check.adaptive-sonar.pre-sonar-check-timeout-seconds` limits gate duration to 1-7 seconds. The default is 6 seconds, below Sonar's default 8-second read timeout.
 - `login-check.adaptive-sonar.enabled` allows TwiAntiVpn to move checks after Sonar automatically during attacks or recovery periods.
 - `login-check.adaptive-sonar.before-sonar` controls which modules are allowed before Sonar during normal traffic. These modules are checked early, and all enabled policies are checked again after Sonar if the connection is still allowed. By default, only lightweight checks are enabled there.
 
@@ -77,6 +79,7 @@ The local spike detector is configured here:
 ```yaml
 login-check:
   adaptive-sonar:
+    pre-sonar-check-timeout-seconds: 6
     pre-sonar-block-spike:
       enabled: true
       count-blocks-within-seconds: 60
@@ -140,7 +143,7 @@ YYYY.MM.DD.build
 Example:
 
 ```text
-2026.07.09.22
+2026.07.09.23
 ```
 
 ## Credits
@@ -218,7 +221,9 @@ TwiAntiVpn, Spigot/Paper, BungeeCord/Waterfall ve Velocity üzerinde Sonar ile b
 
 - `login-check.order: BEFORE_ANTIBOT` TwiAntiVpn kontrollerini platformun izin verdiği en erken aşamada çalıştırır. Varsayılan budur.
 - `login-check.order: AFTER_ANTIBOT` anti-bot pluginlerinin önce çalışmasına izin verir; bağlantı hâlâ izinliyse TwiAntiVpn kontrolleri sonra yapılır.
-- Sonar kuruluysa ve `BEFORE_ANTIBOT` aktifse TwiAntiVpn seçili erken modülleri platformun ilk login fazında çalıştırır ve ek güvenlik yolu olarak Sonar doğrulama giriş akışına da bağlanır. Böylece seçilen kontroller tek bir entegrasyon noktasına bağlı kalmadan Sonar bot doğrulaması tamamlanmadan önce çalışabilir.
+- Sonar kuruluysa ve `BEFORE_ANTIBOT` aktifse TwiAntiVpn, Sonar'ın `UserVerifyJoinEvent` aşamasında bir ön doğrulama kapısı açar. Seçili modüller çalışırken bağlantıdan paket okuma durdurulur; böylece Sonar client settings, client brand, keep-alive, gravity veya vehicle paketlerini önce inceleyemez.
+- Bağlantı yalnızca seçili kontrollerin tamamı izin verdikten sonra devam eder. Bir politika eşleşirse bağlantı Sonar'ın packet pipeline'ı üzerinden kapatılır; exception veya zaman aşımı olursa dil dosyasındaki `pre-sonar-check-failed` mesajıyla fail-closed engellenir.
+- `login-check.adaptive-sonar.pre-sonar-check-timeout-seconds` kapının açık kalacağı süreyi 1-7 saniye arasında sınırlar. Varsayılan 6 saniye, Sonar'ın varsayılan 8 saniyelik read timeout değerinden düşüktür.
 - `login-check.adaptive-sonar.enabled` açıkken saldırı veya recovery durumlarında kontroller otomatik olarak Sonar sonrasına taşınabilir.
 - `login-check.adaptive-sonar.before-sonar` normal trafikte hangi modüllerin Sonar öncesinde çalışabileceğini belirler. Bu modüller erken kontrol edilir; bağlantı hâlâ izinliyse tüm aktif politikalar Sonar sonrasında tekrar kullanılabilir. Varsayılan olarak burada yalnızca hafif kontroller açık tutulur.
 
@@ -234,6 +239,7 @@ Yerel yoğunluk algılama ayarı:
 ```yaml
 login-check:
   adaptive-sonar:
+    pre-sonar-check-timeout-seconds: 6
     pre-sonar-block-spike:
       enabled: true
       count-blocks-within-seconds: 60
@@ -297,7 +303,7 @@ YYYY.MM.DD.build
 Örnek:
 
 ```text
-2026.07.09.22
+2026.07.09.23
 ```
 
 ## Katkı

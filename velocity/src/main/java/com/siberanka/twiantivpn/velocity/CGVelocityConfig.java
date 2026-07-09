@@ -95,6 +95,7 @@ public class CGVelocityConfig {
                 && languageConfig.contains("messages.adaptive-sonar-attack-log")
                 && languageConfig.contains("messages.adaptive-sonar-recovery-log")
                 && languageConfig.contains("messages.adaptive-sonar-normal-log")
+                && languageConfig.contains("messages.pre-sonar-check-failed")
                 && languageConfigUsesCurrentCommandName()) {
             return;
         }
@@ -120,6 +121,7 @@ public class CGVelocityConfig {
         boolean changed = false;
         changed |= setConfigDefault("login-check.adaptive-sonar.enabled", true);
         changed |= setConfigDefault("login-check.adaptive-sonar.recovery-delay-seconds", 30);
+        changed |= setConfigDefault("login-check.adaptive-sonar.pre-sonar-check-timeout-seconds", 6);
         changed |= setConfigDefault("login-check.adaptive-sonar.pre-sonar-block-spike.enabled", true);
         changed |= setConfigDefault("login-check.adaptive-sonar.pre-sonar-block-spike.count-blocks-within-seconds", 60);
         changed |= setConfigDefault("login-check.adaptive-sonar.pre-sonar-block-spike.trigger-after-blocked-connections", 15);

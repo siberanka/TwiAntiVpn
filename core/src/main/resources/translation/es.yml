@@ -17,6 +17,7 @@ messages:
   adaptive-sonar-local-attack-log: "Los bloqueos antes de Sonar superaron el umbral configurado; Sonar filtrará las conexiones nuevas antes de las comprobaciones de VPN."
   adaptive-sonar-recovery-log: "Sonar mitigó el ataque; Sonar permanecerá primero durante el periodo de recuperación."
   adaptive-sonar-normal-log: "El tráfico se mantuvo estable; las comprobaciones de VPN vuelven a ejecutarse antes de Sonar."
+  pre-sonar-check-failed: "{kick_prefix}\\n\\n&c&lComprobación de conexión no disponible\\n&7Las comprobaciones de seguridad de red obligatorias no pudieron finalizar de forma segura antes de la verificación.\\n\\n&8Motivo: &fLa comprobación previa agotó el tiempo o falló\\n&7Espera un momento y vuelve a conectarte. Contacta con soporte si el problema continúa.\\n\\n{kick_contact}"
   username-block: "{kick_prefix}\\n\\n&c&lAcceso denegado\\n&7Tu nombre de usuario contiene un término prohibido por la política de nombres del servidor.\\n\\n&8Motivo: &fTérmino de usuario prohibido\\n&8Término detectado: &f%MATCH%\\n\\n{kick_contact}"
   username-notify: "{prefix} &e%NAME% &7(%IP%) fue bloqueado por el filtro de nombres. &8Coincidencia: &f%MATCH%"
   username-webhook: "%NAME% (%IP%) fue bloqueado por el filtro de nombres. Coincidencia: %MATCH%."
