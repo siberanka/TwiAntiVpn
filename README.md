@@ -148,7 +148,7 @@ YYYY.MM.DD.build
 Example:
 
 ```text
-2026.07.09.25
+2026.07.09.26
 ```
 
 ## Credits
@@ -313,7 +313,7 @@ YYYY.MM.DD.build
 Örnek:
 
 ```text
-2026.07.09.25
+2026.07.09.26
 ```
 
 ## Katkı

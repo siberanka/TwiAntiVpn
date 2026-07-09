@@ -223,17 +223,15 @@ proxy-blocklist:
     - https://www.spamhaus.org/drop/edrop.txt
     - https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt
     - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_anonymous.netset
-    - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/stopforumspam_toxic.ipset
     - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/blocklist_de.ipset
     - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/greensnow.ipset
-    - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/binarydefense.ipset
     - https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/ciarmy.ipset
     - https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt
     - https://raw.githubusercontent.com/stamparm/ipsum/master/levels/5.txt
-    - https://raw.githubusercontent.com/rezmoss/cloud-provider-ip-addresses/main/aws/txt/all.txt
-    - https://raw.githubusercontent.com/rezmoss/cloud-provider-ip-addresses/main/azure/txt/all.txt
-    - https://raw.githubusercontent.com/rezmoss/cloud-provider-ip-addresses/main/googlecloud/txt/all.txt
-    - https://raw.githubusercontent.com/rezmoss/cloud-provider-ip-addresses/main/cloudflare/txt/all.txt
+    - https://raw.githubusercontent.com/ausec-it/cloud-ip-ranges/main/data/providers/aws.csv
+    - https://raw.githubusercontent.com/ausec-it/cloud-ip-ranges/main/data/providers/azure.csv
+    - https://raw.githubusercontent.com/ausec-it/cloud-ip-ranges/main/data/providers/googlecloud.csv
+    - https://raw.githubusercontent.com/ausec-it/cloud-ip-ranges/main/data/providers/cloudflare.csv
 
 # There are a lot of different services which help the plugin identify which
 # IP is a vpn and which is not. Some work better than others and some have daily/monthly limits.

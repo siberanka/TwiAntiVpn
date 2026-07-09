@@ -305,6 +305,14 @@ public final class SonarApiEarlyCheckHook {
             }
 
             Class<?> registryType = registry.getClass();
+            if (!registryType.isEnum()) {
+                registryType = registryType.getSuperclass();
+            }
+            if (registryType == null || !registryType.isEnum()) {
+                throw new IllegalStateException(
+                        "Unsupported Sonar packet registry type: " + registry.getClass().getName()
+                );
+            }
             @SuppressWarnings({"rawtypes", "unchecked"})
             Object configRegistry = Enum.valueOf((Class<? extends Enum>) registryType, "CONFIG");
             encoder.getClass().getMethod("updateRegistry", registryType)

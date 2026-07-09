@@ -51,6 +51,36 @@ public class ProxyBlocklistService {
     private static final int MIN_IPV4_PREFIX_LENGTH = 8;
     private static final int MIN_IPV6_PREFIX_LENGTH = 16;
     private static final long MAX_SOURCE_BYTES = 64L * 1024L * 1024L;
+    private static final Map<String, String> RETIRED_DEFAULT_URLS;
+
+    static {
+        Map<String, String> replacements = new HashMap<>();
+        replacements.put(
+                "https://raw.githubusercontent.com/rezmoss/cloud-provider-ip-addresses/main/aws/txt/all.txt",
+                "https://raw.githubusercontent.com/ausec-it/cloud-ip-ranges/main/data/providers/aws.csv"
+        );
+        replacements.put(
+                "https://raw.githubusercontent.com/rezmoss/cloud-provider-ip-addresses/main/azure/txt/all.txt",
+                "https://raw.githubusercontent.com/ausec-it/cloud-ip-ranges/main/data/providers/azure.csv"
+        );
+        replacements.put(
+                "https://raw.githubusercontent.com/rezmoss/cloud-provider-ip-addresses/main/googlecloud/txt/all.txt",
+                "https://raw.githubusercontent.com/ausec-it/cloud-ip-ranges/main/data/providers/googlecloud.csv"
+        );
+        replacements.put(
+                "https://raw.githubusercontent.com/rezmoss/cloud-provider-ip-addresses/main/cloudflare/txt/all.txt",
+                "https://raw.githubusercontent.com/ausec-it/cloud-ip-ranges/main/data/providers/cloudflare.csv"
+        );
+        replacements.put(
+                "https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/stopforumspam_toxic.ipset",
+                ""
+        );
+        replacements.put(
+                "https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/binarydefense.ipset",
+                ""
+        );
+        RETIRED_DEFAULT_URLS = Collections.unmodifiableMap(replacements);
+    }
 
     private final AtomicReference<Snapshot> snapshot = new AtomicReference<>(Snapshot.empty());
     private final AtomicLong generation = new AtomicLong();
@@ -138,6 +168,10 @@ public class ProxyBlocklistService {
         return snapshot.get().createdAtMillis;
     }
 
+    List<String> configuredUrls() {
+        return urls;
+    }
+
     private void stopLocked(boolean clearSnapshot) {
         generation.incrementAndGet();
         if (refreshTask != null) {
@@ -200,7 +234,8 @@ public class ProxyBlocklistService {
                     break;
                 } catch (IOException | IllegalArgumentException exception) {
                     ConnectionGuard.reportError(
-                            "Proxy blocklist source download attempt " + attempt + "/" + MAX_RETRIES,
+                            "Proxy blocklist source download attempt " + attempt + "/" + MAX_RETRIES
+                                    + " [" + sourceLabel(url) + "]",
                             exception
                     );
                     if (attempt < MAX_RETRIES) {
@@ -351,6 +386,15 @@ public class ProxyBlocklistService {
                 break;
             }
             String value = configuredUrl.trim();
+            if (RETIRED_DEFAULT_URLS.containsKey(value)) {
+                String replacement = RETIRED_DEFAULT_URLS.get(value);
+                if (replacement.isEmpty()) {
+                    log("Ignoring retired proxy blocklist source: " + sourceLabel(value));
+                    continue;
+                }
+                log("Replacing retired proxy blocklist source with " + sourceLabel(replacement));
+                value = replacement;
+            }
             if (value.length() > 2048 || value.isEmpty() || !seen.add(value)) {
                 continue;
             }
@@ -373,6 +417,16 @@ public class ProxyBlocklistService {
             }
         }
         return Collections.unmodifiableList(sanitized);
+    }
+
+    private String sourceLabel(String value) {
+        try {
+            URI uri = URI.create(value);
+            String label = String.valueOf(uri.getHost()) + String.valueOf(uri.getPath());
+            return label.length() <= 256 ? label : label.substring(0, 256);
+        } catch (RuntimeException ignored) {
+            return "invalid-source";
+        }
     }
 
     private String readBoundedLine(BufferedReader reader) throws IOException {

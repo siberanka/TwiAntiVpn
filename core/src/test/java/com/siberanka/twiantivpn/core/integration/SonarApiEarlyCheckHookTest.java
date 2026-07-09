@@ -95,7 +95,8 @@ class SonarApiEarlyCheckHookTest {
     }
 
     public enum FakeRegistry {
-        LOGIN,
+        LOGIN {
+        },
         CONFIG
     }
 
