@@ -26,7 +26,7 @@ TwiAntiVpn is a production-focused anti-VPN, proxy, geo and connection-risk plug
 
 Download the latest jar from the GitHub Releases page:
 
-https://github.com/siberanka/TwiAntiVpn/releases
+https://gitlab.com/siberanka/TwiAntiVpn/-/releases
 
 Use the `TwiAntiVpn-*-all.jar` artifact.
 
@@ -191,7 +191,7 @@ TwiAntiVpn, Minecraft ağları için production odaklı anti-VPN, proxy, geo ve 
 
 Son jar dosyasını GitHub Releases sayfasından indirin:
 
-https://github.com/siberanka/TwiAntiVpn/releases
+https://gitlab.com/siberanka/TwiAntiVpn/-/releases
 
 `TwiAntiVpn-*-all.jar` dosyasını kullanın.
 
