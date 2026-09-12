@@ -610,6 +610,7 @@ public class ConnectionGuardBungeePlugin extends Plugin {
                 && languageConfig.contains("messages.adaptive-sonar-normal-log")
                 && languageConfig.contains("messages.pre-sonar-check-failed")
                 && languageConfig.contains("command.test.connection-result")
+                && languageConfig.contains("command.whitelist.added")
                 && languageConfigUsesCurrentCommandName()) {
             return;
         }

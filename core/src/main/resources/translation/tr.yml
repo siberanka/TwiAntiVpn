@@ -7,6 +7,10 @@ command:
   clear:
     clear-all: "{prefix} &7Tüm VPN ve geo önbellek kayıtları temizlendi."
     clear-specific: "{prefix} &f%ENTRY% &7için önbellek kayıtları temizlendi."
+  whitelist:
+    added: "{prefix} &f%IP% &7sunucu yeniden başlatılana kadar geçici whitelist'e eklendi."
+    already-added: "{prefix} &f%IP% &7zaten geçici whitelist'te."
+    invalid-ip: "{prefix} &7Geçerli bir IPv4 veya IPv6 adresi gir."
   invalid-argument: "{prefix} &7Çevrimiçi oyuncu, UUID veya geçerli bir IP adresi gir."
   test:
     busy: "{prefix} &eBir bağlantı testi zaten çalışıyor. Tamamlanmasını bekle."
@@ -22,6 +26,7 @@ command:
     reason-vpn: "VPN, proxy, Tor veya proxy kara listesi"
     reason-isp: "Kısıtlı ISP veya ASN"
     reason-geo: "Kısıtlı bölge"
+    reason-runtime-whitelist: "Geçici IP whitelist'i"
 
 messages:
   prefix: "<bold><gradient:#35d3ff:#6f7dff>TwiAntiVpn</gradient></bold> <dark_gray>|</dark_gray>"
@@ -50,6 +55,7 @@ messages:
     - " &8- &f/twiantivpn reload &7Yapılandırma ve dil dosyalarını yeniler."
     - " &8- &f/twiantivpn clear &7[Oyuncu/UUID/IP] Önbellek kayıtlarını temizler."
     - " &8- &f/twiantivpn info &7<Oyuncu/UUID/IP> VPN ve geo bilgilerini gösterir."
+    - " &8- &f/twiantivpn whitelist &7<IP> Bir IP'yi geçici olarak tüm kontrollerden muaf tutar."
     - " &8- &f/twiantivpn test &7<IP|attack [on|off]> Kararı ve adaptive yönlendirmeyi test eder."
   info:
     text:

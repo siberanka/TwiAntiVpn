@@ -73,6 +73,12 @@ public class ConnectionGuardSpigotCommand implements TabExecutor {
                         return true;
                     }
                     return sendInformationMessage(commandSender, args[1]);
+                case "whitelist":
+                    if (!commandSender.hasPermission("twiantivpn.command.whitelist")) {
+                        commandSender.sendMessage(noPermissionMessage);
+                        return true;
+                    }
+                    return whitelistIp(commandSender, args[1]);
                 case "test":
                     if (!commandSender.hasPermission("twiantivpn.command.test")) {
                         commandSender.sendMessage(noPermissionMessage);
@@ -131,6 +137,12 @@ public class ConnectionGuardSpigotCommand implements TabExecutor {
         CompletableFuture.runAsync(() -> {
             try {
                 String ip = parsed.get();
+                if (ConnectionGuard.isRuntimeWhitelistedIp(ip)) {
+                    sender.sendMessage(message("command.test.connection-result",
+                            "%IP%", ip, "%RESULT%", message("command.test.allowed"),
+                            "%REASON%", message("command.test.reason-runtime-whitelist")));
+                    return;
+                }
                 if (username != null && ConnectionGuard.getBlockedUsernamePart(username).isPresent()) {
                     sender.sendMessage(message("command.test.connection-result",
                             "%IP%", ip, "%RESULT%", message("command.test.blocked"),
@@ -289,6 +301,21 @@ public class ConnectionGuardSpigotCommand implements TabExecutor {
         commandSender.sendMessage(message("command.invalid-argument"));
     }
 
+    private boolean whitelistIp(CommandSender commandSender, String input) {
+        Optional<String> ipAddress = IpAddressUtil.toHostAddress(input);
+        if (!ipAddress.isPresent()) {
+            commandSender.sendMessage(message("command.whitelist.invalid-ip"));
+            return true;
+        }
+
+        String ip = ipAddress.get();
+        String messagePath = ConnectionGuard.addRuntimeWhitelistedIp(ip)
+                ? "command.whitelist.added"
+                : "command.whitelist.already-added";
+        commandSender.sendMessage(message(messagePath, "%IP%", ip));
+        return true;
+    }
+
     private boolean clearCache(CommandSender commandSender) {
         ConnectionGuard.getCacheProvider().removeAllVpnResults();
         ConnectionGuard.getCacheProvider().removeAllGeoResults();
@@ -339,6 +366,8 @@ public class ConnectionGuardSpigotCommand implements TabExecutor {
                 proposals.add("reload");
             if (commandSender.hasPermission("twiantivpn.command.test"))
                 proposals.add("test");
+            if (commandSender.hasPermission("twiantivpn.command.whitelist"))
+                proposals.add("whitelist");
         }
         if (strings.length == 2) {
             if (strings[0].equalsIgnoreCase("info")) {
@@ -355,6 +384,9 @@ public class ConnectionGuardSpigotCommand implements TabExecutor {
             }
             if (strings[0].equalsIgnoreCase("test")) {
                 proposals.add("attack");
+                proposals.add("1.1.1.1");
+            }
+            if (strings[0].equalsIgnoreCase("whitelist")) {
                 proposals.add("1.1.1.1");
             }
         }

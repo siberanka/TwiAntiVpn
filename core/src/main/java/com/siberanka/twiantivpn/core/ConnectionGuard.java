@@ -8,6 +8,7 @@ import com.siberanka.twiantivpn.core.geo.GeoResult;
 import com.siberanka.twiantivpn.core.isp.IspBlockResult;
 import com.siberanka.twiantivpn.core.isp.IspBlockService;
 import com.siberanka.twiantivpn.core.logging.ErrorReporter;
+import com.siberanka.twiantivpn.core.net.IpAddressUtil;
 import com.siberanka.twiantivpn.core.security.ActionRateLimiter;
 import com.siberanka.twiantivpn.core.vpn.VpnProvider;
 import com.siberanka.twiantivpn.core.vpn.VpnResult;
@@ -42,6 +43,7 @@ public class ConnectionGuard {
     private static final UsernameFilterService usernameFilterService = new UsernameFilterService();
     private static final ActionRateLimiter actionRateLimiter = new ActionRateLimiter();
     private static final ErrorReporter errorReporter = new ErrorReporter();
+    private static final Set<String> runtimeWhitelistedIps = ConcurrentHashMap.newKeySet();
     private static final ConcurrentMap<String, CompletableFuture<VpnResult>> inFlightVpnChecks =
             new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, CompletableFuture<Optional<VpnResult>>> inFlightProviderChecks =
@@ -65,6 +67,9 @@ public class ConnectionGuard {
             boolean includeProxyBlocklist,
             Set<String> selectedProviderNames
     ) {
+        if (isRuntimeWhitelistedIp(ipAddress)) {
+            return CompletableFuture.completedFuture(new VpnResult(ipAddress, false));
+        }
         Map<String, VpnProvider> providersSnapshot = vpnProviders;
         Set<String> selected = sanitizeProviderNames(selectedProviderNames, providersSnapshot);
         if (includeProxyBlocklist && proxyBlocklistService.contains(ipAddress)) {
@@ -272,6 +277,9 @@ public class ConnectionGuard {
     }
 
     public static CompletableFuture<Optional<GeoResult>> getGeoResult(String ipAddress) {
+        if (isRuntimeWhitelistedIp(ipAddress)) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
         String key = ipAddress == null ? "" : ipAddress;
         CompletableFuture<Optional<GeoResult>> existing = inFlightGeoChecks.get(key);
         if (existing != null) {
@@ -361,6 +369,16 @@ public class ConnectionGuard {
 
     public static Optional<String> getBlockedUsernamePart(String username) {
         return usernameFilterService.findMatch(username);
+    }
+
+    public static boolean addRuntimeWhitelistedIp(String ipAddress) {
+        Optional<String> normalized = IpAddressUtil.normalizeLiteral(ipAddress);
+        return normalized.isPresent() && runtimeWhitelistedIps.add(normalized.get());
+    }
+
+    public static boolean isRuntimeWhitelistedIp(String ipAddress) {
+        Optional<String> normalized = IpAddressUtil.normalizeLiteral(ipAddress);
+        return normalized.isPresent() && runtimeWhitelistedIps.contains(normalized.get());
     }
 
     public static void setRequiredPositiveFlags(int requiredPositiveFlags) {

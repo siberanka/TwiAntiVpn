@@ -7,6 +7,10 @@ command:
   clear:
     clear-all: "{prefix} &7Se limpiaron todas las entradas de cache VPN y geo."
     clear-specific: "{prefix} &7Se limpiaron las entradas de cache de &f%ENTRY%&7."
+  whitelist:
+    added: "{prefix} &f%IP% &7se añadió a la lista blanca temporal hasta que se reinicie el servidor."
+    already-added: "{prefix} &f%IP% &7ya está en la lista blanca temporal."
+    invalid-ip: "{prefix} &7Introduce una dirección IPv4 o IPv6 válida."
   invalid-argument: "{prefix} &7Introduce un jugador conectado, UUID o direccion IP valida."
   test:
     busy: "{prefix} &eYa hay una prueba de conexión en curso. Espera a que termine."
@@ -22,6 +26,7 @@ command:
     reason-vpn: "VPN, proxy, Tor o lista negra de proxies"
     reason-isp: "ISP o ASN restringido"
     reason-geo: "Región restringida"
+    reason-runtime-whitelist: "Lista blanca temporal de IP"
 
 messages:
   prefix: "<bold><gradient:#35d3ff:#6f7dff>TwiAntiVpn</gradient></bold> <dark_gray>|</dark_gray>"
@@ -50,6 +55,7 @@ messages:
     - " &8- &f/twiantivpn reload &7Recarga configuracion e idiomas."
     - " &8- &f/twiantivpn clear &7[Jugador/UUID/IP] Limpia entradas de cache."
     - " &8- &f/twiantivpn info &7<Jugador/UUID/IP> Muestra datos VPN y geo."
+    - " &8- &f/twiantivpn whitelist &7<IP> Omite temporalmente todos los controles para una IP."
     - " &8- &f/twiantivpn test &7<IP|attack [on|off]> Prueba decisiones y enrutamiento adaptativo."
   info:
     text:

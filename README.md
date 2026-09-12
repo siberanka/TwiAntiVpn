@@ -96,10 +96,13 @@ For compatibility, older config keys are still accepted, but new configs should 
 - `/twiantivpn reload`
 - `/twiantivpn clear (<Player/UUID/IP>)`
 - `/twiantivpn info <Player/UUID/IP>`
+- `/twiantivpn whitelist <IP>`
 - `/twiantivpn test <IP> [username]`
 - `/twiantivpn test attack [on|off]`
 
 `test <IP> [username]` evaluates the configured VPN/proxy, username, geo and ISP/ASN policies without disconnecting anyone. `test attack` shows the current module routing; `on` simulates an attack signal and `off` moves adaptive routing into recovery.
+
+`whitelist <IP>` keeps the IP in memory until the server restarts and bypasses all TwiAntiVpn login checks for it.
 
 Aliases:
 
@@ -115,6 +118,7 @@ Aliases:
 - `twiantivpn.command.clear`
 - `twiantivpn.command.info`
 - `twiantivpn.command.test`
+- `twiantivpn.command.whitelist`
 - `twiantivpn.notify.vpn`
 - `twiantivpn.notify.geo`
 - `twiantivpn.notify.username`
@@ -261,10 +265,13 @@ Eski config anahtarları geriye dönük olarak desteklenir, fakat yeni configler
 - `/twiantivpn reload`
 - `/twiantivpn clear (<Oyuncu/UUID/IP>)`
 - `/twiantivpn info <Oyuncu/UUID/IP>`
+- `/twiantivpn whitelist <IP>`
 - `/twiantivpn test <IP> [kullanıcı-adı]`
 - `/twiantivpn test attack [on|off]`
 
 `test <IP> [kullanıcı-adı]` aktif VPN/proxy, kullanıcı adı, geo ve ISP/ASN politikalarını kimsenin bağlantısını kesmeden değerlendirir. `test attack` mevcut modül sırasını gösterir; `on` saldırı sinyali simüle eder, `off` adaptive yönlendirmeyi toparlanma moduna geçirir.
+
+`whitelist <IP>` IP adresini sunucu yeniden başlatılana kadar bellekte tutar ve TwiAntiVpn giriş kontrollerinin tamamından muaf kılar.
 
 Aliaslar:
 
@@ -280,6 +287,7 @@ Aliaslar:
 - `twiantivpn.command.clear`
 - `twiantivpn.command.info`
 - `twiantivpn.command.test`
+- `twiantivpn.command.whitelist`
 - `twiantivpn.notify.vpn`
 - `twiantivpn.notify.geo`
 - `twiantivpn.notify.username`

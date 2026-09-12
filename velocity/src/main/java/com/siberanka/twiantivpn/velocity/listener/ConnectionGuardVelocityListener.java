@@ -60,6 +60,10 @@ public class ConnectionGuardVelocityListener {
         String playerUuid = (loginEvent.getUniqueId() != null) ? loginEvent.getUniqueId().toString() : "";
         String playerUsername = loginEvent.getUsername();
 
+        if (ConnectionGuard.isRuntimeWhitelistedIp(ipAddress)) {
+            return EventTask.resumeWhenComplete(CompletableFuture.completedFuture(null));
+        }
+
         if (modules.contains(CheckModule.USERNAME_FILTER)) {
             Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(playerUsername);
             if (blockedUsernamePart.isPresent()) {

@@ -55,6 +55,10 @@ public class ConnectionGuardBungeeListener implements Listener {
         loginEvent.registerIntent(ConnectionGuardBungeePlugin.getInstance());
 
         String ipAddress = loginEvent.getConnection().getAddress().getAddress().getHostAddress();
+        if (ConnectionGuard.isRuntimeWhitelistedIp(ipAddress)) {
+            loginEvent.completeIntent(ConnectionGuardBungeePlugin.getInstance());
+            return;
+        }
         if (modules.contains(CheckModule.USERNAME_FILTER)) {
             Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(loginEvent.getConnection().getName());
             if (blockedUsernamePart.isPresent()) {

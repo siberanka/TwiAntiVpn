@@ -83,6 +83,13 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
                     }
                     sendInformationMessage(commandSender, args[1]);
                     return;
+                case "whitelist":
+                    if (!commandSender.hasPermission("twiantivpn.command.whitelist")) {
+                        commandSender.sendMessage(noPermissionMessage);
+                        return;
+                    }
+                    whitelistIp(commandSender, args[1]);
+                    return;
                 case "test":
                     if (!commandSender.hasPermission("twiantivpn.command.test")) {
                         commandSender.sendMessage(noPermissionMessage);
@@ -143,6 +150,12 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
         CompletableFuture.runAsync(() -> {
             try {
                 String ip = parsed.get();
+                if (ConnectionGuard.isRuntimeWhitelistedIp(ip)) {
+                    sender.sendMessage(component("command.test.connection-result",
+                            "%IP%", ip, "%RESULT%", text("command.test.allowed"),
+                            "%REASON%", text("command.test.reason-runtime-whitelist")));
+                    return;
+                }
                 if (username != null && ConnectionGuard.getBlockedUsernamePart(username).isPresent()) {
                     sender.sendMessage(component("command.test.connection-result",
                             "%IP%", ip, "%RESULT%", text("command.test.blocked"),
@@ -305,6 +318,20 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
         commandSender.sendMessage(component("command.invalid-argument"));
     }
 
+    private void whitelistIp(CommandSource commandSender, String input) {
+        Optional<String> ipAddress = IpAddressUtil.toHostAddress(input);
+        if (!ipAddress.isPresent()) {
+            commandSender.sendMessage(component("command.whitelist.invalid-ip"));
+            return;
+        }
+
+        String ip = ipAddress.get();
+        String messagePath = ConnectionGuard.addRuntimeWhitelistedIp(ip)
+                ? "command.whitelist.added"
+                : "command.whitelist.already-added";
+        commandSender.sendMessage(component(messagePath, "%IP%", ip));
+    }
+
     private boolean clearCache(CommandSource commandSender) {
         ConnectionGuard.getCacheProvider().removeAllVpnResults();
         ConnectionGuard.getCacheProvider().removeAllGeoResults();
@@ -378,6 +405,8 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
                     proposals.add("reload");
                 if (commandSender.hasPermission("twiantivpn.command.test"))
                     proposals.add("test");
+                if (commandSender.hasPermission("twiantivpn.command.whitelist"))
+                    proposals.add("whitelist");
             }
             if (strings.length == 2) {
                 if (strings[0].equalsIgnoreCase("info")) {
@@ -394,6 +423,9 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
                 }
                 if (strings[0].equalsIgnoreCase("test")) {
                     proposals.add("attack");
+                    proposals.add("1.1.1.1");
+                }
+                if (strings[0].equalsIgnoreCase("whitelist")) {
                     proposals.add("1.1.1.1");
                 }
             }

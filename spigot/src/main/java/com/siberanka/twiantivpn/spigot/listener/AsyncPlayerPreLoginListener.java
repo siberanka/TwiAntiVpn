@@ -55,6 +55,9 @@ public class AsyncPlayerPreLoginListener implements Listener {
 
     private void handlePreLogin(AsyncPlayerPreLoginEvent preLoginEvent, Set<CheckModule> modules, boolean preSonarPhase) {
         String ipAddress = preLoginEvent.getAddress().getHostAddress();
+        if (ConnectionGuard.isRuntimeWhitelistedIp(ipAddress)) {
+            return;
+        }
         if (modules.contains(CheckModule.USERNAME_FILTER)) {
             Optional<String> blockedUsernamePart = ConnectionGuard.getBlockedUsernamePart(preLoginEvent.getName());
             if (blockedUsernamePart.isPresent()) {
