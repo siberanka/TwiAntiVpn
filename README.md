@@ -1,3 +1,12 @@
+<!-- DOWNLOAD_BADGES_START -->
+<p align="center">
+  <a href="https://gitlab.com/siberanka/TwiAntiVpn/-/releases/permalink/latest/downloads/plugin.jar"><img alt="Download Paper" src="https://img.shields.io/badge/Download-Paper-2c2f33?logo=gitlab&logoColor=white"></a>
+  <a href="https://gitlab.com/siberanka/TwiAntiVpn/-/releases/permalink/latest/downloads/plugin.jar"><img alt="Download Bukkit" src="https://img.shields.io/badge/Download-Bukkit-f39c12?logo=gitlab&logoColor=white"></a>
+  <a href="https://gitlab.com/siberanka/TwiAntiVpn/-/releases/permalink/latest/downloads/plugin.jar"><img alt="Download BungeeCord" src="https://img.shields.io/badge/Download-BungeeCord-6f42c1?logo=gitlab&logoColor=white"></a>
+  <a href="https://gitlab.com/siberanka/TwiAntiVpn/-/releases/permalink/latest/downloads/plugin.jar"><img alt="Download Velocity" src="https://img.shields.io/badge/Download-Velocity-1f6feb?logo=gitlab&logoColor=white"></a>
+</p>
+<!-- DOWNLOAD_BADGES_END -->
+
 # TwiAntiVpn
 
 TwiAntiVpn is a production-focused anti-VPN, proxy, geo and connection-risk plugin for Minecraft networks. It supports Spigot/Paper, BungeeCord/Waterfall and Velocity from a single release jar.
@@ -25,9 +34,9 @@ TwiAntiVpn is a production-focused anti-VPN, proxy, geo and connection-risk plug
 
 ## Download
 
-Download the latest jar from the GitHub Releases page:
+Download the latest jar from the GitLab Releases page:
 
-https://github.com/siberanka/TwiAntiVpn/releases
+https://gitlab.com/siberanka/TwiAntiVpn/-/releases
 
 Use the `TwiAntiVpn-*-all.jar` artifact.
 
@@ -199,9 +208,9 @@ TwiAntiVpn, Minecraft ağları için production odaklı anti-VPN, proxy, geo ve 
 
 ## İndirme
 
-Son jar dosyasını GitHub Releases sayfasından indirin:
+Son jar dosyasını GitLab Releases sayfasından indirin:
 
-https://github.com/siberanka/TwiAntiVpn/releases
+https://gitlab.com/siberanka/TwiAntiVpn/-/releases
 
 `TwiAntiVpn-*-all.jar` dosyasını kullanın.
 

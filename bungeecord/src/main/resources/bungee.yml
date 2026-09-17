@@ -1,7 +1,7 @@
 name: TwiAntiVpn
 version: '${version}'
 author: gerolndnr, siberanka
-website: https://github.com/siberanka
+website: https://gitlab.com/siberanka/TwiAntiVpn
 main: com.siberanka.twiantivpn.bungee.ConnectionGuardBungeePlugin
 softdepends:
   - LuckPerms

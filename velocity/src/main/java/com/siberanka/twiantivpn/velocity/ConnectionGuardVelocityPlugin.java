@@ -40,7 +40,7 @@ import java.util.Set;
         id="twiantivpn",
         name="TwiAntiVpn",
         version="2026.09.17.1",
-        url="https://github.com/siberanka",
+        url="https://gitlab.com/siberanka/TwiAntiVpn",
         authors = {"gerolndnr", "siberanka"},
         dependencies = {
                 @Dependency(id = "sonar", optional = true)

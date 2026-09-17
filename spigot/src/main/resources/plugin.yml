@@ -3,7 +3,7 @@ version: '${version}'
 authors:
   - gerolndnr
   - siberanka
-website: https://github.com/siberanka
+website: https://gitlab.com/siberanka/TwiAntiVpn
 main: com.siberanka.twiantivpn.spigot.ConnectionGuardSpigotPlugin
 api-version: 1.13
 folia-supported: true
