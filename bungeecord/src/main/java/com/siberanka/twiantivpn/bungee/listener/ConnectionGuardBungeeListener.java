@@ -131,10 +131,18 @@ public class ConnectionGuardBungeeListener implements Listener {
             }
 
             VpnResult vpnResult = vpnResultFuture.join();
+            Optional<GeoResult> geoResultOptional = geoResultOptionalFuture.join();
             Boolean hasVpnExemption = hasVpnExemptionPermissionFuture.join();
             Boolean hasGeoExemption = hasGeoExemptionPermissionFuture.join();
+            boolean hasVpnAsnExemption = vpnResult.isVpn()
+                    && !hasVpnExemption
+                    && ConnectionGuard.isVpnAsnWhitelisted(
+                            ipAddress,
+                            vpnResult,
+                            geoResultOptional
+                    ).join();
 
-            if (vpnResult.isVpn() && !hasVpnExemption) {
+            if (vpnResult.isVpn() && !hasVpnExemption && !hasVpnAsnExemption) {
                 boolean emitActions = ConnectionGuard.shouldEmitActions("vpn", ipAddress);
                 // Check if staff should be notified
                 if (emitActions && ConnectionGuardBungeePlugin.getInstance().getConfig().getBoolean("behavior.vpn.notify-staff")) {
@@ -177,7 +185,6 @@ public class ConnectionGuardBungeeListener implements Listener {
                 }
             }
 
-            Optional<GeoResult> geoResultOptional = geoResultOptionalFuture.join();
             if (geoResultOptional.isPresent() && !hasGeoExemption) {
                 GeoResult geoResult = geoResultOptional.get();
                 if (modules.contains(CheckModule.ISP_BLOCK)) {

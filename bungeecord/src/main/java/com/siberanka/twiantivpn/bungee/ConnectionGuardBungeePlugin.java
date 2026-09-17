@@ -230,6 +230,10 @@ public class ConnectionGuardBungeePlugin extends Plugin {
 
         getProxy().getPluginManager().registerCommand(this, new ConnectionGuardBungeeCommand());
 
+        ConnectionGuard.checkForUpdates(
+                getDescription().getVersion(),
+                getConfig().getBoolean("update-check.enabled", true)
+        );
         Metrics metrics = new Metrics(this, 22912);
     }
 
@@ -476,6 +480,12 @@ public class ConnectionGuardBungeePlugin extends Plugin {
         changed |= setConfigDefault("security.error-log.enabled", true);
         changed |= setConfigDefault("security.error-log.max-size-kb", 2048);
         changed |= setConfigDefault("security.error-log.console-notice-cooldown-seconds", 60);
+        changed |= setConfigDefault("update-check.enabled", true);
+        changed |= setConfigDefault("behavior.vpn.whitelisted-asn.enabled", true);
+        changed |= setConfigDefault(
+                "behavior.vpn.whitelisted-asn.asns",
+                ConnectionGuard.getDefaultVpnWhitelistedAsns()
+        );
         if (changed) {
             ConfigurationProvider.getProvider(YamlConfiguration.class).save(config, configFile);
         }
@@ -501,6 +511,10 @@ public class ConnectionGuardBungeePlugin extends Plugin {
                 getConfig().getBoolean("provider.isp-block.enabled"),
                 getScalarStringList("provider.isp-block.asns"),
                 getScalarStringList("provider.isp-block.isp-names")
+        );
+        ConnectionGuard.configureVpnAsnWhitelist(
+                getConfig().getBoolean("behavior.vpn.whitelisted-asn.enabled", true),
+                getScalarStringList("behavior.vpn.whitelisted-asn.asns")
         );
     }
 

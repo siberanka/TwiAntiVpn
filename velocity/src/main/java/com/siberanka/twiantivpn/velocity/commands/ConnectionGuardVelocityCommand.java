@@ -164,8 +164,11 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
                 }
                 VpnResult vpn = ConnectionGuard.getVpnResult(ip).join();
                 Optional<GeoResult> geo = ConnectionGuard.getGeoResult(ip).join();
-                String reason = text("command.test.reason-none");
-                boolean blocked = vpn.isVpn();
+                boolean vpnAsnExempt = ConnectionGuard.isVpnAsnWhitelisted(ip, vpn, geo).join();
+                String reason = vpnAsnExempt
+                        ? text("command.test.reason-vpn-asn-whitelist")
+                        : text("command.test.reason-none");
+                boolean blocked = vpn.isVpn() && !vpnAsnExempt;
                 if (blocked) {
                     reason = text("command.test.reason-vpn");
                 } else if (geo.isPresent()) {
@@ -251,7 +254,12 @@ public class ConnectionGuardVelocityCommand implements SimpleCommand {
 
             String isVpn = text("messages.info.not-vpn");
 
-            if (vpnResult.isVpn()) {
+            if (vpnResult.isVpn()
+                    && !ConnectionGuard.isVpnAsnWhitelisted(
+                            ipAddress,
+                            vpnResult,
+                            geoResultOptional
+                    ).join()) {
                 isVpn = text("messages.info.is-vpn");
             }
 

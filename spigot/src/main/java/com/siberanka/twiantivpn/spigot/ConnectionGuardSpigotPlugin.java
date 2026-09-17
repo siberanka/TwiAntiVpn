@@ -210,7 +210,10 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
         getCommand("twiantivpn").setExecutor(new ConnectionGuardSpigotCommand());
         getCommand("twiantivpn").setTabCompleter(new ConnectionGuardSpigotCommand());
 
-
+        ConnectionGuard.checkForUpdates(
+                getDescription().getVersion(),
+                getConfig().getBoolean("update-check.enabled", true)
+        );
         Metrics metrics = new Metrics(this, 22911);
     }
 
@@ -438,6 +441,10 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
                 getConfig().getBoolean("provider.isp-block.enabled"),
                 getScalarStringList("provider.isp-block.asns"),
                 getScalarStringList("provider.isp-block.isp-names")
+        );
+        ConnectionGuard.configureVpnAsnWhitelist(
+                getConfig().getBoolean("behavior.vpn.whitelisted-asn.enabled", true),
+                getScalarStringList("behavior.vpn.whitelisted-asn.asns")
         );
     }
 

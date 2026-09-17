@@ -24,6 +24,7 @@ command:
     reason-none: "Aktif politikalarla eşleşmedi"
     reason-username: "Yasaklı kullanıcı adı ifadesi"
     reason-vpn: "VPN, proxy, Tor veya proxy kara listesi"
+    reason-vpn-asn-whitelist: "Whitelist'teki ev interneti ASN'i"
     reason-isp: "Kısıtlı ISP veya ASN"
     reason-geo: "Kısıtlı bölge"
     reason-runtime-whitelist: "Geçici IP whitelist'i"

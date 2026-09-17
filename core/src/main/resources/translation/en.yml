@@ -24,6 +24,7 @@ command:
     reason-none: "No enabled policy matched"
     reason-username: "Prohibited username term"
     reason-vpn: "VPN, proxy, Tor, or proxy blocklist"
+    reason-vpn-asn-whitelist: "Whitelisted residential ISP ASN"
     reason-isp: "Restricted ISP or ASN"
     reason-geo: "Restricted region"
     reason-runtime-whitelist: "Temporary IP whitelist"

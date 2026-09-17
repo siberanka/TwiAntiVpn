@@ -128,10 +128,18 @@ public class AsyncPlayerPreLoginListener implements Listener {
         }
 
         VpnResult vpnResult = vpnResultFuture.join();
+        Optional<GeoResult> geoResultOptional = geoResultOptionalFuture.join();
         Boolean hasVpnExemptionPermission = hasVpnExemptionPermissionFuture.join();
         Boolean hasGeoExemptionPermission = hasGeoExemptionPermissionFuture.join();
+        boolean hasVpnAsnExemption = vpnResult.isVpn()
+                && !hasVpnExemptionPermission
+                && ConnectionGuard.isVpnAsnWhitelisted(
+                        ipAddress,
+                        vpnResult,
+                        geoResultOptional
+                ).join();
 
-        if (vpnResult.isVpn() && !hasVpnExemptionPermission) {
+        if (vpnResult.isVpn() && !hasVpnExemptionPermission && !hasVpnAsnExemption) {
             boolean emitActions = ConnectionGuard.shouldEmitActions("vpn", ipAddress);
             // Check if staff should be notified
             if (emitActions && ConnectionGuardSpigotPlugin.getInstance().getConfig().getBoolean("behavior.vpn.notify-staff")) {
@@ -178,7 +186,6 @@ public class AsyncPlayerPreLoginListener implements Listener {
             }
         }
 
-        Optional<GeoResult> geoResultOptional = geoResultOptionalFuture.join();
         if (geoResultOptional.isPresent() && !hasGeoExemptionPermission) {
             GeoResult geoResult = geoResultOptional.get();
             if (modules.contains(CheckModule.ISP_BLOCK)) {

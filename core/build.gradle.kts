@@ -23,6 +23,8 @@ dependencies {
     shadow("redis.clients:jedis:5.0.0")
     shadow("org.json:json:20260522")
     shadow("net.luckperms:api:5.4")
+    testImplementation("com.squareup.okhttp3:okhttp:4.12.0")
+    testImplementation("com.google.code.gson:gson:2.11.0")
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly("org.xerial:sqlite-jdbc:3.46.0.0")

@@ -39,7 +39,7 @@ import java.util.Set;
 @Plugin(
         id="twiantivpn",
         name="TwiAntiVpn",
-        version="2026.07.09.26",
+        version="2026.09.17.1",
         url="https://github.com/siberanka",
         authors = {"gerolndnr", "siberanka"},
         dependencies = {
@@ -47,6 +47,7 @@ import java.util.Set;
         }
 )
 public class ConnectionGuardVelocityPlugin {
+    private static final String VERSION = "2026.09.17.1";
     private static final String OKHTTP_VERSION = "4.12.0";
     private static final String OKIO_VERSION = "3.6.0";
     private static final String KOTLIN_VERSION = "1.9.10";
@@ -226,6 +227,10 @@ public class ConnectionGuardVelocityPlugin {
                 .build();
         SimpleCommand simpleCommand = new ConnectionGuardVelocityCommand();
         proxyServer.getCommandManager().register(commandMeta, simpleCommand);
+        ConnectionGuard.checkForUpdates(
+                VERSION,
+                cgVelocityConfig.getConfig().getBoolean("update-check.enabled", true)
+        );
     }
 
     @Subscribe
@@ -430,6 +435,10 @@ public class ConnectionGuardVelocityPlugin {
                 cgVelocityConfig.getConfig().getBoolean("provider.isp-block.enabled"),
                 getScalarStringList("provider.isp-block.asns"),
                 getScalarStringList("provider.isp-block.isp-names")
+        );
+        ConnectionGuard.configureVpnAsnWhitelist(
+                cgVelocityConfig.getConfig().getBoolean("behavior.vpn.whitelisted-asn.enabled", true),
+                getScalarStringList("behavior.vpn.whitelisted-asn.asns")
         );
     }
 

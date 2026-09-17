@@ -9,6 +9,10 @@
 # entry below to the file name without the .yml extension.
 message-language: en
 
+# Checks GitHub Releases first. GitLab Releases is used only when GitHub cannot return valid release data.
+update-check:
+  enabled: true
+
 security:
   # Repeated blocks from the same IP are still denied, but staff notifications,
   # webhooks and console commands are emitted at most once per action type in this window.
@@ -67,6 +71,54 @@ behavior:
     # If enabled, players with the permission twiantivpn.exemption.vpn will not be flagged as vpn players.
     # Only available when having LuckPerms installed.
     use-permission-exemption: false
+    whitelisted-asn:
+      # If enabled, a VPN/proxy result is ignored when the connection's ASN is listed below.
+      # Geo, ISP/ASN and username rules still apply. If ASN lookup fails, the VPN result is NOT ignored.
+      # Residential networks can still contain compromised devices or user-hosted proxies; review this list regularly.
+      enabled: true
+      # Curated from active RIPE registration/routing data on 2026-09-17.
+      # Entries may be written as AS12345 or 12345.
+      asns:
+        # Turkey: Turk Telekom/TTNet, Turkcell/Superonline, TurkNet, Turksat and Vodafone
+        - AS9121
+        - AS47331
+        - AS20978
+        - AS34984
+        - AS16135
+        - AS12735
+        - AS47524
+        - AS8386
+        - AS15924
+        - AS15897
+        # Azerbaijan: Aztelekom, Azeronline, Uninet, Azercell and Bakcell
+        - AS28787
+        - AS15723
+        - AS39232
+        - AS31721
+        - AS197830
+        # Kazakhstan: Kazakhtelecom, Transtelecom, Beeline, Kcell, Tele2 and AlmaTV
+        - AS9198
+        - AS41798
+        - AS21299
+        - AS29355
+        - AS48503
+        - AS39824
+        # Uzbekistan: Uzbektelecom, Uzmobile, IST Telekom, Sarkor and Ucell
+        - AS28910
+        - AS201767
+        - AS34718
+        - AS12365
+        - AS49273
+        # Kyrgyzstan: Kyrgyztelecom, ElCat, Mega-Line, AKNET, O! and MegaCom
+        - AS12997
+        - AS8449
+        - AS41750
+        - AS12764
+        - AS41329
+        - AS50223
+        # Turkmenistan: Turkmentelecom and Ashgabat City Telephone Network
+        - AS20661
+        - AS51495
   geo:
     # If set to true, geo-blocked players cannot join the server.
     kick-player: true

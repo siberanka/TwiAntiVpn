@@ -24,6 +24,7 @@ command:
     reason-none: "No coincide con ninguna política activa"
     reason-username: "Término de usuario prohibido"
     reason-vpn: "VPN, proxy, Tor o lista negra de proxies"
+    reason-vpn-asn-whitelist: "ASN residencial en la lista blanca"
     reason-isp: "ISP o ASN restringido"
     reason-geo: "Región restringida"
     reason-runtime-whitelist: "Lista blanca temporal de IP"

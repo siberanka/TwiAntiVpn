@@ -12,6 +12,7 @@ TwiAntiVpn is a production-focused anti-VPN, proxy, geo and connection-risk plug
 - Duplicate protection for URLs, exact IPs, IPv4 networks and IPv6 CIDR networks.
 - Memory-optimized primitive storage for large IPv4 blocklists.
 - ISP and ASN blocking by provider name or autonomous system number.
+- Configurable VPN-result exemption for curated residential ISP ASNs, with Turkish and other Turkic-country access networks included by default.
 - Username contains-filter for blocking obvious bot naming patterns before VPN/API work.
 - Configurable per-module Sonar ordering with adaptive attack routing, local pre-Sonar block thresholds and recovery hysteresis.
 - AsteroidProxy/AsteroidSpoofer support for verified fake-player bypasses.
@@ -46,14 +47,18 @@ The default configuration is designed to work out of the box. Important sections
 - `provider.vpn`: external VPN/proxy detection providers.
 - `provider.geo`: geo and ISP data providers.
 - `provider.isp-block`: blocked ASN numbers and ISP/provider names.
+- `behavior.vpn.whitelisted-asn`: ignores only VPN/proxy detections for configured ASNs. Geo, ISP/ASN and username policies remain active. The default list contains major end-user access networks in Turkey, Azerbaijan, Kazakhstan, Uzbekistan, Kyrgyzstan and Turkmenistan.
 - `username-filter`: blocked username fragments.
 - `login-check`: fixed before/after ordering and adaptive per-module Sonar routing. By default the lightweight username filter and in-memory proxy blocklist are allowed before Sonar; remaining checks run after verification. During a Sonar attack, local pre-Sonar block spike or recovery window, every module moves after Sonar.
 - `login-check.adaptive-sonar.pre-sonar-block-spike`: treats repeated pre-Sonar blocks as an attack signal. `count-blocks-within-seconds` defines how far back blocks are counted, and `trigger-after-blocked-connections` defines how many blocks are needed before all checks move after Sonar. The default is 15 blocks within 60 seconds.
 - `security.action-cooldown-seconds`: suppresses repeated staff, webhook and command side effects without allowing blocked connections.
 - `security.error-log`: writes detailed plugin exceptions to `error.log` while keeping console messages short. The default is enabled, with a 2048 KB active log limit and automatic rotation to `error.log.1`.
+- `update-check.enabled`: checks GitHub Releases first and falls back to GitLab Releases only when GitHub cannot return valid release metadata. It only prints an update notice; it never downloads or executes files.
 - `behavior`: kick, notify, command and webhook actions.
 
 Most scalar values can be written without quotes. Empty strings and JSON examples remain quoted in the default config because YAML would otherwise treat them differently.
+
+An ASN whitelist reduces false positives but is not a guarantee that every address in that network is safe. Residential networks can contain compromised devices, customer-operated proxies and carrier-grade NAT. Keep the list limited to trusted access operators and review it periodically. If ASN lookup fails, TwiAntiVpn keeps the original VPN/proxy result.
 
 ## Sonar Integration
 
@@ -181,6 +186,7 @@ TwiAntiVpn, Minecraft ağları için production odaklı anti-VPN, proxy, geo ve 
 - URL, IP, IPv4 ağ ve IPv6 CIDR tekrarlarını engelleyen duplicate koruması.
 - Büyük IPv4 blocklistleri için bellek dostu depolama.
 - ASN numarası veya ISP/sağlayıcı adına göre engelleme.
+- Türkiye ve diğer Türk ülkelerindeki seçili son kullanıcı internet ağlarını varsayılan olarak içeren, düzenlenebilir VPN ASN muafiyeti.
 - Bot isim kalıpları için kullanıcı adı içerik filtresi.
 - Sonar ile modül bazlı sıralama, adaptive saldırı modu, pre-Sonar blok eşiği ve recovery bekleme süresi.
 - AsteroidProxy/AsteroidSpoofer doğrulanmış fake player bypass desteği.
@@ -215,14 +221,18 @@ Varsayılan config doğrudan çalışacak şekilde hazırlanmıştır. Önemli b
 - `provider.vpn`: harici VPN/proxy tespit sağlayıcıları.
 - `provider.geo`: geo ve ISP veri sağlayıcıları.
 - `provider.isp-block`: engellenecek ASN numaraları ve ISP/sağlayıcı adları.
+- `behavior.vpn.whitelisted-asn`: ayarlanan ASN'ler için yalnızca VPN/proxy tespitini yok sayar. Geo, ISP/ASN ve kullanıcı adı kuralları çalışmaya devam eder. Varsayılan liste Türkiye, Azerbaycan, Kazakistan, Özbekistan, Kırgızistan ve Türkmenistan'daki büyük son kullanıcı erişim ağlarını içerir.
 - `username-filter`: kullanıcı adında geçerse engellenecek ifadeler.
 - `login-check`: anti-bot pluginlerinden önce/sonra çalışma sırası ve Sonar için adaptive modül yönlendirmesi.
 - `login-check.adaptive-sonar.pre-sonar-block-spike`: Sonar öncesi engelleme yoğunluğunu saldırı sinyali olarak değerlendirir. `count-blocks-within-seconds` kaç saniyelik süreye bakılacağını, `trigger-after-blocked-connections` ise bu sürede kaç engellemeden sonra tüm kontrollerin Sonar sonrasına taşınacağını belirler.
 - `security.action-cooldown-seconds`: aynı IP için staff notify, webhook ve console command gibi yan etkileri sınırlar; engelleme davranışını gevşetmez.
 - `security.error-log`: detaylı plugin exception kayıtlarını `error.log` dosyasına yazar, konsolda ise kısa mesaj bırakır. Varsayılan olarak açıktır; aktif log sınırı 2048 KB'dir ve dolunca `error.log.1` olarak döndürülür.
+- `update-check.enabled`: önce GitHub Releases'i kontrol eder; GitHub geçerli release verisi döndüremezse GitLab Releases'e geçer. Yalnızca güncelleme bildirimi yazar, dosya indirmez veya çalıştırmaz.
 - `behavior`: kick, notify, command ve webhook aksiyonları.
 
 Çoğu basit değer tırnaksız yazılabilir. Boş stringler ve JSON örnekleri YAML tarafından farklı yorumlanmasın diye varsayılan configte tırnaklı bırakılmıştır.
+
+ASN whitelist yanlış pozitifleri azaltır ancak ağdaki her adresin güvenli olduğunu garanti etmez. Ev interneti ağlarında ele geçirilmiş cihazlar, kullanıcıların çalıştırdığı proxyler ve CGNAT bulunabilir. Listeyi yalnızca güvendiğiniz erişim operatörleriyle sınırlı tutun ve düzenli olarak gözden geçirin. ASN sorgusu başarısız olursa TwiAntiVpn mevcut VPN/proxy sonucunu korur.
 
 ## Sonar Entegrasyonu
 

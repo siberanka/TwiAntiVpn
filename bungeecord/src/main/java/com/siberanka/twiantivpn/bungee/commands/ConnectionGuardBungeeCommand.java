@@ -164,8 +164,11 @@ public class ConnectionGuardBungeeCommand extends Command implements TabExecutor
                 }
                 VpnResult vpn = ConnectionGuard.getVpnResult(ip).join();
                 Optional<GeoResult> geo = ConnectionGuard.getGeoResult(ip).join();
-                String reason = message("command.test.reason-none");
-                boolean blocked = vpn.isVpn();
+                boolean vpnAsnExempt = ConnectionGuard.isVpnAsnWhitelisted(ip, vpn, geo).join();
+                String reason = vpnAsnExempt
+                        ? message("command.test.reason-vpn-asn-whitelist")
+                        : message("command.test.reason-none");
+                boolean blocked = vpn.isVpn() && !vpnAsnExempt;
                 if (blocked) {
                     reason = message("command.test.reason-vpn");
                 } else if (geo.isPresent()) {
@@ -247,7 +250,12 @@ public class ConnectionGuardBungeeCommand extends Command implements TabExecutor
             }
 
             String isVpn = message("messages.info.not-vpn");
-            if (vpnResult.isVpn()) {
+            if (vpnResult.isVpn()
+                    && !ConnectionGuard.isVpnAsnWhitelisted(
+                            ipAddress,
+                            vpnResult,
+                            geoResultOptional
+                    ).join()) {
                 isVpn = message("messages.info.is-vpn");
             }
 

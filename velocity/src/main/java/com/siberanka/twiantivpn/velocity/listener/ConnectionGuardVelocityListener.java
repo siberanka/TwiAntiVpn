@@ -128,6 +128,12 @@ public class ConnectionGuardVelocityListener {
                 }
             }
 
+            boolean hasVpnAsnExemption = ConnectionGuard.isVpnAsnWhitelisted(
+                    ipAddress,
+                    vpnResult,
+                    geoResultOptional
+            ).join();
+
             if (ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.geo.use-permission-exemption")) {
                 if (CGLuckPermsHelper.hasPermission(loginEvent.getUniqueId(), "twiantivpn.exemption.geo").join()) {
                     geoResultOptional = Optional.empty();
@@ -136,7 +142,7 @@ public class ConnectionGuardVelocityListener {
 
 
 
-            if (vpnResult.isVpn()) {
+            if (vpnResult.isVpn() && !hasVpnAsnExemption) {
                 boolean emitActions = ConnectionGuard.shouldEmitActions("vpn", ipAddress);
                 // Check if staff should be notified
                 if (emitActions && ConnectionGuardVelocityPlugin.getInstance().getCgVelocityConfig().getConfig().getBoolean("behavior.vpn.notify-staff")) {

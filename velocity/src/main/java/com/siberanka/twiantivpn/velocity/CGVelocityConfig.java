@@ -141,6 +141,12 @@ public class CGVelocityConfig {
         changed |= setConfigDefault("security.error-log.enabled", true);
         changed |= setConfigDefault("security.error-log.max-size-kb", 2048);
         changed |= setConfigDefault("security.error-log.console-notice-cooldown-seconds", 60);
+        changed |= setConfigDefault("update-check.enabled", true);
+        changed |= setConfigDefault("behavior.vpn.whitelisted-asn.enabled", true);
+        changed |= setConfigDefault(
+                "behavior.vpn.whitelisted-asn.asns",
+                ConnectionGuard.getDefaultVpnWhitelistedAsns()
+        );
         if (changed) {
             config.save();
         }

@@ -10,10 +10,13 @@ import com.siberanka.twiantivpn.core.isp.IspBlockService;
 import com.siberanka.twiantivpn.core.logging.ErrorReporter;
 import com.siberanka.twiantivpn.core.net.IpAddressUtil;
 import com.siberanka.twiantivpn.core.security.ActionRateLimiter;
+import com.siberanka.twiantivpn.core.update.UpdateChecker;
 import com.siberanka.twiantivpn.core.vpn.VpnProvider;
+import com.siberanka.twiantivpn.core.vpn.VpnAsnWhitelistService;
 import com.siberanka.twiantivpn.core.vpn.VpnResult;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -43,6 +46,8 @@ public class ConnectionGuard {
     private static final UsernameFilterService usernameFilterService = new UsernameFilterService();
     private static final ActionRateLimiter actionRateLimiter = new ActionRateLimiter();
     private static final ErrorReporter errorReporter = new ErrorReporter();
+    private static final VpnAsnWhitelistService vpnAsnWhitelistService = new VpnAsnWhitelistService();
+    private static final UpdateChecker updateChecker = new UpdateChecker();
     private static final Set<String> runtimeWhitelistedIps = ConcurrentHashMap.newKeySet();
     private static final ConcurrentMap<String, CompletableFuture<VpnResult>> inFlightVpnChecks =
             new ConcurrentHashMap<>();
@@ -365,6 +370,67 @@ public class ConnectionGuard {
 
     public static Optional<IspBlockResult> getIspBlockResult(GeoResult geoResult) {
         return ispBlockService.match(geoResult);
+    }
+
+    public static void configureVpnAsnWhitelist(boolean enabled, List<String> asns) {
+        vpnAsnWhitelistService.configure(enabled, asns);
+    }
+
+    public static CompletableFuture<Void> checkForUpdates(String currentVersion, boolean enabled) {
+        if (!enabled) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return updateChecker.check(currentVersion).thenAccept(update -> {
+            if (!update.isPresent() || logger == null) {
+                return;
+            }
+            UpdateChecker.UpdateInfo info = update.get();
+            logger.info(
+                    "TwiAntiVpn update available: "
+                            + info.getCurrentVersion()
+                            + " -> "
+                            + info.getLatestVersion()
+                            + " ("
+                            + info.getSource().name()
+                            + ") "
+                            + info.getReleaseUrl()
+            );
+        });
+    }
+
+    public static List<String> getDefaultVpnWhitelistedAsns() {
+        return new ArrayList<>(VpnAsnWhitelistService.defaultAsns());
+    }
+
+    public static boolean isVpnAsnWhitelistEnabled() {
+        return vpnAsnWhitelistService.isEnabled();
+    }
+
+    public static boolean isVpnAsnWhitelisted(GeoResult geoResult) {
+        return vpnAsnWhitelistService.matches(geoResult);
+    }
+
+    public static CompletableFuture<Boolean> isVpnAsnWhitelisted(
+            String ipAddress,
+            VpnResult vpnResult,
+            Optional<GeoResult> knownGeoResult
+    ) {
+        if (vpnResult == null || !vpnResult.isVpn() || !vpnAsnWhitelistService.isEnabled()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        Optional<GeoResult> known = knownGeoResult == null ? Optional.empty() : knownGeoResult;
+        CompletableFuture<Optional<GeoResult>> geoFuture = known.isPresent()
+                ? CompletableFuture.completedFuture(known)
+                : getGeoResult(ipAddress);
+        return geoFuture.handle((geoResult, throwable) -> {
+            if (throwable != null) {
+                reportError("VPN ASN whitelist lookup", throwable);
+                return false;
+            }
+            return geoResult != null
+                    && geoResult.isPresent()
+                    && vpnAsnWhitelistService.matches(geoResult.get());
+        });
     }
 
     public static Optional<String> getBlockedUsernamePart(String username) {

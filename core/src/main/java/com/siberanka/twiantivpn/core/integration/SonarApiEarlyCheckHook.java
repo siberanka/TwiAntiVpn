@@ -222,12 +222,17 @@ public final class SonarApiEarlyCheckHook {
                 }
                 try {
                     VpnResult vpnResult = vpnFuture.join();
-                    if (vpnResult != null && vpnResult.isVpn()) {
+                    Optional<GeoResult> geoResultOptional = geoFuture.join();
+                    boolean vpnAsnExempt = ConnectionGuard.isVpnAsnWhitelisted(
+                            ipAddress,
+                            vpnResult,
+                            geoResultOptional
+                    ).join();
+                    if (vpnResult != null && vpnResult.isVpn() && !vpnAsnExempt) {
                         pendingCheck.block(Result.vpn(ipAddress, username), true);
                         return;
                     }
 
-                    Optional<GeoResult> geoResultOptional = geoFuture.join();
                     if (geoResultOptional.isPresent()) {
                         GeoResult geoResult = geoResultOptional.get();
                         if (modules.contains(CheckModule.ISP_BLOCK)) {
