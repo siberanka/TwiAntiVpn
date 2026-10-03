@@ -99,10 +99,11 @@ customized messages after updates; that behavior is gone.
   it with `filepath: /plugin.jar`, so the README badges
   (`/-/releases/permalink/latest/downloads/plugin.jar`) always resolve to the newest jar.
 - Release notes: "What's changed" + "Verification" (build command, test count, artifact, SHA-256).
+- GitLab and GitHub release lists must stay identical (same tags, notes and jar). Releases added
+  later on GitLab use `--released-at` with the original GitHub publish time so that
+  `permalink/latest` keeps pointing at the newest version.
 
 ## Open items
 
-- GitLab has no release entries for `2026.09.12.1` and `2026.09.17.1` (tags exist; GitHub has the
-  releases). Backfill if a complete GitLab release history is needed.
 - Bukkit/Bungee saves of `config.yml` and language files can drop YAML comments on old server
   versions; a comment-preserving writer would be an improvement.
