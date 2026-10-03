@@ -11,12 +11,12 @@ import com.siberanka.twiantivpn.core.logging.ErrorReporter;
 import com.siberanka.twiantivpn.core.net.IpAddressUtil;
 import com.siberanka.twiantivpn.core.security.ActionRateLimiter;
 import com.siberanka.twiantivpn.core.update.UpdateChecker;
+import com.siberanka.twiantivpn.core.vpn.TrustedResidentialIsps;
 import com.siberanka.twiantivpn.core.vpn.VpnProvider;
 import com.siberanka.twiantivpn.core.vpn.VpnAsnWhitelistService;
 import com.siberanka.twiantivpn.core.vpn.VpnResult;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -77,10 +77,14 @@ public class ConnectionGuard {
         }
         Map<String, VpnProvider> providersSnapshot = vpnProviders;
         Set<String> selected = sanitizeProviderNames(selectedProviderNames, providersSnapshot);
-        if (includeProxyBlocklist && proxyBlocklistService.contains(ipAddress)) {
-            return CompletableFuture.completedFuture(
-                    new VpnResult(ipAddress, true, Optional.of("TwiAntiVpn proxy blocklist"))
-            );
+        if (includeProxyBlocklist) {
+            Optional<ProxyBlocklistService.SourceCategory> blocklistMatch = proxyBlocklistService.match(ipAddress);
+            if (blocklistMatch.isPresent()) {
+                return CompletableFuture.completedFuture(
+                        new VpnResult(ipAddress, true, Optional.of("TwiAntiVpn proxy blocklist"))
+                                .setAnonymizer(blocklistMatch.get() == ProxyBlocklistService.SourceCategory.ANONYMIZER)
+                );
+            }
         }
         if (selected.isEmpty()) {
             return CompletableFuture.completedFuture(new VpnResult(ipAddress, false));
@@ -151,6 +155,7 @@ public class ConnectionGuard {
 
             int vpnPositives = 0;
             int successfulProviders = 0;
+            boolean anonymizerEvidence = false;
             ArrayList<CompletableFuture<Optional<VpnResult>>> vpnResultList = new ArrayList<>();
 
             for (String providerName : selectedProviderNames) {
@@ -176,8 +181,10 @@ public class ConnectionGuard {
                         if (providerResult.get().getVpnProviderName().isPresent()) {
                             vpnProviderName = providerResult.get().getVpnProviderName();
                         }
-                        if (providerResult.get().isVpn())
+                        if (providerResult.get().isVpn()) {
                             vpnPositives++;
+                            anonymizerEvidence |= providerResult.get().isAnonymizer();
+                        }
                     }
                 } catch (Exception exception) {
                     reportError("VPN provider check", exception);
@@ -187,6 +194,7 @@ public class ConnectionGuard {
             VpnResult computedVpnResult = new VpnResult(ipAddress, false, vpnProviderName);
 
             computedVpnResult.setVpn(vpnPositives >= requiredPositiveFlags);
+            computedVpnResult.setAnonymizer(computedVpnResult.isVpn() && anonymizerEvidence);
 
             if (useAggregateCache && cacheProvider != null && successfulProviders > 0) {
                 cacheProvider.addVpnResult(computedVpnResult).join();
@@ -376,6 +384,22 @@ public class ConnectionGuard {
         vpnAsnWhitelistService.configure(enabled, asns);
     }
 
+    public static void configureVpnAsnWhitelist(boolean enabled,
+                                                List<String> builtInCountries,
+                                                List<String> additionalAsns,
+                                                List<String> excludedAsns,
+                                                boolean blockHosting,
+                                                boolean blockAnonymizers) {
+        vpnAsnWhitelistService.configure(
+                enabled,
+                builtInCountries,
+                additionalAsns,
+                excludedAsns,
+                blockHosting,
+                blockAnonymizers
+        );
+    }
+
     public static CompletableFuture<Void> checkForUpdates(String currentVersion, boolean enabled) {
         if (!enabled) {
             return CompletableFuture.completedFuture(null);
@@ -398,8 +422,12 @@ public class ConnectionGuard {
         });
     }
 
-    public static List<String> getDefaultVpnWhitelistedAsns() {
-        return new ArrayList<>(VpnAsnWhitelistService.defaultAsns());
+    public static List<String> getDefaultTrustedIspCountries() {
+        return new ArrayList<>(TrustedResidentialIsps.supportedCountries());
+    }
+
+    public static int getTrustedIspAsnCount() {
+        return vpnAsnWhitelistService.trustedAsnCount();
     }
 
     public static boolean isVpnAsnWhitelistEnabled() {
@@ -418,6 +446,9 @@ public class ConnectionGuard {
         if (vpnResult == null || !vpnResult.isVpn() || !vpnAsnWhitelistService.isEnabled()) {
             return CompletableFuture.completedFuture(false);
         }
+        if (!vpnAsnWhitelistService.allowsVerdict(vpnResult)) {
+            return CompletableFuture.completedFuture(false);
+        }
         Optional<GeoResult> known = knownGeoResult == null ? Optional.empty() : knownGeoResult;
         CompletableFuture<Optional<GeoResult>> geoFuture = known.isPresent()
                 ? CompletableFuture.completedFuture(known)
@@ -429,7 +460,7 @@ public class ConnectionGuard {
             }
             return geoResult != null
                     && geoResult.isPresent()
-                    && vpnAsnWhitelistService.matches(geoResult.get());
+                    && vpnAsnWhitelistService.allows(geoResult.get(), vpnResult);
         });
     }
 

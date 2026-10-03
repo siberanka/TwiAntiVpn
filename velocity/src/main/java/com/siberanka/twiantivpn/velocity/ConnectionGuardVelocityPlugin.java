@@ -39,7 +39,7 @@ import java.util.Set;
 @Plugin(
         id="twiantivpn",
         name="TwiAntiVpn",
-        version="2026.09.17.1",
+        version="2026.10.03.1",
         url="https://gitlab.com/siberanka/TwiAntiVpn",
         authors = {"gerolndnr", "siberanka"},
         dependencies = {
@@ -47,7 +47,7 @@ import java.util.Set;
         }
 )
 public class ConnectionGuardVelocityPlugin {
-    private static final String VERSION = "2026.09.17.1";
+    private static final String VERSION = "2026.10.03.1";
     private static final String OKHTTP_VERSION = "4.12.0";
     private static final String OKIO_VERSION = "3.6.0";
     private static final String KOTLIN_VERSION = "1.9.10";
@@ -438,7 +438,13 @@ public class ConnectionGuardVelocityPlugin {
         );
         ConnectionGuard.configureVpnAsnWhitelist(
                 cgVelocityConfig.getConfig().getBoolean("behavior.vpn.whitelisted-asn.enabled", true),
-                getScalarStringList("behavior.vpn.whitelisted-asn.asns")
+                cgVelocityConfig.getConfig().contains("behavior.vpn.whitelisted-asn.built-in-countries")
+                        ? getScalarStringList("behavior.vpn.whitelisted-asn.built-in-countries")
+                        : ConnectionGuard.getDefaultTrustedIspCountries(),
+                getScalarStringList("behavior.vpn.whitelisted-asn.asns"),
+                getScalarStringList("behavior.vpn.whitelisted-asn.excluded-asns"),
+                cgVelocityConfig.getConfig().getBoolean("behavior.vpn.whitelisted-asn.block-hosting", true),
+                cgVelocityConfig.getConfig().getBoolean("behavior.vpn.whitelisted-asn.block-anonymizers", true)
         );
     }
 

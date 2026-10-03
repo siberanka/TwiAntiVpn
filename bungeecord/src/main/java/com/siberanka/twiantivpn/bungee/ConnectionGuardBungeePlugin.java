@@ -14,6 +14,7 @@ import com.siberanka.twiantivpn.core.geo.ProxyCheckGeoProvider;
 import com.siberanka.twiantivpn.core.integration.SonarApiEarlyCheckHook;
 import com.siberanka.twiantivpn.core.integration.AdaptiveLoginOrderService;
 import com.siberanka.twiantivpn.core.integration.CheckModule;
+import com.siberanka.twiantivpn.core.message.LanguageFileUpdater;
 import com.siberanka.twiantivpn.core.message.MessageFormatter;
 import com.siberanka.twiantivpn.core.vpn.*;
 import com.siberanka.twiantivpn.core.vpn.custom.CustomVpnProvider;
@@ -27,10 +28,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -96,13 +97,7 @@ public class ConnectionGuardBungeePlugin extends Plugin {
         if (!languageFile.exists()) {
             languageFile = new File(getDataFolder().toPath().resolve("translation").toFile(), "en.yml");
         }
-        try {
-            languageConfig = ConfigurationProvider.getProvider(YamlConfiguration.class).load(languageFile);
-            ensureLanguageConfigComplete();
-        } catch (IOException e) {
-            ConnectionGuard.reportError("Bungee language config load", e);
-            return;
-        }
+        loadLanguageConfig();
 
 
         // 3. Download libraries used for vpn and geo checks
@@ -262,13 +257,7 @@ public class ConnectionGuardBungeePlugin extends Plugin {
         if (!languageFile.exists()) {
             languageFile = new File(getDataFolder().toPath().resolve("translation").toFile(), "en.yml");
         }
-        try {
-            languageConfig = ConfigurationProvider.getProvider(YamlConfiguration.class).load(languageFile);
-            ensureLanguageConfigComplete();
-        } catch (IOException e) {
-            ConnectionGuard.reportError("Bungee language config reload", e);
-            return;
-        }
+        loadLanguageConfig();
         configureGeoProviders();
         configureSecurityFilters();
         configureProxyBlocklist();
@@ -483,9 +472,13 @@ public class ConnectionGuardBungeePlugin extends Plugin {
         changed |= setConfigDefault("update-check.enabled", true);
         changed |= setConfigDefault("behavior.vpn.whitelisted-asn.enabled", true);
         changed |= setConfigDefault(
-                "behavior.vpn.whitelisted-asn.asns",
-                ConnectionGuard.getDefaultVpnWhitelistedAsns()
+                "behavior.vpn.whitelisted-asn.built-in-countries",
+                ConnectionGuard.getDefaultTrustedIspCountries()
         );
+        changed |= setConfigDefault("behavior.vpn.whitelisted-asn.asns", new ArrayList<String>());
+        changed |= setConfigDefault("behavior.vpn.whitelisted-asn.excluded-asns", new ArrayList<String>());
+        changed |= setConfigDefault("behavior.vpn.whitelisted-asn.block-hosting", true);
+        changed |= setConfigDefault("behavior.vpn.whitelisted-asn.block-anonymizers", true);
         if (changed) {
             ConfigurationProvider.getProvider(YamlConfiguration.class).save(config, configFile);
         }
@@ -514,7 +507,13 @@ public class ConnectionGuardBungeePlugin extends Plugin {
         );
         ConnectionGuard.configureVpnAsnWhitelist(
                 getConfig().getBoolean("behavior.vpn.whitelisted-asn.enabled", true),
-                getScalarStringList("behavior.vpn.whitelisted-asn.asns")
+                getConfig().contains("behavior.vpn.whitelisted-asn.built-in-countries")
+                        ? getScalarStringList("behavior.vpn.whitelisted-asn.built-in-countries")
+                        : ConnectionGuard.getDefaultTrustedIspCountries(),
+                getScalarStringList("behavior.vpn.whitelisted-asn.asns"),
+                getScalarStringList("behavior.vpn.whitelisted-asn.excluded-asns"),
+                getConfig().getBoolean("behavior.vpn.whitelisted-asn.block-hosting", true),
+                getConfig().getBoolean("behavior.vpn.whitelisted-asn.block-anonymizers", true)
         );
     }
 
@@ -612,55 +611,108 @@ public class ConnectionGuardBungeePlugin extends Plugin {
                 .build();
     }
 
+    private void loadLanguageConfig() {
+        try {
+            languageConfig = ConfigurationProvider.getProvider(YamlConfiguration.class).load(languageFile);
+        } catch (IOException | RuntimeException e) {
+            ConnectionGuard.reportError("Bungee language config load", e);
+            try {
+                languageConfig = loadBundledLanguage(languageFile.getName());
+            } catch (IOException fallbackFailure) {
+                ConnectionGuard.reportError("Bungee bundled language load", fallbackFailure);
+            }
+            getLogger().warning(languageFile.getName() + " could not be read; it was left untouched and the bundled messages are used until it is fixed.");
+            return;
+        }
+        ensureLanguageConfigComplete();
+    }
+
     private void ensureLanguageConfigComplete() {
-        if (languageConfig != null
-                && languageConfig.contains("messages.username-block")
-                && languageConfig.contains("messages.isp-block")
-                && languageConfig.contains("messages.prefix")
-                && languageConfig.contains("messages.kick-prefix")
-                && languageConfig.contains("messages.kick-contact")
-                && languageConfig.contains("messages.adaptive-sonar-attack-log")
-                && languageConfig.contains("messages.adaptive-sonar-recovery-log")
-                && languageConfig.contains("messages.adaptive-sonar-normal-log")
-                && languageConfig.contains("messages.pre-sonar-check-failed")
-                && languageConfig.contains("command.test.connection-result")
-                && languageConfig.contains("command.whitelist.added")
-                && languageConfigUsesCurrentCommandName()) {
+        if (languageConfig == null) {
             return;
         }
         try {
-            Files.copy(languageFile.toPath(), new File(languageFile.getAbsolutePath() + ".bak." + System.currentTimeMillis()).toPath());
-            String resourceName = "/translation/" + languageFile.getName();
-            InputStream inputStream = ConnectionGuardBungeePlugin.class.getResourceAsStream(resourceName);
-            if (inputStream == null) {
-                inputStream = ConnectionGuardBungeePlugin.class.getResourceAsStream("/translation/en.yml");
-            }
-            if (inputStream != null) {
-                try (InputStream input = inputStream) {
-                    Files.copy(input, languageFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            Configuration defaults = loadBundledLanguage(languageFile.getName());
+            LanguageFileUpdater.Result result = LanguageFileUpdater.update(
+                    new BungeeLanguageDocument(languageConfig),
+                    defaults == null ? null : new BungeeLanguageDocument(defaults)
+            );
+            if (result.isUnreadable()) {
+                if (defaults != null) {
+                    languageConfig = defaults;
                 }
-                languageConfig = ConfigurationProvider.getProvider(YamlConfiguration.class).load(languageFile);
+                getLogger().warning(languageFile.getName() + " is empty or not valid YAML; it was left untouched and the bundled messages are used until it is fixed.");
+                return;
             }
-        } catch (IOException e) {
+            if (!result.isChanged()) {
+                return;
+            }
+            Files.copy(
+                    languageFile.toPath(),
+                    new File(languageFile.getAbsolutePath() + ".bak." + System.currentTimeMillis()).toPath()
+            );
+            ConfigurationProvider.getProvider(YamlConfiguration.class).save(languageConfig, languageFile);
+            getLogger().info("Updated " + languageFile.getName() + " without overwriting customized messages: "
+                    + result.getAddedPaths().size() + " missing key(s) added, "
+                    + result.getMigratedPaths().size() + " legacy command reference(s) migrated.");
+        } catch (IOException | RuntimeException e) {
             ConnectionGuard.reportError("Bungee language config update", e);
         }
     }
 
-    private boolean languageConfigUsesCurrentCommandName() {
-        String unknownSubcommand = languageConfig.getString("command.unknown-subcommand");
-        if (usesLegacyCommandName(unknownSubcommand)) {
-            return false;
+    private Configuration loadBundledLanguage(String fileName) throws IOException {
+        InputStream inputStream = ConnectionGuardBungeePlugin.class.getResourceAsStream("/translation/" + fileName);
+        if (inputStream == null) {
+            inputStream = ConnectionGuardBungeePlugin.class.getResourceAsStream("/translation/en.yml");
         }
-        for (String line : languageConfig.getStringList("messages.help")) {
-            if (usesLegacyCommandName(line)) {
-                return false;
-            }
+        if (inputStream == null) {
+            return null;
         }
-        return true;
+        try (InputStream input = inputStream) {
+            return ConfigurationProvider.getProvider(YamlConfiguration.class).load(input);
+        }
     }
 
-    private boolean usesLegacyCommandName(String value) {
-        return value != null && (value.contains("/connectionguard") || value.contains("/cg"));
+    private static final class BungeeLanguageDocument implements LanguageFileUpdater.Document {
+        private final Configuration configuration;
+
+        private BungeeLanguageDocument(Configuration configuration) {
+            this.configuration = configuration;
+        }
+
+        @Override
+        public Set<String> leafPaths() {
+            Set<String> paths = new LinkedHashSet<>();
+            collectLeafPaths(configuration, "", paths);
+            return paths;
+        }
+
+        private static void collectLeafPaths(Configuration section, String prefix, Set<String> paths) {
+            for (String key : section.getKeys()) {
+                String path = prefix.isEmpty() ? key : prefix + "." + key;
+                Object value = section.get(key);
+                if (value instanceof Configuration) {
+                    collectLeafPaths((Configuration) value, path, paths);
+                } else {
+                    paths.add(path);
+                }
+            }
+        }
+
+        @Override
+        public boolean contains(String path) {
+            return configuration.contains(path);
+        }
+
+        @Override
+        public Object get(String path) {
+            return configuration.get(path);
+        }
+
+        @Override
+        public void set(String path, Object value) {
+            configuration.set(path, value);
+        }
     }
 
     public Configuration getLanguageConfig() {

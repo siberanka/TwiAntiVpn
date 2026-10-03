@@ -3,13 +3,16 @@ package com.siberanka.twiantivpn.velocity;
 import dev.dejvokep.boostedyaml.YamlDocument;
 import dev.dejvokep.boostedyaml.settings.general.GeneralSettings;
 import com.siberanka.twiantivpn.core.ConnectionGuard;
+import com.siberanka.twiantivpn.core.message.LanguageFileUpdater;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 public class CGVelocityConfig {
     private File configFile;
@@ -56,11 +59,20 @@ public class CGVelocityConfig {
         }
         try {
             languageConfig = YamlDocument.create(languageFile, GeneralSettings.builder().setUseDefaults(true).build());
-            ensureLanguageConfigComplete();
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             ConnectionGuard.reportError("Velocity language config load", e);
+            try {
+                languageConfig = loadBundledLanguage(languageFile.getName());
+            } catch (IOException fallbackFailure) {
+                ConnectionGuard.reportError("Velocity bundled language load", fallbackFailure);
+            }
+            if (ConnectionGuard.getLogger() != null) {
+                ConnectionGuard.getLogger().warning(languageFile.getName()
+                        + " could not be read; it was left untouched and the bundled messages are used until it is fixed.");
+            }
             return;
         }
+        ensureLanguageConfigComplete();
     }
 
     public YamlDocument getLanguageConfig() {
@@ -86,36 +98,87 @@ public class CGVelocityConfig {
     }
 
     private void ensureLanguageConfigComplete() {
-        if (languageConfig != null
-                && languageConfig.contains("messages.username-block")
-                && languageConfig.contains("messages.isp-block")
-                && languageConfig.contains("messages.prefix")
-                && languageConfig.contains("messages.kick-prefix")
-                && languageConfig.contains("messages.kick-contact")
-                && languageConfig.contains("messages.adaptive-sonar-attack-log")
-                && languageConfig.contains("messages.adaptive-sonar-recovery-log")
-                && languageConfig.contains("messages.adaptive-sonar-normal-log")
-                && languageConfig.contains("messages.pre-sonar-check-failed")
-                && languageConfig.contains("command.test.connection-result")
-                && languageConfig.contains("command.whitelist.added")
-                && languageConfigUsesCurrentCommandName()) {
+        if (languageConfig == null) {
             return;
         }
         try {
-            Files.copy(languageFile.toPath(), new File(languageFile.getAbsolutePath() + ".bak." + System.currentTimeMillis()).toPath());
-            String resourceName = "/translation/" + languageFile.getName();
-            InputStream inputStream = ConnectionGuardVelocityPlugin.class.getResourceAsStream(resourceName);
-            if (inputStream == null) {
-                inputStream = ConnectionGuardVelocityPlugin.class.getResourceAsStream("/translation/en.yml");
-            }
-            if (inputStream != null) {
-                try (InputStream input = inputStream) {
-                    Files.copy(input, languageFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            YamlDocument defaults = loadBundledLanguage(languageFile.getName());
+            LanguageFileUpdater.Result result = LanguageFileUpdater.update(
+                    new BoostedLanguageDocument(languageConfig),
+                    defaults == null ? null : new BoostedLanguageDocument(defaults)
+            );
+            if (result.isUnreadable()) {
+                if (defaults != null) {
+                    languageConfig = defaults;
                 }
-                languageConfig = YamlDocument.create(languageFile, GeneralSettings.builder().setUseDefaults(true).build());
+                if (ConnectionGuard.getLogger() != null) {
+                    ConnectionGuard.getLogger().warning(languageFile.getName() + " is empty or not valid YAML; it was left untouched and the bundled messages are used until it is fixed.");
+                }
+                return;
             }
-        } catch (IOException e) {
+            if (!result.isChanged()) {
+                return;
+            }
+            Files.copy(
+                    languageFile.toPath(),
+                    new File(languageFile.getAbsolutePath() + ".bak." + System.currentTimeMillis()).toPath()
+            );
+            languageConfig.save();
+            if (ConnectionGuard.getLogger() != null) {
+                ConnectionGuard.getLogger().info("Updated " + languageFile.getName()
+                        + " without overwriting customized messages: "
+                        + result.getAddedPaths().size() + " missing key(s) added, "
+                        + result.getMigratedPaths().size() + " legacy command reference(s) migrated.");
+            }
+        } catch (IOException | RuntimeException e) {
             ConnectionGuard.reportError("Velocity language config update", e);
+        }
+    }
+
+    private YamlDocument loadBundledLanguage(String fileName) throws IOException {
+        InputStream inputStream = ConnectionGuardVelocityPlugin.class.getResourceAsStream("/translation/" + fileName);
+        if (inputStream == null) {
+            inputStream = ConnectionGuardVelocityPlugin.class.getResourceAsStream("/translation/en.yml");
+        }
+        if (inputStream == null) {
+            return null;
+        }
+        try (InputStream input = inputStream) {
+            return YamlDocument.create(input);
+        }
+    }
+
+    private static final class BoostedLanguageDocument implements LanguageFileUpdater.Document {
+        private final YamlDocument document;
+
+        private BoostedLanguageDocument(YamlDocument document) {
+            this.document = document;
+        }
+
+        @Override
+        public Set<String> leafPaths() {
+            Set<String> paths = new LinkedHashSet<>();
+            for (String path : document.getRoutesAsStrings(true)) {
+                if (!document.isSection(path)) {
+                    paths.add(path);
+                }
+            }
+            return paths;
+        }
+
+        @Override
+        public boolean contains(String path) {
+            return document.contains(path);
+        }
+
+        @Override
+        public Object get(String path) {
+            return document.get(path);
+        }
+
+        @Override
+        public void set(String path, Object value) {
+            document.set(path, value);
         }
     }
 
@@ -144,9 +207,13 @@ public class CGVelocityConfig {
         changed |= setConfigDefault("update-check.enabled", true);
         changed |= setConfigDefault("behavior.vpn.whitelisted-asn.enabled", true);
         changed |= setConfigDefault(
-                "behavior.vpn.whitelisted-asn.asns",
-                ConnectionGuard.getDefaultVpnWhitelistedAsns()
+                "behavior.vpn.whitelisted-asn.built-in-countries",
+                ConnectionGuard.getDefaultTrustedIspCountries()
         );
+        changed |= setConfigDefault("behavior.vpn.whitelisted-asn.asns", new ArrayList<String>());
+        changed |= setConfigDefault("behavior.vpn.whitelisted-asn.excluded-asns", new ArrayList<String>());
+        changed |= setConfigDefault("behavior.vpn.whitelisted-asn.block-hosting", true);
+        changed |= setConfigDefault("behavior.vpn.whitelisted-asn.block-anonymizers", true);
         if (changed) {
             config.save();
         }
@@ -158,22 +225,5 @@ public class CGVelocityConfig {
         }
         config.set(path, value);
         return true;
-    }
-
-    private boolean languageConfigUsesCurrentCommandName() {
-        String unknownSubcommand = languageConfig.getString("command.unknown-subcommand");
-        if (usesLegacyCommandName(unknownSubcommand)) {
-            return false;
-        }
-        for (String line : languageConfig.getStringList("messages.help")) {
-            if (usesLegacyCommandName(line)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean usesLegacyCommandName(String value) {
-        return value != null && (value.contains("/connectionguard") || value.contains("/cg"));
     }
 }

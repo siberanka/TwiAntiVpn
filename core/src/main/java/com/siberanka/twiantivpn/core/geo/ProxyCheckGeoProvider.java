@@ -30,6 +30,7 @@ public class ProxyCheckGeoProvider implements GeoProvider {
                             + ipAddress
                             + "?key=" + apiKey
                             + "&asn=1"
+                            + "&vpn=1"
                     ).build();
 
             JsonObject jsonObject;
@@ -83,8 +84,17 @@ public class ProxyCheckGeoProvider implements GeoProvider {
             );
             String countryCode = firstNonEmpty(getString(ipObject, "isocode"), getString(ipObject, "country"));
             String asn = getString(networkObject, "asn");
+            String networkType = firstNonEmpty(getString(networkObject, "type"), getString(ipObject, "type"));
 
-            return Optional.of(new GeoResult(ipAddress, countryCode, "Unknown", providerName, asn, getString(networkObject, "organisation")));
+            return Optional.of(new GeoResult(
+                    ipAddress,
+                    countryCode,
+                    "Unknown",
+                    providerName,
+                    asn,
+                    getString(networkObject, "organisation"),
+                    hostingFromType(networkType)
+            ));
         });
     }
 
@@ -97,6 +107,20 @@ public class ProxyCheckGeoProvider implements GeoProvider {
         } catch (Exception ignored) {
             return "";
         }
+    }
+
+    static Boolean hostingFromType(String networkType) {
+        if (networkType == null || networkType.trim().isEmpty()) {
+            return null;
+        }
+        String normalized = networkType.trim().toLowerCase(java.util.Locale.ROOT);
+        if (normalized.equals("hosting") || normalized.contains("data center") || normalized.contains("datacenter")) {
+            return Boolean.TRUE;
+        }
+        if (normalized.equals("residential") || normalized.equals("wireless") || normalized.equals("business")) {
+            return Boolean.FALSE;
+        }
+        return null;
     }
 
     private String firstNonEmpty(String... values) {

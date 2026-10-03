@@ -21,14 +21,15 @@ TwiAntiVpn is a production-focused anti-VPN, proxy, geo and connection-risk plug
 - Duplicate protection for URLs, exact IPs, IPv4 networks and IPv6 CIDR networks.
 - Memory-optimized primitive storage for large IPv4 blocklists.
 - ISP and ASN blocking by provider name or autonomous system number.
-- Configurable VPN-result exemption for curated residential ISP ASNs, with Turkish and other Turkic-country access networks included by default.
+- Trusted local ISP exemption: residential, fixed-line and mobile ISPs in Turkey, Azerbaijan, Kazakhstan, Uzbekistan, Kyrgyzstan and Turkmenistan are not kicked as untrusted networks by default, while datacenter, Tor, named VPN and proxy evidence still blocks.
+- Customized language files are kept: updates only add missing keys and never overwrite edited messages.
 - Username contains-filter for blocking obvious bot naming patterns before VPN/API work.
 - Configurable per-module Sonar ordering with adaptive attack routing, local pre-Sonar block thresholds and recovery hysteresis.
 - AsteroidProxy/AsteroidSpoofer support for verified fake-player bypasses.
 - Geo blacklist/whitelist support.
 - SQLite, Redis or disabled cache modes.
 - Discord webhook and console command actions.
-- Editable language files for English, Turkish, Azerbaijani and Spanish.
+- Editable language files for English, Turkish, Azerbaijani and Spanish. Custom languages are completed from the English defaults.
 - Login block, command and staff notification messages support new lines, legacy color codes, hex colors and common MiniMessage-style tags.
 - Message prefixes are configured once through `messages.prefix` and reused with `{prefix}` or `%PREFIX%`.
 
@@ -56,7 +57,11 @@ The default configuration is designed to work out of the box. Important sections
 - `provider.vpn`: external VPN/proxy detection providers.
 - `provider.geo`: geo and ISP data providers.
 - `provider.isp-block`: blocked ASN numbers and ISP/provider names.
-- `behavior.vpn.whitelisted-asn`: ignores only VPN/proxy detections for configured ASNs. Geo, ISP/ASN and username policies remain active. The default list contains major end-user access networks in Turkey, Azerbaijan, Kazakhstan, Uzbekistan, Kyrgyzstan and Turkmenistan.
+- `behavior.vpn.whitelisted-asn`: trusted local ISPs. Ignores only VPN/proxy detections for local access networks; geo, ISP/ASN and username policies remain active.
+  - `built-in-countries`: countries whose built-in ISP list is trusted (`TR`, `AZ`, `KZ`, `UZ`, `KG`, `TM`; all enabled by default, `[]` disables the built-in list). The list ships with each release, so existing configs receive updates automatically.
+  - `asns` / `excluded-asns`: add your own trusted ASNs or remove a built-in one.
+  - `block-hosting`: keeps blocking addresses reported as hosting/datacenter space inside trusted ISPs (default `true`).
+  - `block-anonymizers`: keeps blocking Tor exits, named VPN operators, iCloud Private Relay and matches from Tor/VPN/proxy/cloud blocklist sources inside trusted ISPs (default `true`). Abuse/spam reputation lists and generic VPN/proxy guesses are treated as false positives for these networks.
 - `username-filter`: blocked username fragments.
 - `login-check`: fixed before/after ordering and adaptive per-module Sonar routing. By default the lightweight username filter and in-memory proxy blocklist are allowed before Sonar; remaining checks run after verification. During a Sonar attack, local pre-Sonar block spike or recovery window, every module moves after Sonar.
 - `login-check.adaptive-sonar.pre-sonar-block-spike`: treats repeated pre-Sonar blocks as an attack signal. `count-blocks-within-seconds` defines how far back blocks are counted, and `trigger-after-blocked-connections` defines how many blocks are needed before all checks move after Sonar. The default is 15 blocks within 60 seconds.
@@ -67,7 +72,11 @@ The default configuration is designed to work out of the box. Important sections
 
 Most scalar values can be written without quotes. Empty strings and JSON examples remain quoted in the default config because YAML would otherwise treat them differently.
 
-An ASN whitelist reduces false positives but is not a guarantee that every address in that network is safe. Residential networks can contain compromised devices, customer-operated proxies and carrier-grade NAT. Keep the list limited to trusted access operators and review it periodically. If ASN lookup fails, TwiAntiVpn keeps the original VPN/proxy result.
+The built-in ISP list contains 168 access networks with at least 0.05% of each country's measured users, derived from APNIC Labs per-AS user population estimates and RIPE NCC registration data (snapshot 2026-09-30). Hosting/CDN providers, satellite and eSIM/roaming operators, academic/state networks and cross-border networks are excluded.
+
+Trusting an ISP reduces false positives but is not a guarantee that every address in that network is safe. Residential networks can contain compromised devices, customer-operated proxies and carrier-grade NAT, which is why hosting and anonymizer evidence still blocks. If the ASN lookup fails, TwiAntiVpn keeps the original VPN/proxy result.
+
+Language files are updated non-destructively. When a release adds new messages, only the missing keys are appended to `translation/<language>.yml` (a timestamped `.bak` copy is written first) and legacy `/cg` or `/connectionguard` command references in help texts are renamed; every customized message is kept.
 
 ## Sonar Integration
 
@@ -175,6 +184,8 @@ Original project by `gerolndnr`.
 
 Maintained by `siberanka`.
 
+The built-in trusted ISP list is derived from APNIC Labs "Estimates of user population per AS" (© APNIC Pty Ltd, re-use with attribution permitted) and RIPE NCC RIPEstat registration data.
+
 ## License
 
 MIT
@@ -195,7 +206,8 @@ TwiAntiVpn, Minecraft ağları için production odaklı anti-VPN, proxy, geo ve 
 - URL, IP, IPv4 ağ ve IPv6 CIDR tekrarlarını engelleyen duplicate koruması.
 - Büyük IPv4 blocklistleri için bellek dostu depolama.
 - ASN numarası veya ISP/sağlayıcı adına göre engelleme.
-- Türkiye ve diğer Türk ülkelerindeki seçili son kullanıcı internet ağlarını varsayılan olarak içeren, düzenlenebilir VPN ASN muafiyeti.
+- Güvenilir yerel ISP muafiyeti: Türkiye, Azerbaycan, Kazakistan, Özbekistan, Kırgızistan ve Türkmenistan'daki ev, sabit hat ve mobil internet sağlayıcıları varsayılan olarak güvenilmeyen ağ diye atılmaz; veri merkezi, Tor, isimli VPN ve proxy kanıtları engellemeye devam eder.
+- Özelleştirilmiş dil dosyaları korunur: güncellemeler yalnızca eksik anahtarları ekler, düzenlenmiş mesajların üzerine yazmaz.
 - Bot isim kalıpları için kullanıcı adı içerik filtresi.
 - Sonar ile modül bazlı sıralama, adaptive saldırı modu, pre-Sonar blok eşiği ve recovery bekleme süresi.
 - AsteroidProxy/AsteroidSpoofer doğrulanmış fake player bypass desteği.
@@ -230,7 +242,11 @@ Varsayılan config doğrudan çalışacak şekilde hazırlanmıştır. Önemli b
 - `provider.vpn`: harici VPN/proxy tespit sağlayıcıları.
 - `provider.geo`: geo ve ISP veri sağlayıcıları.
 - `provider.isp-block`: engellenecek ASN numaraları ve ISP/sağlayıcı adları.
-- `behavior.vpn.whitelisted-asn`: ayarlanan ASN'ler için yalnızca VPN/proxy tespitini yok sayar. Geo, ISP/ASN ve kullanıcı adı kuralları çalışmaya devam eder. Varsayılan liste Türkiye, Azerbaycan, Kazakistan, Özbekistan, Kırgızistan ve Türkmenistan'daki büyük son kullanıcı erişim ağlarını içerir.
+- `behavior.vpn.whitelisted-asn`: güvenilir yerel ISP'ler. Yerel erişim ağları için yalnızca VPN/proxy tespitini yok sayar; geo, ISP/ASN ve kullanıcı adı kuralları çalışmaya devam eder.
+  - `built-in-countries`: yerleşik ISP listesi güvenilecek ülkeler (`TR`, `AZ`, `KZ`, `UZ`, `KG`, `TM`; varsayılan olarak hepsi açık, `[]` yerleşik listeyi kapatır). Liste her sürümle birlikte gelir; mevcut configler güncellemeleri otomatik alır.
+  - `asns` / `excluded-asns`: kendi güvendiğiniz ASN'leri ekleyin veya yerleşik bir ASN'yi çıkarın.
+  - `block-hosting`: güvenilir ISP içinde hosting/veri merkezi olarak raporlanan adresleri engellemeye devam eder (varsayılan `true`).
+  - `block-anonymizers`: güvenilir ISP içinde Tor çıkışlarını, isimli VPN operatörlerini, iCloud Private Relay'i ve Tor/VPN/proxy/cloud blocklist kaynaklarındaki eşleşmeleri engellemeye devam eder (varsayılan `true`). Abuse/spam itibar listeleri ve genel VPN/proxy tahminleri bu ağlar için yanlış pozitif kabul edilir.
 - `username-filter`: kullanıcı adında geçerse engellenecek ifadeler.
 - `login-check`: anti-bot pluginlerinden önce/sonra çalışma sırası ve Sonar için adaptive modül yönlendirmesi.
 - `login-check.adaptive-sonar.pre-sonar-block-spike`: Sonar öncesi engelleme yoğunluğunu saldırı sinyali olarak değerlendirir. `count-blocks-within-seconds` kaç saniyelik süreye bakılacağını, `trigger-after-blocked-connections` ise bu sürede kaç engellemeden sonra tüm kontrollerin Sonar sonrasına taşınacağını belirler.
@@ -241,7 +257,11 @@ Varsayılan config doğrudan çalışacak şekilde hazırlanmıştır. Önemli b
 
 Çoğu basit değer tırnaksız yazılabilir. Boş stringler ve JSON örnekleri YAML tarafından farklı yorumlanmasın diye varsayılan configte tırnaklı bırakılmıştır.
 
-ASN whitelist yanlış pozitifleri azaltır ancak ağdaki her adresin güvenli olduğunu garanti etmez. Ev interneti ağlarında ele geçirilmiş cihazlar, kullanıcıların çalıştırdığı proxyler ve CGNAT bulunabilir. Listeyi yalnızca güvendiğiniz erişim operatörleriyle sınırlı tutun ve düzenli olarak gözden geçirin. ASN sorgusu başarısız olursa TwiAntiVpn mevcut VPN/proxy sonucunu korur.
+Yerleşik ISP listesi, her ülkede ölçülen kullanıcıların en az %0,05'ine hizmet veren 168 erişim ağını içerir; APNIC Labs AS başına kullanıcı nüfusu tahminleri ve RIPE NCC kayıt verilerinden türetilmiştir (2026-09-30 verisi). Hosting/CDN sağlayıcıları, uydu ve eSIM/roaming operatörleri, akademik/devlet ağları ve sınır ötesi ağlar listeye alınmamıştır.
+
+Bir ISP'ye güvenmek yanlış pozitifleri azaltır ancak ağdaki her adresin güvenli olduğunu garanti etmez. Ev interneti ağlarında ele geçirilmiş cihazlar, kullanıcıların çalıştırdığı proxyler ve CGNAT bulunabilir; bu yüzden hosting ve anonimleştirici kanıtları engellemeye devam eder. ASN sorgusu başarısız olursa TwiAntiVpn mevcut VPN/proxy sonucunu korur.
+
+Dil dosyaları yıkıcı olmayan şekilde güncellenir. Yeni sürüm yeni mesajlar eklediğinde `translation/<dil>.yml` dosyasına yalnızca eksik anahtarlar eklenir (önce zaman damgalı `.bak` kopyası alınır) ve yardım metinlerindeki eski `/cg` veya `/connectionguard` komutları yeniden adlandırılır; özelleştirilmiş her mesaj korunur.
 
 ## Sonar Entegrasyonu
 
@@ -348,6 +368,8 @@ YYYY.MM.DD.build
 Orijinal proje: `gerolndnr`.
 
 Bakım: `siberanka`.
+
+Yerleşik güvenilir ISP listesi APNIC Labs "Estimates of user population per AS" verisinden (© APNIC Pty Ltd, atıf ile yeniden kullanım serbest) ve RIPE NCC RIPEstat kayıt verilerinden türetilmiştir.
 
 ## Lisans
 

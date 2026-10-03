@@ -7,6 +7,7 @@ public class GeoResult {
     private String ispName;
     private String asn;
     private String organization;
+    private Boolean hosting;
     private long cachedOn;
 
     public GeoResult(String ipAddress, String countryName, String cityName, String ispName) {
@@ -20,6 +21,17 @@ public class GeoResult {
         this.ispName = ispName;
         this.asn = asn;
         this.organization = organization;
+    }
+
+    public GeoResult(String ipAddress,
+                     String countryName,
+                     String cityName,
+                     String ispName,
+                     String asn,
+                     String organization,
+                     Boolean hosting) {
+        this(ipAddress, countryName, cityName, ispName, asn, organization);
+        this.hosting = hosting;
     }
 
     public long getCachedOn() {
@@ -48,6 +60,20 @@ public class GeoResult {
 
     public String getOrganization() {
         return organization == null ? "" : organization;
+    }
+
+    /**
+     * True only when a provider explicitly reported this address as hosting/datacenter space.
+     */
+    public boolean isHosting() {
+        return Boolean.TRUE.equals(hosting);
+    }
+
+    /**
+     * Raw hosting classification: TRUE, FALSE or null when the provider did not report it.
+     */
+    public Boolean getHosting() {
+        return hosting;
     }
 
     public boolean hasNetworkIdentity() {

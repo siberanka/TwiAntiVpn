@@ -2,59 +2,109 @@ package com.siberanka.twiantivpn.core.vpn;
 
 import com.siberanka.twiantivpn.core.geo.GeoResult;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Decides whether a VPN/proxy verdict should be ignored because the connection comes from a
+ * trusted local residential or mobile ISP.
+ *
+ * <p>The trust is network based, not address based, so hard evidence still wins: addresses that
+ * a geo provider reports as hosting/datacenter space and verdicts backed by anonymizer evidence
+ * (Tor exits, named VPN operators, anonymizer/proxy/cloud blocklist sources) are never exempted
+ * while the matching safeguard is enabled.</p>
+ */
 public final class VpnAsnWhitelistService {
-    private static final int MAX_ENTRIES = 512;
+    private static final int MAX_ENTRIES = 1024;
     private static final int MAX_ENTRY_LENGTH = 128;
     private static final long MAX_ASN = 4_294_967_295L;
     private static final Pattern ASN_PATTERN =
             Pattern.compile("(?i)\\bAS\\s*(\\d{1,10})\\b|\\b(\\d{1,10})\\b");
+    private static final Pattern COUNTRY_PATTERN = Pattern.compile("[A-Z]{2}");
 
-    private static final List<String> DEFAULT_ASNS = Collections.unmodifiableList(Arrays.asList(
-            // Turkey: Turk Telekom/TTNet, Turkcell/Superonline, TurkNet, Turksat and Vodafone
-            "AS9121", "AS47331", "AS20978", "AS34984", "AS16135",
-            "AS12735", "AS47524", "AS8386", "AS15924", "AS15897",
-            // Azerbaijan: Aztelekom, Azeronline, Uninet, Azercell and Bakcell
-            "AS28787", "AS15723", "AS39232", "AS31721", "AS197830",
-            // Kazakhstan: Kazakhtelecom, Transtelecom, Beeline, Kcell, Tele2 and AlmaTV
-            "AS9198", "AS41798", "AS21299", "AS29355", "AS48503", "AS39824",
-            // Uzbekistan: Uzbektelecom, Uzmobile, IST Telekom, Sarkor and Ucell
-            "AS28910", "AS201767", "AS34718", "AS12365", "AS49273",
-            // Kyrgyzstan: Kyrgyztelecom, ElCat, Mega-Line, AKNET, O! and MegaCom
-            "AS12997", "AS8449", "AS41750", "AS12764", "AS41329", "AS50223",
-            // Turkmenistan: Turkmentelecom and Ashgabat City Telephone Network
-            "AS20661", "AS51495"
-    ));
+    private volatile State state = State.disabled();
 
-    private volatile State state = new State(false, Collections.emptySet());
-
+    /**
+     * Configures an explicit ASN list without the built-in registry. Kept for API compatibility.
+     */
     public void configure(boolean enabled, List<String> asns) {
-        state = new State(enabled, sanitizeAsns(asns));
+        configure(enabled, Collections.<String>emptyList(), asns, Collections.<String>emptyList(), true, true);
+    }
+
+    public void configure(boolean enabled,
+                          List<String> builtInCountries,
+                          List<String> additionalAsns,
+                          List<String> excludedAsns,
+                          boolean blockHosting,
+                          boolean blockAnonymizers) {
+        List<String> countries = sanitizeCountries(builtInCountries);
+        Set<String> trusted = new HashSet<>(sanitizeAsns(TrustedResidentialIsps.asnsFor(countries)));
+        trusted.addAll(sanitizeAsns(additionalAsns));
+        trusted.removeAll(sanitizeAsns(excludedAsns));
+        state = new State(
+                enabled,
+                Collections.unmodifiableSet(trusted),
+                Collections.unmodifiableList(countries),
+                blockHosting,
+                blockAnonymizers
+        );
     }
 
     public boolean isEnabled() {
         State current = state;
-        return current.enabled && !current.whitelistedAsns.isEmpty();
+        return current.enabled && !current.trustedAsns.isEmpty();
     }
 
+    /**
+     * Returns true when the network identity belongs to a trusted ISP and is not hosting space.
+     */
     public boolean matches(GeoResult geoResult) {
         State current = state;
-        if (!current.enabled || current.whitelistedAsns.isEmpty() || geoResult == null) {
+        if (!current.enabled || current.trustedAsns.isEmpty() || geoResult == null) {
+            return false;
+        }
+        if (current.blockHosting && geoResult.isHosting()) {
             return false;
         }
         String normalizedAsn = normalizeAsn(geoResult.getAsn());
-        return !normalizedAsn.isEmpty() && current.whitelistedAsns.contains(normalizedAsn);
+        return !normalizedAsn.isEmpty() && current.trustedAsns.contains(normalizedAsn);
+    }
+
+    /**
+     * Returns true when a positive VPN/proxy verdict may be ignored for this connection.
+     */
+    public boolean allows(GeoResult geoResult, VpnResult vpnResult) {
+        return allowsVerdict(vpnResult) && matches(geoResult);
+    }
+
+    /**
+     * Network-independent half of {@link #allows}: lets callers skip the geo lookup when the
+     * verdict itself can never be exempted.
+     */
+    public boolean allowsVerdict(VpnResult vpnResult) {
+        if (vpnResult == null || !vpnResult.isVpn()) {
+            return false;
+        }
+        return !(state.blockAnonymizers && vpnResult.isAnonymizer());
+    }
+
+    public int trustedAsnCount() {
+        return state.trustedAsns.size();
+    }
+
+    public List<String> builtInCountries() {
+        return state.builtInCountries;
     }
 
     public static List<String> defaultAsns() {
-        return DEFAULT_ASNS;
+        return TrustedResidentialIsps.allAsns();
     }
 
     static String normalizeAsn(String raw) {
@@ -77,7 +127,7 @@ public final class VpnAsnWhitelistService {
         }
     }
 
-    private Set<String> sanitizeAsns(List<String> asns) {
+    private static Set<String> sanitizeAsns(List<String> asns) {
         if (asns == null || asns.isEmpty()) {
             return Collections.emptySet();
         }
@@ -91,16 +141,48 @@ public final class VpnAsnWhitelistService {
                 sanitized.add(normalized);
             }
         }
-        return Collections.unmodifiableSet(sanitized);
+        return sanitized;
+    }
+
+    private static List<String> sanitizeCountries(List<String> countries) {
+        if (countries == null || countries.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Set<String> sanitized = new LinkedHashSet<>();
+        for (String raw : countries) {
+            if (raw == null) {
+                continue;
+            }
+            String countryCode = raw.trim().toUpperCase(Locale.ROOT);
+            if (COUNTRY_PATTERN.matcher(countryCode).matches()
+                    && TrustedResidentialIsps.supportedCountries().contains(countryCode)) {
+                sanitized.add(countryCode);
+            }
+        }
+        return new ArrayList<>(sanitized);
     }
 
     private static final class State {
         private final boolean enabled;
-        private final Set<String> whitelistedAsns;
+        private final Set<String> trustedAsns;
+        private final List<String> builtInCountries;
+        private final boolean blockHosting;
+        private final boolean blockAnonymizers;
 
-        private State(boolean enabled, Set<String> whitelistedAsns) {
+        private State(boolean enabled,
+                      Set<String> trustedAsns,
+                      List<String> builtInCountries,
+                      boolean blockHosting,
+                      boolean blockAnonymizers) {
             this.enabled = enabled;
-            this.whitelistedAsns = whitelistedAsns;
+            this.trustedAsns = trustedAsns;
+            this.builtInCountries = builtInCountries;
+            this.blockHosting = blockHosting;
+            this.blockAnonymizers = blockAnonymizers;
+        }
+
+        private static State disabled() {
+            return new State(false, Collections.<String>emptySet(), Collections.<String>emptyList(), true, true);
         }
     }
 }

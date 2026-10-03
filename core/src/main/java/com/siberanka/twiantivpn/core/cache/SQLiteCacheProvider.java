@@ -38,6 +38,8 @@ public class SQLiteCacheProvider implements CacheProvider {
                     statement.execute("CREATE TABLE IF NOT EXISTS connectionguard_geo_cache (address TEXT, country_name TEXT, city_name TEXT, isp_name TEXT, cached_on INTEGER)");
                     addColumnIfMissing(statement, "connectionguard_geo_cache", "asn", "TEXT");
                     addColumnIfMissing(statement, "connectionguard_geo_cache", "organization", "TEXT");
+                    addColumnIfMissing(statement, "connectionguard_geo_cache", "hosting", "INTEGER");
+                    addColumnIfMissing(statement, "connectionguard_vpn_cache", "anonymizer", "INTEGER");
                     statement.execute("DELETE FROM connectionguard_vpn_cache WHERE rowid NOT IN (SELECT MAX(rowid) FROM connectionguard_vpn_cache GROUP BY address)");
                     statement.execute("DELETE FROM connectionguard_geo_cache WHERE rowid NOT IN (SELECT MAX(rowid) FROM connectionguard_geo_cache GROUP BY address)");
                     // Older releases created non-unique indexes with these names. IF NOT EXISTS
@@ -92,19 +94,20 @@ public class SQLiteCacheProvider implements CacheProvider {
             synchronized (databaseLock) {
             try {
                 try (PreparedStatement preparedStatement = connection.prepareStatement(
-                        "SELECT vpn, cached_on FROM connectionguard_vpn_cache WHERE address=?"
+                        "SELECT vpn, anonymizer, cached_on FROM connectionguard_vpn_cache WHERE address=?"
                 )) {
                     preparedStatement.setString(1, ipAddress);
                     try (ResultSet resultSet = preparedStatement.executeQuery()) {
 
                     if (resultSet.next()) {
                     boolean isVpn = resultSet.getBoolean("vpn");
+                    boolean anonymizer = resultSet.getBoolean("anonymizer");
                     long cachedOn = resultSet.getLong("cached_on");
 
                     // Check if cache data is expired
                     if ((cachedOn + ConnectionGuard.getVpnCacheExpirationTime() * 60_000L) > new Date().getTime()) {
                         // Data is not expired.
-                        return Optional.of(new VpnResult(ipAddress, isVpn));
+                        return Optional.of(new VpnResult(ipAddress, isVpn).setAnonymizer(anonymizer));
                     } else {
                         // Data is expired and needs to be removed.
                         try (PreparedStatement deleteEntryStatement = connection.prepareStatement(
@@ -134,7 +137,7 @@ public class SQLiteCacheProvider implements CacheProvider {
             synchronized (databaseLock) {
             try {
                 try (PreparedStatement preparedStatement = connection.prepareStatement(
-                        "SELECT country_name, city_name, isp_name, asn, organization, cached_on FROM connectionguard_geo_cache WHERE address=?"
+                        "SELECT country_name, city_name, isp_name, asn, organization, hosting, cached_on FROM connectionguard_geo_cache WHERE address=?"
                 )) {
                     preparedStatement.setString(1, ipAddress);
                     try (ResultSet resultSet = preparedStatement.executeQuery()) {
@@ -145,12 +148,14 @@ public class SQLiteCacheProvider implements CacheProvider {
                     String ispName = resultSet.getString("isp_name");
                     String asn = resultSet.getString("asn");
                     String organization = resultSet.getString("organization");
+                    int hostingValue = resultSet.getInt("hosting");
+                    Boolean hosting = resultSet.wasNull() ? null : hostingValue != 0;
                     long cachedOn = resultSet.getLong("cached_on");
 
                     // Check if cache data is expired
                     if ((cachedOn + ConnectionGuard.getGeoCacheExpirationTime() * 60_000L) > new Date().getTime()) {
                         // Data is not expired.
-                        return Optional.of(new GeoResult(ipAddress, countryName, cityName, ispName, asn, organization));
+                        return Optional.of(new GeoResult(ipAddress, countryName, cityName, ispName, asn, organization, hosting));
                     } else {
                         // Data is expired and needs to be removed.
                         try (PreparedStatement removeEntryStatement = connection.prepareStatement(
@@ -180,13 +185,15 @@ public class SQLiteCacheProvider implements CacheProvider {
             synchronized (databaseLock) {
             try {
                 try (PreparedStatement preparedStatement = connection.prepareStatement(
-                        "INSERT INTO connectionguard_vpn_cache (address, vpn, cached_on) VALUES (?, ?, ?) "
-                                + "ON CONFLICT(address) DO UPDATE SET vpn=excluded.vpn, cached_on=excluded.cached_on"
+                        "INSERT INTO connectionguard_vpn_cache (address, vpn, anonymizer, cached_on) VALUES (?, ?, ?, ?) "
+                                + "ON CONFLICT(address) DO UPDATE SET vpn=excluded.vpn, "
+                                + "anonymizer=excluded.anonymizer, cached_on=excluded.cached_on"
                 )) {
 
                 preparedStatement.setString(1, vpnResult.getIpAddress());
                 preparedStatement.setBoolean(2, vpnResult.isVpn());
-                preparedStatement.setLong(3, new Date().getTime());
+                preparedStatement.setBoolean(3, vpnResult.isAnonymizer());
+                preparedStatement.setLong(4, new Date().getTime());
 
                 preparedStatement.executeUpdate();
                 }
@@ -203,11 +210,12 @@ public class SQLiteCacheProvider implements CacheProvider {
             synchronized (databaseLock) {
             try {
                 try (PreparedStatement preparedStatement = connection.prepareStatement(
-                        "INSERT INTO connectionguard_geo_cache (address, country_name, city_name, isp_name, asn, organization, cached_on) "
-                                + "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(address) DO UPDATE SET "
+                        "INSERT INTO connectionguard_geo_cache (address, country_name, city_name, isp_name, asn, organization, hosting, cached_on) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(address) DO UPDATE SET "
                                 + "country_name=excluded.country_name, city_name=excluded.city_name, "
                                 + "isp_name=excluded.isp_name, asn=excluded.asn, "
-                                + "organization=excluded.organization, cached_on=excluded.cached_on"
+                                + "organization=excluded.organization, hosting=excluded.hosting, "
+                                + "cached_on=excluded.cached_on"
                 )) {
 
                 preparedStatement.setString(1, geoResult.getIpAddress());
@@ -216,7 +224,12 @@ public class SQLiteCacheProvider implements CacheProvider {
                 preparedStatement.setString(4, geoResult.getIspName());
                 preparedStatement.setString(5, geoResult.getAsn());
                 preparedStatement.setString(6, geoResult.getOrganization());
-                preparedStatement.setLong(7, new Date().getTime());
+                if (geoResult.getHosting() == null) {
+                    preparedStatement.setNull(7, Types.INTEGER);
+                } else {
+                    preparedStatement.setInt(7, geoResult.getHosting() ? 1 : 0);
+                }
+                preparedStatement.setLong(8, new Date().getTime());
 
                 preparedStatement.executeUpdate();
                 }

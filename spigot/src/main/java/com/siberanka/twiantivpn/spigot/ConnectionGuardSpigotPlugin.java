@@ -12,22 +12,27 @@ import com.siberanka.twiantivpn.core.geo.ProxyCheckGeoProvider;
 import com.siberanka.twiantivpn.core.integration.SonarApiEarlyCheckHook;
 import com.siberanka.twiantivpn.core.integration.AdaptiveLoginOrderService;
 import com.siberanka.twiantivpn.core.integration.CheckModule;
+import com.siberanka.twiantivpn.core.message.LanguageFileUpdater;
 import com.siberanka.twiantivpn.core.message.MessageFormatter;
 import com.siberanka.twiantivpn.core.vpn.*;
 import com.siberanka.twiantivpn.core.vpn.custom.CustomVpnProvider;
 import com.siberanka.twiantivpn.spigot.commands.ConnectionGuardSpigotCommand;
 import com.siberanka.twiantivpn.spigot.listener.AsyncPlayerPreLoginListener;
 import org.bstats.bukkit.Metrics;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -444,7 +449,13 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
         );
         ConnectionGuard.configureVpnAsnWhitelist(
                 getConfig().getBoolean("behavior.vpn.whitelisted-asn.enabled", true),
-                getScalarStringList("behavior.vpn.whitelisted-asn.asns")
+                getConfig().contains("behavior.vpn.whitelisted-asn.built-in-countries")
+                        ? getScalarStringList("behavior.vpn.whitelisted-asn.built-in-countries")
+                        : ConnectionGuard.getDefaultTrustedIspCountries(),
+                getScalarStringList("behavior.vpn.whitelisted-asn.asns"),
+                getScalarStringList("behavior.vpn.whitelisted-asn.excluded-asns"),
+                getConfig().getBoolean("behavior.vpn.whitelisted-asn.block-hosting", true),
+                getConfig().getBoolean("behavior.vpn.whitelisted-asn.block-anonymizers", true)
         );
     }
 
@@ -536,53 +547,80 @@ public class ConnectionGuardSpigotPlugin extends JavaPlugin {
     }
 
     private void ensureLanguageConfigComplete() {
-        if (languageConfig.contains("messages.username-block")
-                && languageConfig.contains("messages.isp-block")
-                && languageConfig.contains("messages.prefix")
-                && languageConfig.contains("messages.kick-prefix")
-                && languageConfig.contains("messages.kick-contact")
-                && languageConfig.contains("messages.adaptive-sonar-attack-log")
-                && languageConfig.contains("messages.adaptive-sonar-recovery-log")
-                && languageConfig.contains("messages.adaptive-sonar-normal-log")
-                && languageConfig.contains("messages.pre-sonar-check-failed")
-                && languageConfig.contains("command.test.connection-result")
-                && languageConfig.contains("command.whitelist.added")
-                && languageConfigUsesCurrentCommandName()) {
-            return;
-        }
         try {
-            Files.copy(languageFile.toPath(), new File(languageFile.getAbsolutePath() + ".bak." + System.currentTimeMillis()).toPath());
-            String resourceName = "translation/" + languageFile.getName();
-            InputStream inputStream = getResource(resourceName);
-            if (inputStream == null) {
-                inputStream = getResource("translation/en.yml");
-            }
-            if (inputStream != null) {
-                try (InputStream input = inputStream) {
-                    Files.copy(input, languageFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            YamlConfiguration defaults = loadBundledLanguage(languageFile.getName());
+            LanguageFileUpdater.Result result = LanguageFileUpdater.update(
+                    new BukkitLanguageDocument(languageConfig),
+                    defaults == null ? null : new BukkitLanguageDocument(defaults)
+            );
+            if (result.isUnreadable()) {
+                if (defaults != null) {
+                    languageConfig = defaults;
                 }
-                languageConfig = YamlConfiguration.loadConfiguration(languageFile);
+                getLogger().warning(languageFile.getName() + " is empty or not valid YAML; it was left untouched and the bundled messages are used until it is fixed.");
+                return;
             }
+            if (!result.isChanged()) {
+                return;
+            }
+            Files.copy(
+                    languageFile.toPath(),
+                    new File(languageFile.getAbsolutePath() + ".bak." + System.currentTimeMillis()).toPath()
+            );
+            languageConfig.save(languageFile);
+            getLogger().info("Updated " + languageFile.getName() + " without overwriting customized messages: "
+                    + result.getAddedPaths().size() + " missing key(s) added, "
+                    + result.getMigratedPaths().size() + " legacy command reference(s) migrated.");
         } catch (Exception exception) {
             ConnectionGuard.reportError("Spigot language config update", exception);
         }
     }
 
-    private boolean languageConfigUsesCurrentCommandName() {
-        String unknownSubcommand = languageConfig.getString("command.unknown-subcommand", "");
-        if (usesLegacyCommandName(unknownSubcommand)) {
-            return false;
+    private YamlConfiguration loadBundledLanguage(String fileName) throws java.io.IOException {
+        InputStream inputStream = getResource("translation/" + fileName);
+        if (inputStream == null) {
+            inputStream = getResource("translation/en.yml");
         }
-        for (String line : languageConfig.getStringList("messages.help")) {
-            if (usesLegacyCommandName(line)) {
-                return false;
-            }
+        if (inputStream == null) {
+            return null;
         }
-        return true;
+        try (Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
+            return YamlConfiguration.loadConfiguration(reader);
+        }
     }
 
-    private boolean usesLegacyCommandName(String value) {
-        return value != null && (value.contains("/connectionguard") || value.contains("/cg"));
+    private static final class BukkitLanguageDocument implements LanguageFileUpdater.Document {
+        private final ConfigurationSection section;
+
+        private BukkitLanguageDocument(ConfigurationSection section) {
+            this.section = section;
+        }
+
+        @Override
+        public Set<String> leafPaths() {
+            Set<String> paths = new LinkedHashSet<>();
+            for (String path : section.getKeys(true)) {
+                if (!section.isConfigurationSection(path)) {
+                    paths.add(path);
+                }
+            }
+            return paths;
+        }
+
+        @Override
+        public boolean contains(String path) {
+            return section.contains(path);
+        }
+
+        @Override
+        public Object get(String path) {
+            return section.get(path);
+        }
+
+        @Override
+        public void set(String path, Object value) {
+            section.set(path, value);
+        }
     }
 
     public static ConnectionGuardSpigotPlugin getInstance() {

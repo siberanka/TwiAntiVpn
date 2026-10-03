@@ -185,6 +185,8 @@ public class CustomVpnProvider implements VpnProvider {
             }
         }
 
-        return Optional.of(new VpnResult(ipAddress, isVpn, Optional.of(vpnProviderName)));
+        // A positive verdict that names the VPN operator is hard anonymizer evidence.
+        return Optional.of(new VpnResult(ipAddress, isVpn, Optional.of(vpnProviderName))
+                .setAnonymizer(isVpn && vpnProviderName != null && !vpnProviderName.trim().isEmpty()));
     }
 }

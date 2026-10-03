@@ -47,7 +47,7 @@ public class VpnApiVpnProvider implements VpnProvider {
                 boolean isRelay = jsonObject.get("security").getAsJsonObject().get("relay").getAsBoolean();
 
                 if (isVpn || isProxy || isTor || isRelay) {
-                    return Optional.of(new VpnResult(ipAddress, true));
+                    return Optional.of(new VpnResult(ipAddress, true).setAnonymizer(isTor || isRelay));
                 } else {
                     return Optional.of(new VpnResult(ipAddress, false));
                 }

@@ -6,6 +6,7 @@ public class VpnResult {
     private final String ipAddress;
     private Optional<String> vpnProviderName;
     private boolean isVpn;
+    private boolean anonymizer;
     private long cachedOn;
 
     public VpnResult(String ipAddress, boolean isVpn) {
@@ -30,6 +31,20 @@ public class VpnResult {
 
     public Optional<String> getVpnProviderName() {
         return vpnProviderName;
+    }
+
+    /**
+     * True when the verdict is backed by hard anonymizer evidence such as a Tor exit, a named VPN
+     * operator, or an anonymizer/proxy/datacenter blocklist source. Trusted ISP exemptions never
+     * override such verdicts.
+     */
+    public boolean isAnonymizer() {
+        return anonymizer;
+    }
+
+    public VpnResult setAnonymizer(boolean anonymizer) {
+        this.anonymizer = anonymizer;
+        return this;
     }
 
     public long getCachedOn() {

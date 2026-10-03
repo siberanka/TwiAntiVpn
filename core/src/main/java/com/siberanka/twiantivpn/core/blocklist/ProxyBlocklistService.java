@@ -82,7 +82,8 @@ public class ProxyBlocklistService {
         RETIRED_DEFAULT_URLS = Collections.unmodifiableMap(replacements);
     }
 
-    private final AtomicReference<Snapshot> snapshot = new AtomicReference<>(Snapshot.empty());
+    private final AtomicReference<CategorizedSnapshot> snapshot =
+            new AtomicReference<>(CategorizedSnapshot.empty());
     private final AtomicLong generation = new AtomicLong();
     private final Object lifecycleLock = new Object();
     private volatile ScheduledExecutorService executorService;
@@ -122,7 +123,7 @@ public class ProxyBlocklistService {
         synchronized (lifecycleLock) {
             stopLocked(false);
             if (!enabled || urls.isEmpty()) {
-                snapshot.set(Snapshot.empty());
+                snapshot.set(CategorizedSnapshot.empty());
                 return;
             }
 
@@ -156,8 +157,56 @@ public class ProxyBlocklistService {
     }
 
     public boolean contains(String ipAddress) {
+        return match(ipAddress).isPresent();
+    }
+
+    /**
+     * Returns the strongest category of the sources that list this address. Anonymizer evidence
+     * wins over reputation evidence when an address is listed by both kinds of source.
+     */
+    public Optional<SourceCategory> match(String ipAddress) {
         Optional<IpAddressUtil.Address> address = IpAddressUtil.parseLiteral(ipAddress);
-        return address.isPresent() && snapshot.get().contains(address.get());
+        if (!address.isPresent()) {
+            return Optional.empty();
+        }
+        return snapshot.get().match(address.get());
+    }
+
+    /**
+     * Sources whose host or path names Tor, VPN, proxy, SOCKS, anonymizer or cloud/datacenter
+     * ranges list anonymizing infrastructure. Every other source (abuse, spam, attack reputation)
+     * lists addresses that may belong to ordinary dynamic residential customers.
+     */
+    public static SourceCategory classifySource(String url) {
+        if (url == null) {
+            return SourceCategory.REPUTATION;
+        }
+        String label;
+        try {
+            URI uri = URI.create(url.trim());
+            label = String.valueOf(uri.getHost()) + "/" + String.valueOf(uri.getPath());
+        } catch (IllegalArgumentException ignored) {
+            label = url;
+        }
+        for (String token : label.toLowerCase(Locale.ROOT).split("[^a-z0-9]+")) {
+            if (token.isEmpty()) {
+                continue;
+            }
+            if (token.equals("tor")
+                    || token.startsWith("torproject")
+                    || token.startsWith("torbulkexit")
+                    || token.contains("vpn")
+                    || token.contains("proxy")
+                    || token.contains("proxies")
+                    || token.contains("socks")
+                    || token.contains("anonym")
+                    || token.equals("cloud")
+                    || token.equals("datacenter")
+                    || token.equals("hosting")) {
+                return SourceCategory.ANONYMIZER;
+            }
+        }
+        return SourceCategory.REPUTATION;
     }
 
     public long size() {
@@ -183,7 +232,7 @@ public class ProxyBlocklistService {
             executorService = null;
         }
         if (clearSnapshot) {
-            snapshot.set(Snapshot.empty());
+            snapshot.set(CategorizedSnapshot.empty());
         }
     }
 
@@ -198,7 +247,7 @@ public class ProxyBlocklistService {
     private void refresh(long refreshGeneration) {
         List<String> currentUrls = urls;
         if (!enabled || currentUrls.isEmpty()) {
-            snapshot.set(Snapshot.empty());
+            snapshot.set(CategorizedSnapshot.empty());
             return;
         }
 
@@ -208,7 +257,7 @@ public class ProxyBlocklistService {
                 .callTimeout(timeoutSeconds * 2L, TimeUnit.SECONDS)
                 .build();
 
-        SnapshotBuilder builder = new SnapshotBuilder(maxEntries);
+        CategorizedSnapshotBuilder builder = new CategorizedSnapshotBuilder(maxEntries);
         int successfulSources = 0;
 
         for (int i = 0; i < currentUrls.size(); i++) {
@@ -227,7 +276,7 @@ public class ProxyBlocklistService {
                     return;
                 }
                 try {
-                    int added = downloadSource(httpClient, url, builder);
+                    int added = downloadSource(httpClient, url, builder, classifySource(url));
                     log("Loaded " + added + " entries from " + url + ".");
                     successfulSources++;
                     downloaded = true;
@@ -249,7 +298,7 @@ public class ProxyBlocklistService {
         }
 
         if (successfulSources > 0 && builder.size() > 0) {
-            Snapshot newSnapshot = builder.build();
+            CategorizedSnapshot newSnapshot = builder.build();
             if (refreshGeneration != generation.get() || !enabled) {
                 log("Discarded a stale proxy blocklist refresh.");
                 return;
@@ -262,7 +311,10 @@ public class ProxyBlocklistService {
         }
     }
 
-    private int downloadSource(OkHttpClient httpClient, String url, SnapshotBuilder builder) throws IOException {
+    private int downloadSource(OkHttpClient httpClient,
+                               String url,
+                               CategorizedSnapshotBuilder builder,
+                               SourceCategory category) throws IOException {
         Request request = new Request.Builder()
                 .url(url)
                 .header("User-Agent", "TwiAntiVpn/1.0")
@@ -297,7 +349,7 @@ public class ProxyBlocklistService {
                 }
                 Optional<Entry> entry = parseEntry(line);
                 if (entry.isPresent()) {
-                    builder.add(entry.get());
+                    builder.add(entry.get(), category);
                 }
             }
             return builder.size() - before;
@@ -505,6 +557,72 @@ public class ProxyBlocklistService {
 
         private static Entry cidr(IpAddressUtil.Cidr cidr) {
             return new Entry(null, cidr);
+        }
+    }
+
+    public enum SourceCategory {
+        /** Tor, VPN, open proxy, anonymizer and cloud/datacenter range sources. */
+        ANONYMIZER,
+        /** Abuse, spam and attack reputation sources. */
+        REPUTATION
+    }
+
+    private static final class CategorizedSnapshotBuilder {
+        private final int maxEntries;
+        private final SnapshotBuilder anonymizer;
+        private final SnapshotBuilder reputation;
+
+        private CategorizedSnapshotBuilder(int maxEntries) {
+            this.maxEntries = maxEntries;
+            this.anonymizer = new SnapshotBuilder(maxEntries);
+            this.reputation = new SnapshotBuilder(maxEntries);
+        }
+
+        private void add(Entry entry, SourceCategory category) {
+            if (isFull()) {
+                return;
+            }
+            (category == SourceCategory.ANONYMIZER ? anonymizer : reputation).add(entry);
+        }
+
+        private boolean isFull() {
+            return size() >= maxEntries;
+        }
+
+        private int size() {
+            return anonymizer.size() + reputation.size();
+        }
+
+        private CategorizedSnapshot build() {
+            return new CategorizedSnapshot(anonymizer.build(), reputation.build(), System.currentTimeMillis());
+        }
+    }
+
+    private static final class CategorizedSnapshot {
+        private final Snapshot anonymizer;
+        private final Snapshot reputation;
+        private final long size;
+        private final long createdAtMillis;
+
+        private CategorizedSnapshot(Snapshot anonymizer, Snapshot reputation, long createdAtMillis) {
+            this.anonymizer = anonymizer;
+            this.reputation = reputation;
+            this.size = anonymizer.size + reputation.size;
+            this.createdAtMillis = createdAtMillis;
+        }
+
+        private static CategorizedSnapshot empty() {
+            return new CategorizedSnapshot(Snapshot.empty(), Snapshot.empty(), 0L);
+        }
+
+        private Optional<SourceCategory> match(IpAddressUtil.Address address) {
+            if (anonymizer.contains(address)) {
+                return Optional.of(SourceCategory.ANONYMIZER);
+            }
+            if (reputation.contains(address)) {
+                return Optional.of(SourceCategory.REPUTATION);
+            }
+            return Optional.empty();
         }
     }
 

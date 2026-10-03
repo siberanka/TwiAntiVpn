@@ -20,7 +20,7 @@ public class IpApiGeoProvider implements GeoProvider {
     public CompletableFuture<Optional<GeoResult>> getGeoResult(String ipAddress) {
         return CompletableFuture.supplyAsync(() -> {
             Request request = new Request.Builder()
-                    .url("http://ip-api.com/json/" + ipAddress + "?fields=status,message,countryCode,city,isp,as,asname,org")
+                    .url("http://ip-api.com/json/" + ipAddress + "?fields=status,message,countryCode,city,isp,as,asname,org,hosting")
                     .build();
 
             String status;
@@ -67,10 +67,22 @@ public class IpApiGeoProvider implements GeoProvider {
                             cityName,
                             ispName,
                             asn,
-                            organization
+                            organization,
+                            getBoolean(jsonObject, "hosting")
                     )
             );
         });
+    }
+
+    private Boolean getBoolean(JsonObject jsonObject, String key) {
+        if (jsonObject == null || !jsonObject.has(key) || jsonObject.get(key).isJsonNull()) {
+            return null;
+        }
+        try {
+            return jsonObject.get(key).getAsBoolean();
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private String getString(JsonObject jsonObject, String key) {

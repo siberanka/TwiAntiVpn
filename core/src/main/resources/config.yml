@@ -72,53 +72,34 @@ behavior:
     # Only available when having LuckPerms installed.
     use-permission-exemption: false
     whitelisted-asn:
-      # If enabled, a VPN/proxy result is ignored when the connection's ASN is listed below.
-      # Geo, ISP/ASN and username rules still apply. If ASN lookup fails, the VPN result is NOT ignored.
-      # Residential networks can still contain compromised devices or user-hosted proxies; review this list regularly.
+      # Trusted local ISPs: a VPN/proxy result is ignored when the connection comes from a residential,
+      # fixed-line or mobile ISP listed below, so local players are not kicked as "untrusted network".
+      # Geo, ISP/ASN and username rules still apply. If the ASN lookup fails, the VPN result is NOT ignored.
       enabled: true
-      # Curated from active RIPE registration/routing data on 2026-09-17.
-      # Entries may be written as AS12345 or 12345.
-      asns:
-        # Turkey: Turk Telekom/TTNet, Turkcell/Superonline, TurkNet, Turksat and Vodafone
-        - AS9121
-        - AS47331
-        - AS20978
-        - AS34984
-        - AS16135
-        - AS12735
-        - AS47524
-        - AS8386
-        - AS15924
-        - AS15897
-        # Azerbaijan: Aztelekom, Azeronline, Uninet, Azercell and Bakcell
-        - AS28787
-        - AS15723
-        - AS39232
-        - AS31721
-        - AS197830
-        # Kazakhstan: Kazakhtelecom, Transtelecom, Beeline, Kcell, Tele2 and AlmaTV
-        - AS9198
-        - AS41798
-        - AS21299
-        - AS29355
-        - AS48503
-        - AS39824
-        # Uzbekistan: Uzbektelecom, Uzmobile, IST Telekom, Sarkor and Ucell
-        - AS28910
-        - AS201767
-        - AS34718
-        - AS12365
-        - AS49273
-        # Kyrgyzstan: Kyrgyztelecom, ElCat, Mega-Line, AKNET, O! and MegaCom
-        - AS12997
-        - AS8449
-        - AS41750
-        - AS12764
-        - AS41329
-        - AS50223
-        # Turkmenistan: Turkmentelecom and Ashgabat City Telephone Network
-        - AS20661
-        - AS51495
+      # Built-in, release-maintained list of local access ISPs (fixed-line, cable, fiber and mobile).
+      # Curated from APNIC Labs end-user population data and RIPE NCC registration data (2026-09-30).
+      # Hosting/CDN, satellite, eSIM/roaming, academic/state and cross-border networks are excluded.
+      # Available countries: TR (Turkey), AZ (Azerbaijan), KZ (Kazakhstan), UZ (Uzbekistan),
+      # KG (Kyrgyzstan), TM (Turkmenistan). Use an empty list ([]) to disable the built-in list.
+      built-in-countries:
+        - TR
+        - AZ
+        - KZ
+        - UZ
+        - KG
+        - TM
+      # Additional ASNs to trust on top of the built-in list. Entries may be written as AS12345 or 12345.
+      asns: []
+      # ASNs that are never trusted, even when they are part of the built-in list.
+      excluded-asns: []
+      # Keep blocking addresses that the geo provider reports as hosting/datacenter space,
+      # even inside a trusted ISP network.
+      block-hosting: true
+      # Keep blocking hard anonymizer evidence even inside a trusted ISP network: Tor exits,
+      # named VPN operators, iCloud Private Relay and matches from Tor/VPN/proxy/cloud blocklist sources.
+      # Abuse/spam reputation lists and generic VPN/proxy guesses are treated as false positives
+      # for trusted residential networks, which commonly share dynamic or CGNAT addresses.
+      block-anonymizers: true
   geo:
     # If set to true, geo-blocked players cannot join the server.
     kick-player: true
