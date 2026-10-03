@@ -5,3 +5,6 @@
 build
 
 .idea
+
+# Local code-graph tooling output
+graphify-out/
